@@ -1,0 +1,24 @@
+{
+  "name": "@lions/core",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth/supabase-server": "./src/auth/supabase-server.ts"
+  },
+  "dependencies": {
+    "@lions/db": "workspace:*",
+    "@mollie/api-client": "^3.7.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.47.0",
+    "ics": "^3.8.1",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.7.0"
+  }
+}

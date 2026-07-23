@@ -1,0 +1,237 @@
+// Datamodel — zie docs/architectuurvoorstel.md voor de motivatie per keuze.
+// Organization (1 rij nu) -> Event -> TicketType -> Order -> OrderItem -> Ticket -> CheckIn,
+// plus User, EmailTemplate, PageBlock, Setting en AuditLog.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  EXPIRED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum TicketStatus {
+  UNUSED
+  CHECKED_IN
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  FINANCE
+  EDITOR
+  DOOR_STAFF
+}
+
+enum EmailTemplateType {
+  ORDER_CONFIRMATION
+  PAYMENT_REMINDER
+  PAYMENT_FAILED
+  CANCELLED
+}
+
+model Organization {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  events    Event[]
+  users     User[]
+  settings  Setting[]
+  auditLogs AuditLog[]
+  createdAt DateTime   @default(now())
+
+  @@map("organizations")
+}
+
+model Event {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  slug           String          @unique
+  name           String
+  description    String?
+  venue          String?
+  startsAt       DateTime
+  endsAt         DateTime?
+  status         EventStatus     @default(DRAFT)
+  ticketTypes    TicketType[]
+  orders         Order[]
+  emailTemplates EmailTemplate[]
+  pageBlocks     PageBlock[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId])
+  @@map("events")
+}
+
+model TicketType {
+  id            String      @id @default(cuid())
+  eventId       String
+  event         Event       @relation(fields: [eventId], references: [id])
+  name          String
+  description   String?
+  priceCents    Int
+  currency      String      @default("EUR")
+  totalStock    Int
+  reservedStock Int         @default(0)
+  soldStock     Int         @default(0)
+  salesStart    DateTime?
+  salesEnd      DateTime?
+  isActive      Boolean     @default(true)
+  orderItems    OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([eventId])
+  @@map("ticket_types")
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  eventId            String
+  event              Event       @relation(fields: [eventId], references: [id])
+  buyerName          String
+  buyerEmail         String
+  status             OrderStatus @default(PENDING)
+  totalCents         Int
+  currency           String      @default("EUR")
+  molliePaymentId    String?     @unique
+  stockHoldExpiresAt DateTime?
+  items              OrderItem[]
+  tickets            Ticket[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([eventId])
+  @@index([status, stockHoldExpiresAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String     @id @default(cuid())
+  orderId        String
+  order          Order      @relation(fields: [orderId], references: [id])
+  ticketTypeId   String
+  ticketType     TicketType @relation(fields: [ticketTypeId], references: [id])
+  quantity       Int
+  unitPriceCents Int
+
+  @@index([orderId])
+  @@index([ticketTypeId])
+  @@map("order_items")
+}
+
+model Ticket {
+  id           String       @id @default(cuid())
+  orderId      String
+  order        Order        @relation(fields: [orderId], references: [id])
+  ticketTypeId String
+  qrToken      String       @unique
+  status       TicketStatus @default(UNUSED)
+  checkIns     CheckIn[]
+  createdAt    DateTime     @default(now())
+
+  @@index([orderId])
+  @@map("tickets")
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  scannedBy String?
+  device    String?
+  scannedAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("check_ins")
+}
+
+model User {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  supabaseAuthId String       @unique
+  email          String       @unique
+  role           UserRole
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model EmailTemplate {
+  id        String            @id @default(cuid())
+  eventId   String
+  event     Event             @relation(fields: [eventId], references: [id])
+  type      EmailTemplateType
+  language  String            @default("nl")
+  subject   String
+  bodyHtml  String
+  updatedAt DateTime          @updatedAt
+
+  @@unique([eventId, type, language])
+  @@map("email_templates")
+}
+
+model PageBlock {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  type        String
+  order       Int
+  content     Json
+  isPublished Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@index([eventId])
+  @@map("page_blocks")
+}
+
+model Setting {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  valueEncrypted String
+  isSecret       Boolean      @default(false)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, key])
+  @@map("settings")
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("audit_logs")
+}

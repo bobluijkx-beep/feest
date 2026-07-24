@@ -11,9 +11,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "db:generate": "pnpm --filter @lions/db generate",
-    "db:migrate": "pnpm --filter @lions/db migrate"
+    "db:migrate": "dotenv -e .env -- pnpm --filter @lions/db migrate",
+    "db:seed": "dotenv -e .env -- pnpm --filter @lions/db seed"
   },
   "devDependencies": {
+    "dotenv-cli": "^7.4.4",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   }

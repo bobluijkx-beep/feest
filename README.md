@@ -41,11 +41,16 @@ tijdens fase 1+ vereisen wel een lokale/shadow-database voor `prisma migrate dev
 gegenereerd.
 
 ```bash
-pnpm --filter @lions/db seed   # maakt de Organization/Event/TicketType voor lokaal testen
+pnpm db:seed   # maakt de Organization/Event/TicketType voor lokaal testen
 ```
 
 De seed print daarna instructies om een staff-gebruiker in Supabase Auth te koppelen aan
 een `ADMIN`-rol in de `users`-tabel.
+
+`pnpm db:migrate` en `pnpm db:seed` laden de root-`.env` zelf (via `dotenv-cli`), want de
+Prisma CLI kijkt anders alleen in `packages/db` naar een `.env`. Elke Next.js-app laadt de
+root-`.env` op zijn beurt via een paar regels in zijn `next.config.mjs` — dat is dus de éne
+plek om lokale env-variabelen te beheren, ook al draaien de apps zelf in hun eigen map.
 
 Losse apps starten: `pnpm --filter @lions/web dev`, `--filter @lions/admin`, etc.
 

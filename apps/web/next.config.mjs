@@ -11,15 +11,7 @@ config({ path: path.join(rootDir, ".env") });
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Prisma's query-engine (.so.node) leeft buiten deze app, in
-  // packages/db/generated/client. Next.js' automatische file-tracing voor de
-  // serverless-bundle vindt dat binaire bestand niet vanzelf in een monorepo, wat op
-  // Vercel leidt tot PrismaClientInitializationError ("Query Engine ... could not be
-  // found"). Zie https://pris.ly/d/engine-not-found-nextjs.
   outputFileTracingRoot: rootDir,
-  outputFileTracingIncludes: {
-    "/**": ["../../packages/db/generated/client/**/*"],
-  },
 };
 
 export default nextConfig;

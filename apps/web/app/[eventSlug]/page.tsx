@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@lions/core";
+import { PageBlocksList } from "@lions/ui";
 import { startCheckout } from "./actions";
 
 export default async function EventPage({
@@ -14,7 +15,10 @@ export default async function EventPage({
 
   const event = await prisma.event.findUnique({
     where: { slug: eventSlug },
-    include: { ticketTypes: { where: { isActive: true }, orderBy: { priceCents: "asc" } } },
+    include: {
+      ticketTypes: { where: { isActive: true }, orderBy: { priceCents: "asc" } },
+      pageBlocks: { where: { isPublished: true }, orderBy: { order: "asc" } },
+    },
   });
 
   if (!event || event.status !== "PUBLISHED") notFound();
@@ -34,6 +38,8 @@ export default async function EventPage({
         </p>
       )}
       {error === "unknown" && <p style={{ color: "crimson" }}>Er ging iets mis bij het starten van de betaling. Probeer het opnieuw.</p>}
+
+      <PageBlocksList blocks={event.pageBlocks} />
 
       <form action={startCheckout}>
         <input type="hidden" name="eventId" value={event.id} />

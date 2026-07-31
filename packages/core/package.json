@@ -6,7 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./auth/supabase-server": "./src/auth/supabase-server.ts"
+    "./auth/supabase-server": "./src/auth/supabase-server.ts",
+    "./email/template-engine": "./src/email/template-engine.ts"
   },
   "dependencies": {
     "@lions/db": "workspace:*",

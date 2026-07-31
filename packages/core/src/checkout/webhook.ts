@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../db";
 import { fetchMolliePayment } from "../mollie/client";
 import { signQrToken } from "../tickets/qr";
-import { sendOrderConfirmationEmail } from "../email/order-confirmation";
+import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from "../email/order-confirmation";
 
 const TERMINAL_MOLLIE_STATUS: Record<string, "FAILED" | "CANCELLED" | "EXPIRED"> = {
   failed: "FAILED",
@@ -25,6 +25,7 @@ export async function processMolliePaymentWebhook(molliePaymentId: string): Prom
   const payment = await fetchMolliePayment(order.event.organizationId, molliePaymentId);
 
   let becamePaid = false;
+  let becameTerminalFailure = false;
 
   await prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<{ status: string }[]>`
@@ -58,13 +59,16 @@ export async function processMolliePaymentWebhook(molliePaymentId: string): Prom
         });
       }
       await tx.order.update({ where: { id: order.id }, data: { status: mappedStatus } });
+      becameTerminalFailure = true;
     }
     // "open"/"pending"/"authorized": nog niets doen, een volgende webhook-call beslist.
   });
 
+  // Fase 1/2: synchroon versturen. Zodra QStash is aangesloten (fase 3+) verplaatst dit
+  // naar de queue, zodat een trage e-mailprovider de webhook-respons niet blokkeert.
   if (becamePaid) {
-    // Fase 1: synchroon versturen. Zodra QStash is aangesloten (fase 2+) verplaatst dit
-    // naar de queue, zodat een trage e-mailprovider de webhook-respons niet blokkeert.
     await sendOrderConfirmationEmail(order.id);
+  } else if (becameTerminalFailure) {
+    await sendPaymentFailedEmail(order.id);
   }
 }

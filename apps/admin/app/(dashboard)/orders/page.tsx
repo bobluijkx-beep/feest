@@ -1,18 +1,8 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { prisma, getCurrentUser, requireRole, AuthError } from "@lions/core";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { prisma } from "@lions/core";
+import { requireStaffRole } from "@/lib/require-role";
 
 export default async function OrdersPage() {
-  const supabase = await getSupabaseServerClient();
-  const user = await getCurrentUser(supabase);
-
-  try {
-    requireRole(user, ["ADMIN"]);
-  } catch (err) {
-    if (err instanceof AuthError) redirect(`/login?error=${encodeURIComponent(err.message)}`);
-    throw err;
-  }
+  await requireStaffRole(["ADMIN", "FINANCE"]);
 
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
@@ -21,11 +11,8 @@ export default async function OrdersPage() {
   });
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
+    <main>
       <h1>Bestellingen</h1>
-      <p>
-        <Link href="/">← Terug</Link>
-      </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>

@@ -33,6 +33,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
     checkoutUrl = result.checkoutUrl;
   } catch (err) {
     if (err instanceof InsufficientStockError) redirect(`/${eventSlug}?error=stock`);
+    console.error("Checkout mislukt", err);
     redirect(`/${eventSlug}?error=unknown`);
   }
 

@@ -77,6 +77,13 @@ Een Vercel Cron-taak zet verlopen `PENDING`-orders naar `EXPIRED` en geeft de
 wordt gequeued. Dit voorkomt overboeken bij gelijktijdige aankopen zonder externe
 lock-service — ruim voldoende op deze schaal (100-150 kaarten).
 
+**Cron-frequentie:** het Hobby-plan van Vercel staat geen cron-schema's toe die vaker
+dan 1x per dag draaien (`vercel.json` staat op `0 3 * * *`, niet elke paar minuten zoals
+oorspronkelijk voorgesteld). Gevolg: een niet-afgemaakte betaling houdt de gereserveerde
+voorraad tot max. 24 uur vast in plaats van de 15 minuten van de hold zelf, voordat de
+cron 'm vrijgeeft. Voor 100-150 kaarten is dat acceptabel; bij een upgrade naar Vercel
+Pro kan dit terug naar een paar minuten.
+
 ## Achtergrondtaken
 
 **Upstash QStash** (serverless HTTP-queue) voor e-mailverzending en

@@ -13,10 +13,17 @@ function requireEnv(name: string): string {
  * PAID/FAILED/etc. is (idempotent). De dagelijkse Vercel Cron (expireStaleOrders) blijft
  * daarnaast bestaan als vangnet voor het zeldzame geval dat deze aanroep nooit aankomt. */
 export async function scheduleOrderExpiry(orderId: string, callbackUrl: string): Promise<void> {
-  const client = new Client({ token: requireEnv("QSTASH_TOKEN") });
-  await client.publishJSON({
+  const client = new Client({
+    token: requireEnv("QSTASH_TOKEN"),
+    // Sommige QStash-instances draaien op een regio-specifiek adres i.p.v. het globale
+    // qstash.upstash.io — als QSTASH_URL is gezet, gebruiken we die expliciet in plaats
+    // van stilzwijgend op het (mogelijk niet-werkende) default te vertrouwen.
+    baseUrl: process.env.QSTASH_URL,
+  });
+  const result = await client.publishJSON({
     url: callbackUrl,
     body: { orderId },
     delay: "15m",
   });
+  console.log("QStash-opruiming gepland voor order", orderId, "messageId:", result.messageId);
 }

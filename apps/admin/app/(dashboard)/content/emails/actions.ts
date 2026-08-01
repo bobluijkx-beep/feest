@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@lions/core";
+import { prisma, logAudit } from "@lions/core";
 import type { EmailTemplateType } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
@@ -16,7 +16,7 @@ export async function saveEmailTemplate(
   _prevState: SaveTemplateState,
   formData: FormData,
 ): Promise<SaveTemplateState> {
-  await requireStaffRole(["ADMIN", "EDITOR"]);
+  const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
 
   const eventId = String(formData.get("eventId") ?? "");
   const type = String(formData.get("type") ?? "") as EmailTemplateType;
@@ -27,10 +27,19 @@ export async function saveEmailTemplate(
     return { error: "Onderwerp en inhoud zijn verplicht." };
   }
 
-  await prisma.emailTemplate.upsert({
+  const template = await prisma.emailTemplate.upsert({
     where: { eventId_type_language: { eventId, type, language: "nl" } },
     create: { eventId, type, language: "nl", subject, bodyHtml },
     update: { subject, bodyHtml },
+  });
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "email_template_saved",
+    entityType: "email_template",
+    entityId: template.id,
+    metadata: { type },
   });
 
   revalidatePath(`/content/emails/${type}`);

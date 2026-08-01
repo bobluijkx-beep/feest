@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { prisma, createAdminSupabaseClient } from "@lions/core";
+import { prisma, createAdminSupabaseClient, logAudit } from "@lions/core";
 import type { UserRole } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
@@ -47,7 +47,7 @@ export async function createStaffUser(
     return { error: `Aanmaken bij Supabase Auth mislukt: ${error?.message ?? "onbekende fout"}` };
   }
 
-  await prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       organizationId: actor.organizationId,
       supabaseAuthId: data.user.id,
@@ -56,12 +56,21 @@ export async function createStaffUser(
     },
   });
 
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "user_created",
+    entityType: "user",
+    entityId: created.id,
+    metadata: { email, role },
+  });
+
   revalidatePath("/users");
   return { createdEmail: email, tempPassword };
 }
 
 export async function updateStaffRole(formData: FormData): Promise<void> {
-  await requireStaffRole(["ADMIN"]);
+  const actor = await requireStaffRole(["ADMIN"]);
 
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "") as UserRole;
@@ -69,16 +78,31 @@ export async function updateStaffRole(formData: FormData): Promise<void> {
   if (!userId || !validRoles.includes(role)) return;
 
   await prisma.user.update({ where: { id: userId }, data: { role } });
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "user_role_changed",
+    entityType: "user",
+    entityId: userId,
+    metadata: { role },
+  });
   revalidatePath("/users");
 }
 
 export async function toggleStaffActive(formData: FormData): Promise<void> {
-  await requireStaffRole(["ADMIN"]);
+  const actor = await requireStaffRole(["ADMIN"]);
 
   const userId = String(formData.get("userId") ?? "");
   const isActive = formData.get("isActive") === "true";
   if (!userId) return;
 
   await prisma.user.update({ where: { id: userId }, data: { isActive: !isActive } });
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: isActive ? "user_deactivated" : "user_activated",
+    entityType: "user",
+    entityId: userId,
+  });
   revalidatePath("/users");
 }

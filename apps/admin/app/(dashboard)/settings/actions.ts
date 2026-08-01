@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { setMollieMode, setMollieApiKey, type MollieMode } from "@lions/core";
+import { setMollieMode, setMollieApiKey, logAudit, type MollieMode } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
 
 export interface SettingsFormState {
@@ -33,6 +33,16 @@ export async function updateMollieSettings(
   await setMollieMode(actor.organizationId, mode);
   if (testKey) await setMollieApiKey(actor.organizationId, "test", testKey);
   if (liveKey) await setMollieApiKey(actor.organizationId, "live", liveKey);
+
+  // Nooit de sleutel zelf loggen — alleen dát er iets gewijzigd is.
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "mollie_settings_updated",
+    entityType: "settings",
+    entityId: actor.organizationId,
+    metadata: { mode, testKeyChanged: Boolean(testKey), liveKeyChanged: Boolean(liveKey) },
+  });
 
   revalidatePath("/settings");
   return { success: true };

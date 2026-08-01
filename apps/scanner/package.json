@@ -13,12 +13,16 @@
     "@lions/core": "workspace:*",
     "@lions/db": "workspace:*",
     "dotenv": "^16.4.5",
+    "idb": "^8.0.0",
     "next": "^15.1.0",
+    "qr-scanner": "^1.4.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "serwist": "^9.0.11"
   },
   "devDependencies": {
     "@lions/config": "workspace:*",
+    "@serwist/next": "^9.0.11",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.1.0",
     "@types/node": "^22.10.0",

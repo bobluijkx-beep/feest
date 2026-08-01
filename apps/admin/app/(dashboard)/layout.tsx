@@ -11,6 +11,7 @@ const NAV_BY_ROLE: Record<string, { href: string; label: string }[]> = {
     { href: "/content/emails", label: "E-mailtemplates" },
     { href: "/content/pages", label: "Paginabeheer" },
     { href: "/users", label: "Gebruikers" },
+    { href: "/audit-log", label: "Audit-log" },
   ],
   FINANCE: [
     { href: "/", label: "Dashboard" },

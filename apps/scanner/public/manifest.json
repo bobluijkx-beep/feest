@@ -1,0 +1,12 @@
+{
+  "name": "Lionsclub Voorschoten — Scanner",
+  "short_name": "Scanner",
+  "description": "Check-in-app voor toegangscontrole",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a7a2f",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

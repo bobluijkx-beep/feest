@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@lions/core";
+import { prisma, logAudit } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
 
 function field(formData: FormData, name: string): string {
@@ -35,7 +35,7 @@ function contentFromFormData(type: string, formData: FormData): Record<string, s
 }
 
 export async function createPageBlock(formData: FormData): Promise<void> {
-  await requireStaffRole(["ADMIN", "EDITOR"]);
+  const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
 
   const eventId = String(formData.get("eventId") ?? "");
   const type = String(formData.get("type") ?? "");
@@ -44,8 +44,17 @@ export async function createPageBlock(formData: FormData): Promise<void> {
 
   if (!eventId || !type) redirect("/content/pages");
 
-  await prisma.pageBlock.create({
+  const block = await prisma.pageBlock.create({
     data: { eventId, type, order, isPublished, content: contentFromFormData(type, formData) },
+  });
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "page_block_created",
+    entityType: "page_block",
+    entityId: block.id,
+    metadata: { type, isPublished },
   });
 
   revalidatePath("/content/pages");
@@ -53,7 +62,7 @@ export async function createPageBlock(formData: FormData): Promise<void> {
 }
 
 export async function updatePageBlock(formData: FormData): Promise<void> {
-  await requireStaffRole(["ADMIN", "EDITOR"]);
+  const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
 
   const id = String(formData.get("id") ?? "");
   const type = String(formData.get("type") ?? "");
@@ -66,17 +75,35 @@ export async function updatePageBlock(formData: FormData): Promise<void> {
     data: { order, isPublished, content: contentFromFormData(type, formData) },
   });
 
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "page_block_updated",
+    entityType: "page_block",
+    entityId: id,
+    metadata: { type, isPublished },
+  });
+
   revalidatePath("/content/pages");
   redirect("/content/pages");
 }
 
 export async function deletePageBlock(formData: FormData): Promise<void> {
-  await requireStaffRole(["ADMIN", "EDITOR"]);
+  const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   await prisma.pageBlock.delete({ where: { id } });
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "page_block_deleted",
+    entityType: "page_block",
+    entityId: id,
+  });
+
   revalidatePath("/content/pages");
   redirect("/content/pages");
 }

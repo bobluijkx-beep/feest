@@ -18,3 +18,4 @@ export * from "./checkout/errors";
 export * from "./checkout/create-order";
 export * from "./checkout/webhook";
 export * from "./checkout/expire-stale-orders";
+export * from "./audit/log";

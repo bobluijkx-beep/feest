@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "../db";
 import { createMolliePayment } from "../mollie/client";
 import { InsufficientStockError } from "./errors";
+import { scheduleOrderExpiry } from "./qstash";
 
 const STOCK_HOLD_MINUTES = 15;
 
@@ -83,6 +84,16 @@ export async function createOrder(params: {
 
     return { orderId: order.id, totalCents, currency };
   });
+
+  // Plant de opruiming van déze order voor over 15 minuten (zie qstash.ts) i.p.v. te
+  // vertrouwen op alleen de dagelijkse sweep. Bewust niet-blokkerend: als QStash zelf
+  // niet bereikbaar is, mag dat de checkout niet laten mislukken — de dagelijkse cron
+  // vangt het dan alsnog op, zij het pas na maximaal 24 uur.
+  try {
+    await scheduleOrderExpiry(orderId, `${params.webhookBaseUrl}/api/qstash/expire-order`);
+  } catch (err) {
+    console.error("Kon QStash-opruiming niet plannen voor order", orderId, err);
+  }
 
   try {
     const payment = await createMolliePayment({

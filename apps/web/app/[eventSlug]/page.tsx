@@ -28,7 +28,7 @@ export default async function EventPage({
       <h1>{event.name}</h1>
       {event.description && <p>{event.description}</p>}
       <p>
-        {event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full" })}
+        {event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full", timeZone: "Europe/Amsterdam" })}
         {event.venue ? ` — ${event.venue}` : ""}
       </p>
 

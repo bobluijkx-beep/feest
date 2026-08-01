@@ -38,7 +38,7 @@ export default async function OrdersPage() {
                 {order.tickets.length || order.items.reduce((sum, item) => sum + item.quantity, 0)}
               </td>
               <td align="right">€{(order.totalCents / 100).toFixed(2)}</td>
-              <td>{order.createdAt.toLocaleString("nl-NL")}</td>
+              <td>{order.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td>
             </tr>
           ))}
           {orders.length === 0 && (

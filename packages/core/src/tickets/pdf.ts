@@ -34,9 +34,9 @@ export async function generateTicketPdf(params: {
   y -= 4;
   drawLine(`Naam: ${params.buyerName}`);
   drawLine(
-    `Datum: ${params.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full" })} ${params.startsAt.toLocaleTimeString(
+    `Datum: ${params.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full", timeZone: "Europe/Amsterdam" })} ${params.startsAt.toLocaleTimeString(
       "nl-NL",
-      { timeStyle: "short" },
+      { timeStyle: "short", timeZone: "Europe/Amsterdam" },
     )}`,
   );
   if (params.venue) drawLine(`Locatie: ${params.venue}`);

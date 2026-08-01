@@ -27,7 +27,7 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
     event_naam: order.event.name,
     aantal_tickets: String(order.tickets.length),
     ticketcode: order.tickets.map((t) => t.qrToken).join(", "),
-    datum: order.event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "long" }),
+    datum: order.event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "long", timeZone: "Europe/Amsterdam" }),
     locatie: order.event.venue ?? "",
   });
 }

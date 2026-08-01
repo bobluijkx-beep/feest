@@ -45,7 +45,7 @@ export default async function AuditLogPage({
         <tbody>
           {entries.map((entry) => (
             <tr key={entry.id} style={{ borderTop: "1px solid #ddd" }}>
-              <td>{entry.createdAt.toLocaleString("nl-NL")}</td>
+              <td>{entry.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td>
               <td>{entry.action}</td>
               <td>{entry.actorUserId ? (emailById.get(entry.actorUserId) ?? entry.actorUserId) : "systeem"}</td>
               <td>

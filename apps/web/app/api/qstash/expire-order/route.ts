@@ -22,7 +22,20 @@ async function handler(request: Request) {
  * build te breken. */
 export async function POST(request: Request) {
   if (!process.env.QSTASH_CURRENT_SIGNING_KEY || !process.env.QSTASH_NEXT_SIGNING_KEY) {
-    return NextResponse.json({ error: "QStash is niet geconfigureerd." }, { status: 503 });
+    // Tijdelijke diagnose: welke van de vereiste env vars ontbreekt er exact in deze
+    // draaiende deployment? (Rapporteert alleen aan/afwezigheid, nooit de waarde zelf.)
+    return NextResponse.json(
+      {
+        error: "QStash is niet geconfigureerd.",
+        diagnose: {
+          hasCurrentSigningKey: Boolean(process.env.QSTASH_CURRENT_SIGNING_KEY),
+          hasNextSigningKey: Boolean(process.env.QSTASH_NEXT_SIGNING_KEY),
+          hasToken: Boolean(process.env.QSTASH_TOKEN),
+          hasUrl: Boolean(process.env.QSTASH_URL),
+        },
+      },
+      { status: 503 },
+    );
   }
 
   const verifiedHandler = verifySignatureAppRouter(handler);

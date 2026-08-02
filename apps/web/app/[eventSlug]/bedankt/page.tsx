@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@lions/core";
+import { prisma, processMolliePaymentWebhook } from "@lions/core";
 
 const STATUS_COPY: Record<string, { title: string; message: string }> = {
   PENDING: {
     title: "Betaling wordt verwerkt…",
-    message: "We hebben je betaling nog niet bevestigd gekregen. Ververs deze pagina zo dadelijk nog eens.",
+    message: "We wachten op bevestiging van je bank. Deze pagina wordt automatisch bijgewerkt.",
   },
   PAID: {
     title: "Bedankt voor je bestelling!",
@@ -24,13 +24,30 @@ export default async function ThankYouPage({
   const { order: orderId } = await searchParams;
   if (!orderId) notFound();
 
-  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+  let order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { status: true, molliePaymentId: true },
+  });
   if (!order) notFound();
 
-  const copy = STATUS_COPY[order.status] ?? STATUS_COPY.PENDING;
+  // Mollie's redirect komt soms binnen vóórdat de webhook is verwerkt. In plaats van de
+  // koper te vragen zelf te verversen, verwerken we de betaling hier meteen zelf (zelfde
+  // idempotente functie als de webhook-route) — meestal is de status dan al terminaal
+  // tegen de tijd dat de pagina rendert.
+  if (order.status === "PENDING" && order.molliePaymentId) {
+    await processMolliePaymentWebhook(order.molliePaymentId);
+    order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, molliePaymentId: true },
+    });
+  }
+
+  const status = order?.status ?? "PENDING";
+  const copy = STATUS_COPY[status] ?? STATUS_COPY.PENDING;
 
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "2rem 1rem" }}>
+      {status === "PENDING" && <meta httpEquiv="refresh" content="3" />}
       <h1>{copy.title}</h1>
       <p>{copy.message}</p>
     </main>

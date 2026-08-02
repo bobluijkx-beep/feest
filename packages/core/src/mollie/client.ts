@@ -1,5 +1,5 @@
 import "server-only";
-import createMollieClient, { type MollieClient, type Payment } from "@mollie/api-client";
+import createMollieClient, { type MollieClient, type Payment, type Refund } from "@mollie/api-client";
 import { getMollieApiKey } from "../settings/settings";
 
 function centsToAmount(cents: number): string {
@@ -34,4 +34,19 @@ export async function createMolliePayment(params: {
 export async function fetchMolliePayment(organizationId: string, paymentId: string): Promise<Payment> {
   const mollie = await getMollieClient(organizationId);
   return mollie.payments.get(paymentId);
+}
+
+export async function createMollieRefund(params: {
+  organizationId: string;
+  molliePaymentId: string;
+  amountCents: number;
+  currency: string;
+  description?: string;
+}): Promise<Refund> {
+  const mollie = await getMollieClient(params.organizationId);
+  return mollie.paymentRefunds.create({
+    paymentId: params.molliePaymentId,
+    amount: { currency: params.currency, value: centsToAmount(params.amountCents) },
+    description: params.description,
+  });
 }

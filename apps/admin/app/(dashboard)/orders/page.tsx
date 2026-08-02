@@ -1,8 +1,10 @@
 import { prisma } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
+import { RefundButton } from "./refund-button";
+import { DeleteOrderButton } from "./delete-order-button";
 
 export default async function OrdersPage() {
-  await requireStaffRole(["ADMIN", "FINANCE"]);
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
 
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
@@ -22,6 +24,7 @@ export default async function OrdersPage() {
             <th align="right">Tickets</th>
             <th align="right">Totaal</th>
             <th align="left">Besteld op</th>
+            <th align="left">Acties</th>
           </tr>
         </thead>
         <tbody>
@@ -39,11 +42,15 @@ export default async function OrdersPage() {
               </td>
               <td align="right">€{(order.totalCents / 100).toFixed(2)}</td>
               <td>{order.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td>
+              <td style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {order.status === "PAID" && <RefundButton orderId={order.id} />}
+                {actor.role === "ADMIN" && <DeleteOrderButton orderId={order.id} />}
+              </td>
             </tr>
           ))}
           {orders.length === 0 && (
             <tr>
-              <td colSpan={6}>Nog geen bestellingen.</td>
+              <td colSpan={7}>Nog geen bestellingen.</td>
             </tr>
           )}
         </tbody>

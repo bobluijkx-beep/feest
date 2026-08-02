@@ -72,6 +72,10 @@ model Event {
   startsAt       DateTime
   endsAt         DateTime?
   status         EventStatus     @default(DRAFT)
+  // Vrije-vorm huisstijl per event (bv. { primaryColor, backgroundColor, accentColor,
+  // logoUrl }) — zelfde Json-patroon als PageBlock.content, zodat een nieuwe thema-optie
+  // geen migratie kost. Zie docs/architectuurvoorstel.md ("Per-event huisstijl").
+  theme          Json?
   ticketTypes    TicketType[]
   products       Product[]
   orders         Order[]

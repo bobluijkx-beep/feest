@@ -143,3 +143,111 @@ Organization ── AuditLog
 
 Elke fase levert werkende, testbare code + migraties + deploy-notities + een
 commit-voorstel, en fase 1 start pas na een expliciet akkoord op dit voorstel.
+
+---
+
+## Uitbreiding (voorstel — nog niet goedgekeurd): merchandise & generieke webshop
+
+**Status: ontwerp ter beoordeling.** Nog geen schema-wijziging of code — pas na expliciet
+akkoord, zelfde werkwijze als bij fase 1.
+
+**Aanleiding:** naast tickets ook merchandise kunnen verkopen (in dezelfde afrekening,
+vermeld op het ticket), en dit platform later kunnen hergebruiken voor een heel ander
+soort verkoop (oliebollenactie) zonder toegangscontrole.
+
+### Datamodel
+
+Nieuw model `Product`, vrijwel identiek aan `TicketType` (zelfde voorraadpatroon):
+
+```prisma
+model Product {
+  id            String      @id @default(cuid())
+  eventId       String
+  event         Event       @relation(fields: [eventId], references: [id])
+  name          String
+  description   String?
+  priceCents    Int
+  currency      String      @default("EUR")
+  totalStock    Int
+  reservedStock Int         @default(0)
+  soldStock     Int         @default(0)
+  isActive      Boolean     @default(true)
+  orderItems    OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+```
+
+`OrderItem` krijgt een tweede, eveneens optionele relatie:
+
+```prisma
+model OrderItem {
+  ...
+  ticketTypeId String?      // was verplicht, wordt optioneel
+  ticketType   TicketType?  @relation(fields: [ticketTypeId], references: [id])
+  productId    String?
+  product      Product?     @relation(fields: [productId], references: [id])
+  ...
+}
+```
+
+Een `OrderItem` verwijst naar **precies één van beide** — afgedwongen met een
+`CHECK`-constraint in de migratie-SQL zelf (Prisma's schema-DSL kent geen check-syntax,
+maar de migratie is toch handgegenereerde raw SQL, dus dit kan gewoon worden toegevoegd),
+niet alleen als applicatie-aanname.
+
+### Kassaflow (generalisatie van `create-order.ts`)
+
+Dezelfde `SELECT ... FOR UPDATE`-transactie als nu, maar in twee vaste stappen (voorkomt
+deadlocks tussen gelijktijdige checkouts): eerst alle betrokken `TicketType`-id's gesorteerd
+locken, dán alle betrokken `Product`-id's gesorteerd locken. Beide worden op dezelfde
+manier gecontroleerd (`totalStock - reservedStock - soldStock >= gevraagd`) en
+opgehoogd. `totalCents` wordt over beide heen gesommeerd. De rest van de flow (Mollie-
+payment, QStash-opruiming, webhook-idempotentie) verandert niet.
+
+### Fulfillment: tickets vs. merchandise
+
+- `TicketType`-regels genereren zoals nu een `Ticket` (QR, check-in-baar).
+- `Product`-regels genereren **geen** `Ticket`-rij (geen toegangscontrole nodig) — wel
+  vermeld als regel op het ticket-PDF/de bevestigingsmail ("+ 1x Lions T-shirt (maat L)"),
+  zoals gevraagd.
+- Een order met **uitsluitend** `Product`-regels (bv. een pure oliebollenverkoop) krijgt
+  geen QR-ticket-PDF maar een gewone orderbevestiging/bonnetje — `generateTicketPdf()` en
+  `sendOrderConfirmationEmail()` in `packages/core` worden hierop gesplitst/uitgebreid.
+
+### Admin & publieke site
+
+- Nieuwe `/products`-pagina in de admin, exact hetzelfde patroon als de zojuist gebouwde
+  `/ticket-types`-pagina (bewerken/aanmaken/deactiveren, voorraad nooit onder
+  gereserveerd+verkocht).
+- Publieke eventpagina krijgt een "Merchandise"-sectie naast "Tickets" in hetzelfde
+  afrekenformulier (aantal-per-product, net als nu per ticketsoort).
+
+### Hergebruik voor een oliebollenverkoop
+
+Dit vereist **geen nieuwe app of architectuur** — het platform is al multi-event
+(`Organization` → meerdere `Event`s). Een oliebollenactie wordt gewoon een nieuw `Event`
+met nul `TicketType`s en één of meer `Product`s, binnen dezelfde Vercel-projecten/RBAC/
+Mollie-koppeling/audit-log. Enige aanpassing: de publieke pagina/copy ("Tickets",
+"Afrekenen met iDeal") moet neutraler/conditioneel worden zodat een product-only event er
+niet uitziet als een ticketpagina zonder tickets.
+
+### Voorgestelde fasering
+
+Gezien de omvang (schema + kassaflow + PDF/mail + admin + publieke pagina) stel ik voor
+dit net als fase 1-3 in behapbare stukken te bouwen, elk met eigen verificatie en
+commit-voorstel:
+
+1. **4a — datamodel + kassaflow:** `Product`-model, migratie, gegeneraliseerde
+   `createOrder()`/webhook-stockafhandeling. Verificatie: gemengde test-checkout
+   (ticket + product) doorlopen, voorraad van beide correct bijgewerkt.
+2. **4b — fulfillment:** PDF/mail-aanpassing (merch-regels op het ticket, receipt-only
+   voor product-only orders). Verificatie: e-mail/PDF bekijken voor een gemengde en een
+   pure product-order.
+3. **4c — admin + publieke UI:** `/products`-pagina, merchandise-sectie op de publieke
+   pagina. Verificatie: product aanmaken, op de publieke pagina meebestellen, in admin
+   terugzien.
+4. **4d — oliebollen-praktijktest:** een tweede, product-only `Event` aanmaken en een
+   volledige test-aankoop doorlopen als bewijs dat hergebruik werkt zonder codewijziging.
+
+Elke deelstap wacht op een apart akkoord, zoals steeds in dit project.

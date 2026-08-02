@@ -6,22 +6,31 @@ import { CreateProductForm } from "./create-product-form";
 export default async function ProductsPage() {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
 
-  const event = await prisma.event.findFirst({ where: { organizationId: actor.organizationId } });
-  const products = event
-    ? await prisma.product.findMany({ where: { eventId: event.id }, orderBy: { createdAt: "asc" } })
-    : [];
+  const events = await prisma.event.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: { startsAt: "desc" },
+  });
+  const eventNameById = new Map(events.map((event) => [event.id, event.name]));
+
+  const products = await prisma.product.findMany({
+    where: { eventId: { in: events.map((event) => event.id) } },
+    orderBy: [{ eventId: "asc" }, { createdAt: "asc" }],
+  });
 
   return (
     <main>
-      <h1>Producten (merchandise)</h1>
-      {!event && <p>Nog geen event aangemaakt.</p>}
+      <h1>Producten</h1>
+      {events.length === 0 && <p>Nog geen event aangemaakt.</p>}
 
-      {event && (
+      {events.length > 0 && (
         <>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.5rem" }}>
             <tbody>
               {products.map((product) => (
-                <ProductRowForm key={product.id} product={product} />
+                <ProductRowForm
+                  key={product.id}
+                  product={{ ...product, eventName: eventNameById.get(product.eventId) ?? "?" }}
+                />
               ))}
               {products.length === 0 && (
                 <tr>
@@ -32,7 +41,7 @@ export default async function ProductsPage() {
           </table>
 
           <h2>Nieuw product</h2>
-          <CreateProductForm />
+          <CreateProductForm events={events.map((event) => ({ id: event.id, name: event.name }))} />
         </>
       )}
     </main>

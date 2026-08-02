@@ -58,10 +58,12 @@ export async function POST(request: Request) {
 
   let ticketInfo: TicketInfo | null = null;
   if (result.status === "ok" || result.status === "already_checked_in") {
-    const ticket = await prisma.ticket.findUnique({ where: { id: verified.ticketId }, include: { order: true } });
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: verified.ticketId },
+      include: { order: true, product: true },
+    });
     if (ticket) {
-      const ticketType = await prisma.ticketType.findUnique({ where: { id: ticket.ticketTypeId } });
-      ticketInfo = { buyerName: ticket.order.buyerName, ticketTypeName: ticketType?.name ?? "Ticket" };
+      ticketInfo = { buyerName: ticket.order.buyerName, ticketTypeName: ticket.product.name };
     }
   }
 

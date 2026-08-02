@@ -7,19 +7,8 @@ import { scheduleOrderExpiry } from "./qstash";
 const STOCK_HOLD_MINUTES = 15;
 
 interface CreateOrderItem {
-  ticketTypeId?: string;
-  productId?: string;
+  productId: string;
   quantity: number;
-}
-
-interface LockedStockRow {
-  id: string;
-  priceCents: number;
-  currency: string;
-  totalStock: number;
-  reservedStock: number;
-  soldStock: number;
-  isActive: boolean;
 }
 
 export async function createOrder(params: {
@@ -33,56 +22,46 @@ export async function createOrder(params: {
   if (params.items.length === 0 || params.items.some((item) => item.quantity <= 0)) {
     throw new Error("Ongeldige bestelling: geen artikelen geselecteerd.");
   }
-  for (const item of params.items) {
-    if (Boolean(item.ticketTypeId) === Boolean(item.productId)) {
-      throw new Error("Ongeldige bestelling: elke regel moet precies één ticketsoort of product zijn.");
-    }
-  }
 
   const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId } });
 
   const { orderId, totalCents, currency } = await prisma.$transaction(async (tx) => {
-    // Vaste lock-volgorde (eerst alle TicketType's, dan alle Product's, elk intern
-    // gesorteerd) voorkomt deadlocks tussen gelijktijdige checkouts die dezelfde
-    // artikelen in verschillende volgorde zouden lock'en (zie architectuurvoorstel.md).
-    const ticketTypeIds = [...new Set(params.items.filter((i) => i.ticketTypeId).map((i) => i.ticketTypeId!))].sort();
-    const productIds = [...new Set(params.items.filter((i) => i.productId).map((i) => i.productId!))].sort();
+    const productIds = [...new Set(params.items.map((item) => item.productId))].sort();
 
-    const lockedTicketTypes = ticketTypeIds.length
-      ? await tx.$queryRaw<LockedStockRow[]>`SELECT id, "priceCents", currency, "totalStock", "reservedStock", "soldStock", "isActive"
-          FROM "ticket_types" WHERE id = ANY(${ticketTypeIds}) ORDER BY id FOR UPDATE`
-      : [];
-    const lockedProducts = productIds.length
-      ? await tx.$queryRaw<LockedStockRow[]>`SELECT id, "priceCents", currency, "totalStock", "reservedStock", "soldStock", "isActive"
-          FROM "products" WHERE id = ANY(${productIds}) ORDER BY id FOR UPDATE`
-      : [];
+    // FOR UPDATE + vaste sorteervolgorde: voorkomt overboeken bij gelijktijdige
+    // aankopen en voorkomt deadlocks tussen concurrente checkouts die dezelfde
+    // producten in verschillende volgorde zouden lock (zie architectuurvoorstel.md).
+    const lockedProducts = await tx.$queryRaw<
+      {
+        id: string;
+        priceCents: number;
+        currency: string;
+        totalStock: number;
+        reservedStock: number;
+        soldStock: number;
+        isActive: boolean;
+      }[]
+    >`SELECT id, "priceCents", currency, "totalStock", "reservedStock", "soldStock", "isActive"
+      FROM "products" WHERE id = ANY(${productIds}) ORDER BY id FOR UPDATE`;
 
-    const ticketTypeById = new Map(lockedTicketTypes.map((row) => [row.id, row]));
-    const productById = new Map(lockedProducts.map((row) => [row.id, row]));
+    const byId = new Map(lockedProducts.map((product) => [product.id, product]));
 
     let totalCents = 0;
     let currency = "EUR";
     for (const item of params.items) {
-      const row = item.ticketTypeId ? ticketTypeById.get(item.ticketTypeId) : productById.get(item.productId!);
-      if (!row || !row.isActive) throw new Error("Artikel niet beschikbaar.");
-      const available = row.totalStock - row.reservedStock - row.soldStock;
-      if (available < item.quantity) throw new InsufficientStockError(row.id);
-      totalCents += row.priceCents * item.quantity;
-      currency = row.currency;
+      const product = byId.get(item.productId);
+      if (!product || !product.isActive) throw new Error("Artikel niet beschikbaar.");
+      const available = product.totalStock - product.reservedStock - product.soldStock;
+      if (available < item.quantity) throw new InsufficientStockError(product.id);
+      totalCents += product.priceCents * item.quantity;
+      currency = product.currency;
     }
 
     for (const item of params.items) {
-      if (item.ticketTypeId) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { reservedStock: { increment: item.quantity } },
-        });
-      } else {
-        await tx.product.update({
-          where: { id: item.productId! },
-          data: { reservedStock: { increment: item.quantity } },
-        });
-      }
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { reservedStock: { increment: item.quantity } },
+      });
     }
 
     const order = await tx.order.create({
@@ -95,11 +74,9 @@ export async function createOrder(params: {
         stockHoldExpiresAt: new Date(Date.now() + STOCK_HOLD_MINUTES * 60 * 1000),
         items: {
           create: params.items.map((item) => ({
-            ticketTypeId: item.ticketTypeId,
             productId: item.productId,
             quantity: item.quantity,
-            unitPriceCents: (item.ticketTypeId ? ticketTypeById.get(item.ticketTypeId) : productById.get(item.productId!))!
-              .priceCents,
+            unitPriceCents: byId.get(item.productId)!.priceCents,
           })),
         },
       },
@@ -146,17 +123,10 @@ async function releaseOrderHold(orderId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { items: true } });
     for (const item of order.items) {
-      if (item.ticketTypeId) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { reservedStock: { decrement: item.quantity } },
-        });
-      } else if (item.productId) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { reservedStock: { decrement: item.quantity } },
-        });
-      }
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { reservedStock: { decrement: item.quantity } },
+      });
     }
     await tx.order.update({ where: { id: orderId }, data: { status: "FAILED" } });
   });

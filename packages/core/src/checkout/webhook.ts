@@ -18,7 +18,7 @@ const TERMINAL_MOLLIE_STATUS: Record<string, "FAILED" | "CANCELLED" | "EXPIRED">
 export async function processMolliePaymentWebhook(molliePaymentId: string): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { molliePaymentId },
-    include: { event: true, items: true },
+    include: { event: true, items: { include: { product: true } } },
   });
   if (!order || order.status !== "PENDING") return;
 
@@ -34,24 +34,19 @@ export async function processMolliePaymentWebhook(molliePaymentId: string): Prom
 
     if (payment.status === "paid") {
       for (const item of order.items) {
-        if (item.ticketTypeId) {
-          await tx.ticketType.update({
-            where: { id: item.ticketTypeId },
-            data: { reservedStock: { decrement: item.quantity }, soldStock: { increment: item.quantity } },
-          });
-          // Alleen ticketsoort-regels krijgen een scanbaar Ticket; merchandise-regels
-          // (productId) hebben geen toegangscontrole nodig.
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { reservedStock: { decrement: item.quantity }, soldStock: { increment: item.quantity } },
+        });
+        // Alleen kind=TICKET-regels krijgen een scanbaar Ticket; merchandise-regels
+        // hebben geen toegangscontrole nodig.
+        if (item.product.kind === "TICKET") {
           for (let i = 0; i < item.quantity; i++) {
             const ticket = await tx.ticket.create({
-              data: { orderId: order.id, ticketTypeId: item.ticketTypeId, qrToken: randomUUID() },
+              data: { orderId: order.id, productId: item.productId, qrToken: randomUUID() },
             });
             await tx.ticket.update({ where: { id: ticket.id }, data: { qrToken: signQrToken(ticket.id) } });
           }
-        } else if (item.productId) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { reservedStock: { decrement: item.quantity }, soldStock: { increment: item.quantity } },
-          });
         }
       }
       await tx.order.update({ where: { id: order.id }, data: { status: "PAID" } });
@@ -62,17 +57,10 @@ export async function processMolliePaymentWebhook(molliePaymentId: string): Prom
     const mappedStatus = TERMINAL_MOLLIE_STATUS[payment.status];
     if (mappedStatus) {
       for (const item of order.items) {
-        if (item.ticketTypeId) {
-          await tx.ticketType.update({
-            where: { id: item.ticketTypeId },
-            data: { reservedStock: { decrement: item.quantity } },
-          });
-        } else if (item.productId) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { reservedStock: { decrement: item.quantity } },
-          });
-        }
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { reservedStock: { decrement: item.quantity } },
+        });
       }
       await tx.order.update({ where: { id: order.id }, data: { status: mappedStatus } });
       becameTerminalFailure = true;

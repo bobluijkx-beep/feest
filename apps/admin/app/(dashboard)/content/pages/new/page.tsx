@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
+import { getSelectedEvent } from "@/lib/selected-event";
 import { BlockForm } from "../block-form";
 import { createPageBlock } from "../actions";
 
@@ -16,12 +16,12 @@ const BLOCK_TYPES = [
 export default async function NewPageBlockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; eventId?: string }>;
 }) {
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
-  const { type } = await searchParams;
+  const { type, eventId } = await searchParams;
 
-  const event = await prisma.event.findFirst({ where: { organizationId: actor.organizationId } });
+  const { selected: event } = await getSelectedEvent(actor.organizationId, eventId);
   if (!event) notFound();
 
   if (!type || !BLOCK_TYPES.some((b) => b.type === type)) {
@@ -31,7 +31,7 @@ export default async function NewPageBlockPage({
         <ul>
           {BLOCK_TYPES.map((b) => (
             <li key={b.type}>
-              <Link href={`/content/pages/new?type=${b.type}`}>{b.label}</Link>
+              <Link href={`/content/pages/new?eventId=${event.id}&type=${b.type}`}>{b.label}</Link>
             </li>
           ))}
         </ul>

@@ -26,13 +26,15 @@ export default async function EventPage({
   const event = await prisma.event.findUnique({
     where: { slug: eventSlug },
     include: {
-      ticketTypes: { where: { isActive: true }, orderBy: { priceCents: "asc" } },
       products: { where: { isActive: true }, orderBy: { priceCents: "asc" } },
       pageBlocks: { where: { isPublished: true }, orderBy: { order: "asc" } },
     },
   });
 
   if (!event || event.status !== "PUBLISHED") notFound();
+
+  const ticketProducts = event.products.filter((product) => product.kind === "TICKET");
+  const merchProducts = event.products.filter((product) => product.kind === "MERCHANDISE");
 
   const themeRaw = isRecord(event.theme) ? event.theme : {};
   const theme = {
@@ -42,8 +44,8 @@ export default async function EventPage({
     logoUrl: str(themeRaw.logoUrl, THEME_DEFAULTS.logoUrl),
   };
 
-  const hasTickets = event.ticketTypes.length > 0;
-  const hasProducts = event.products.length > 0;
+  const hasTickets = ticketProducts.length > 0;
+  const hasProducts = merchProducts.length > 0;
 
   return (
     <main
@@ -85,17 +87,17 @@ export default async function EventPage({
         {hasTickets && (
           <>
             <h2>Tickets</h2>
-            {event.ticketTypes.map((type) => {
-              const available = type.totalStock - type.reservedStock - type.soldStock;
+            {ticketProducts.map((product) => {
+              const available = product.totalStock - product.reservedStock - product.soldStock;
               return (
-                <div key={type.id} style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
+                <div key={product.id} style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
                   <label style={{ flex: 1 }}>
-                    {type.name} — €{(type.priceCents / 100).toFixed(2)}
-                    {type.description && <span> ({type.description})</span>}
+                    {product.name} — €{(product.priceCents / 100).toFixed(2)}
+                    {product.description && <span> ({product.description})</span>}
                   </label>
                   <input
                     type="number"
-                    name={`qty_${type.id}`}
+                    name={`qty_${product.id}`}
                     min={0}
                     max={Math.max(available, 0)}
                     defaultValue={0}
@@ -112,7 +114,7 @@ export default async function EventPage({
         {hasProducts && (
           <>
             <h2>Merchandise</h2>
-            {event.products.map((product) => {
+            {merchProducts.map((product) => {
               const available = product.totalStock - product.reservedStock - product.soldStock;
               return (
                 <div key={product.id} style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
@@ -122,7 +124,7 @@ export default async function EventPage({
                   </label>
                   <input
                     type="number"
-                    name={`qty_product_${product.id}`}
+                    name={`qty_${product.id}`}
                     min={0}
                     max={Math.max(available, 0)}
                     defaultValue={0}

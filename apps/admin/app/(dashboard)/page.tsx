@@ -1,5 +1,7 @@
 import { prisma } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
+import { getSelectedEvent } from "@/lib/selected-event";
+import { EventTabs } from "@/lib/event-tabs";
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -10,29 +12,30 @@ function StatTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-async function SalesDashboard({ organizationId }: { organizationId: string }) {
-  const event = await prisma.event.findFirst({ where: { organizationId } });
+async function SalesDashboard({ organizationId, eventIdParam }: { organizationId: string; eventIdParam?: string }) {
+  const { events, selected: event } = await getSelectedEvent(organizationId, eventIdParam);
   if (!event) {
     return <p>Nog geen event aangemaakt.</p>;
   }
 
-  const [paidAgg, failedCount, ticketTypes, soldTicketCount, checkedInCount] = await Promise.all([
+  const [paidAgg, failedCount, ticketProducts, soldTicketCount, checkedInCount] = await Promise.all([
     prisma.order.aggregate({ where: { eventId: event.id, status: "PAID" }, _count: true, _sum: { totalCents: true } }),
     prisma.order.count({ where: { eventId: event.id, status: { in: ["FAILED", "CANCELLED", "EXPIRED"] } } }),
-    prisma.ticketType.findMany({ where: { eventId: event.id } }),
+    prisma.product.findMany({ where: { eventId: event.id, kind: "TICKET" } }),
     prisma.ticket.count({ where: { order: { eventId: event.id }, status: { not: "CANCELLED" } } }),
     prisma.ticket.count({ where: { order: { eventId: event.id }, status: "CHECKED_IN" } }),
   ]);
 
   const revenueCents = paidAgg._sum.totalCents ?? 0;
   const paidOrderCount = paidAgg._count;
-  const totalCapacity = ticketTypes.reduce((sum, t) => sum + t.totalStock, 0);
-  const remainingCapacity = ticketTypes.reduce((sum, t) => sum + (t.totalStock - t.reservedStock - t.soldStock), 0);
+  const totalCapacity = ticketProducts.reduce((sum, t) => sum + t.totalStock, 0);
+  const remainingCapacity = ticketProducts.reduce((sum, t) => sum + (t.totalStock - t.reservedStock - t.soldStock), 0);
   const conversionDenominator = paidOrderCount + failedCount;
   const conversionRate = conversionDenominator > 0 ? Math.round((paidOrderCount / conversionDenominator) * 100) : null;
 
   return (
     <>
+      <EventTabs events={events} selectedId={event.id} basePath="/" />
       <p>Event: {event.name}</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
         <StatTile label="Verkochte tickets" value={String(soldTicketCount)} />
@@ -46,14 +49,19 @@ async function SalesDashboard({ organizationId }: { organizationId: string }) {
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ eventId?: string }>;
+}) {
   const user = await requireStaffRole(["ADMIN", "FINANCE", "EDITOR"]);
+  const { eventId } = await searchParams;
 
   if (user.role === "ADMIN" || user.role === "FINANCE") {
     return (
       <main>
         <h1>Verkoopdashboard</h1>
-        <SalesDashboard organizationId={user.organizationId} />
+        <SalesDashboard organizationId={user.organizationId} eventIdParam={eventId} />
       </main>
     );
   }

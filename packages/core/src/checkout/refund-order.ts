@@ -39,17 +39,10 @@ export async function refundOrder(orderId: string): Promise<RefundResult> {
     if (locked[0]?.status !== "PAID") return;
 
     for (const item of order.items) {
-      if (item.ticketTypeId) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { soldStock: { decrement: item.quantity } },
-        });
-      } else if (item.productId) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { soldStock: { decrement: item.quantity } },
-        });
-      }
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { soldStock: { decrement: item.quantity } },
+      });
     }
     await tx.order.update({ where: { id: orderId }, data: { status: "REFUNDED" } });
     await tx.ticket.updateMany({ where: { orderId }, data: { status: "CANCELLED" } });

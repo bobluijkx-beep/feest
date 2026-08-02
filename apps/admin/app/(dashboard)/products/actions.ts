@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, logAudit } from "@lions/core";
+import type { ProductKind } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
 export interface ProductActionState {
   error?: string;
   success?: boolean;
 }
+
+const VALID_KINDS: ProductKind[] = ["TICKET", "MERCHANDISE"];
 
 function parsePriceCents(raw: FormDataEntryValue | null): number | null {
   const value = Number(raw);
@@ -21,19 +24,24 @@ export async function createProduct(
 ): Promise<ProductActionState> {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
 
+  const eventId = String(formData.get("eventId") ?? "");
+  const kind = String(formData.get("kind") ?? "") as ProductKind;
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const priceCents = parsePriceCents(formData.get("priceEuros"));
   const totalStock = Number(formData.get("totalStock"));
 
+  if (!eventId) return { error: "Kies een evenement." };
+  if (!VALID_KINDS.includes(kind)) return { error: "Ongeldige soort." };
   if (!name) return { error: "Vul een naam in." };
   if (priceCents === null) return { error: "Vul een geldige prijs in (groter dan 0)." };
   if (!Number.isInteger(totalStock) || totalStock < 0) return { error: "Vul een geldig aantal in (0 of hoger)." };
 
-  const event = await prisma.event.findFirstOrThrow({ where: { organizationId: actor.organizationId } });
+  const event = await prisma.event.findFirst({ where: { id: eventId, organizationId: actor.organizationId } });
+  if (!event) return { error: "Evenement niet gevonden." };
 
   const created = await prisma.product.create({
-    data: { eventId: event.id, name, description: description || null, priceCents, totalStock },
+    data: { eventId, kind, name, description: description || null, priceCents, totalStock },
   });
 
   await logAudit({
@@ -42,7 +50,7 @@ export async function createProduct(
     action: "product_created",
     entityType: "product",
     entityId: created.id,
-    metadata: { name, priceCents, totalStock },
+    metadata: { name, kind, priceCents, totalStock, eventId },
   });
 
   revalidatePath("/products");
@@ -56,6 +64,7 @@ export async function updateProduct(
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
 
   const id = String(formData.get("id") ?? "");
+  const kind = String(formData.get("kind") ?? "") as ProductKind;
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const priceCents = parsePriceCents(formData.get("priceEuros"));
@@ -63,6 +72,7 @@ export async function updateProduct(
   const isActive = formData.get("isActive") === "on";
 
   if (!id) return { error: "Ontbrekend id." };
+  if (!VALID_KINDS.includes(kind)) return { error: "Ongeldige soort." };
   if (!name) return { error: "Vul een naam in." };
   if (priceCents === null) return { error: "Vul een geldige prijs in (groter dan 0)." };
   if (!Number.isInteger(totalStock) || totalStock < 0) return { error: "Vul een geldig aantal in (0 of hoger)." };
@@ -77,7 +87,7 @@ export async function updateProduct(
 
   await prisma.product.update({
     where: { id },
-    data: { name, description: description || null, priceCents, totalStock, isActive },
+    data: { kind, name, description: description || null, priceCents, totalStock, isActive },
   });
 
   await logAudit({
@@ -86,7 +96,7 @@ export async function updateProduct(
     action: "product_updated",
     entityType: "product",
     entityId: id,
-    metadata: { name, priceCents, totalStock, isActive },
+    metadata: { name, kind, priceCents, totalStock, isActive },
   });
 
   revalidatePath("/products");

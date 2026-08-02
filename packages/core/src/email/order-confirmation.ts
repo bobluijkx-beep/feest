@@ -14,13 +14,13 @@ type OrderWithRelations = {
   eventId: string;
   event: { organizationId: string; name: string; venue: string | null; startsAt: Date };
   tickets: { qrToken: string }[];
-  items: { productId: string | null; quantity: number; product: { name: string } | null }[];
+  items: { productId: string; quantity: number; product: { name: string; kind: string } }[];
 };
 
 function merchandiseLines(order: OrderWithRelations): string[] {
   return order.items
-    .filter((item) => item.productId && item.product)
-    .map((item) => `${item.quantity}x ${item.product!.name}`);
+    .filter((item) => item.product.kind === "MERCHANDISE")
+    .map((item) => `${item.quantity}x ${item.product.name}`);
 }
 
 async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateType): Promise<RenderableTemplate> {
@@ -66,28 +66,25 @@ async function logEmailAttempt(
 }
 
 /** Stuurt de orderbevestiging voor een betaalde order. Bevat ticket-PDF's (+ ICS-
- * agenda-item) alleen als de order ook echt ticketsoort-regels bevat — een pure
- * merchandise-order (geen TicketType-regels, bv. een oliebollenverkoop) krijgt gewoon
- * een orderbevestiging zonder bijlagen. Merchandise-regels worden, als ze aanwezig zijn,
- * altijd vermeld — zowel in de mail als op elk ticket-PDF. Zelfstandig herbruikbaar
- * vanuit de webhook-handler of een queue. */
+ * agenda-item) alleen als de order ook echt kind=TICKET-regels bevat — een pure
+ * merchandise-order (bv. een oliebollenverkoop) krijgt gewoon een orderbevestiging zonder
+ * bijlagen. Merchandise-regels worden, als ze aanwezig zijn, altijd vermeld — zowel in de
+ * mail als op elk ticket-PDF. Zelfstandig herbruikbaar vanuit de webhook-handler of een
+ * queue. */
 export async function sendOrderConfirmationEmail(orderId: string): Promise<void> {
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
     include: {
       event: true,
       tickets: { include: { order: false } },
-      items: { include: { ticketType: true, product: true } },
+      items: { include: { product: true } },
     },
   });
 
   const { subject, bodyHtml } = await renderOrderEmail(order, "ORDER_CONFIRMATION");
   const lines = merchandiseLines(order);
 
-  const ticketTypeNameById = new Map<string, string>();
-  for (const item of order.items) {
-    if (item.ticketTypeId && item.ticketType) ticketTypeNameById.set(item.ticketTypeId, item.ticketType.name);
-  }
+  const productNameById = new Map(order.items.map((item) => [item.productId, item.product.name]));
 
   const attachments: { filename: string; content: string }[] = [];
 
@@ -99,7 +96,7 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
           venue: order.event.venue,
           startsAt: order.event.startsAt,
           buyerName: order.buyerName,
-          ticketTypeName: ticketTypeNameById.get(ticket.ticketTypeId) ?? "Ticket",
+          ticketTypeName: productNameById.get(ticket.productId) ?? "Ticket",
           qrToken: ticket.qrToken,
           merchandiseLines: lines,
         });

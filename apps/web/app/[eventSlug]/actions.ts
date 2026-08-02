@@ -11,11 +11,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
 
   const items = [...formData.entries()]
     .filter(([key]) => key.startsWith("qty_"))
-    .map(([key, value]) =>
-      key.startsWith("qty_product_")
-        ? { productId: key.slice("qty_product_".length), quantity: Number(value) }
-        : { ticketTypeId: key.slice("qty_".length), quantity: Number(value) },
-    )
+    .map(([key, value]) => ({ productId: key.slice("qty_".length), quantity: Number(value) }))
     .filter((item) => item.quantity > 0);
 
   if (!eventId || !buyerName || !buyerEmail || items.length === 0) {

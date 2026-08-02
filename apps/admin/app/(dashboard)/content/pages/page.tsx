@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { prisma } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
+import { getSelectedEvent } from "@/lib/selected-event";
+import { EventTabs } from "@/lib/event-tabs";
 
-export default async function PageBlocksPage() {
+export default async function PageBlocksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ eventId?: string }>;
+}) {
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
-  const event = await prisma.event.findFirst({ where: { organizationId: actor.organizationId } });
+  const { eventId } = await searchParams;
+  const { events, selected: event } = await getSelectedEvent(actor.organizationId, eventId);
 
   if (!event) {
     return (
@@ -20,9 +27,10 @@ export default async function PageBlocksPage() {
   return (
     <main>
       <h1>Paginabeheer</h1>
+      <EventTabs events={events} selectedId={event.id} basePath="/content/pages" />
       <p>Event: {event.name}</p>
       <p>
-        <Link href="/content/pages/new">+ Blok toevoegen</Link>
+        <Link href={`/content/pages/new?eventId=${event.id}`}>+ Blok toevoegen</Link>
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>

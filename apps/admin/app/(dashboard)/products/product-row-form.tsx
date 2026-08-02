@@ -7,6 +7,7 @@ const initialState: ProductActionState = {};
 
 interface Product {
   id: string;
+  kind: string;
   name: string;
   description: string | null;
   priceCents: number;
@@ -14,6 +15,7 @@ interface Product {
   reservedStock: number;
   soldStock: number;
   isActive: boolean;
+  eventName: string;
 }
 
 export function ProductRowForm({ product }: { product: Product }) {
@@ -23,9 +25,14 @@ export function ProductRowForm({ product }: { product: Product }) {
 
   return (
     <tr style={{ borderTop: "1px solid #ddd" }}>
-      <td colSpan={6} style={{ padding: "0.75rem 0" }}>
+      <td colSpan={7} style={{ padding: "0.75rem 0" }}>
+        <p style={{ margin: "0 0 0.25rem", fontSize: "0.85rem", color: "#555" }}>Evenement: {product.eventName}</p>
         <form action={updateAction} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
           <input type="hidden" name="id" value={product.id} />
+          <select name="kind" defaultValue={product.kind}>
+            <option value="TICKET">Ticket</option>
+            <option value="MERCHANDISE">Merchandise</option>
+          </select>
           <input type="text" name="name" defaultValue={product.name} style={{ width: "10rem" }} required />
           <input
             type="text"

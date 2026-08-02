@@ -2,18 +2,26 @@ import { notFound } from "next/navigation";
 import { prisma, defaultEmailTemplates } from "@lions/core";
 import type { EmailTemplateType } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
+import { getSelectedEvent } from "@/lib/selected-event";
 import { EmailTemplateForm } from "../email-template-form";
 
 const VALID_TYPES: EmailTemplateType[] = ["ORDER_CONFIRMATION", "PAYMENT_FAILED", "PAYMENT_REMINDER", "CANCELLED"];
 
-export default async function EmailTemplateEditPage({ params }: { params: Promise<{ type: string }> }) {
+export default async function EmailTemplateEditPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ type: string }>;
+  searchParams: Promise<{ eventId?: string }>;
+}) {
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
   const { type } = await params;
+  const { eventId } = await searchParams;
 
   if (!VALID_TYPES.includes(type as EmailTemplateType)) notFound();
   const templateType = type as EmailTemplateType;
 
-  const event = await prisma.event.findFirst({ where: { organizationId: actor.organizationId } });
+  const { selected: event } = await getSelectedEvent(actor.organizationId, eventId);
   if (!event) notFound();
 
   const existing = await prisma.emailTemplate.findUnique({

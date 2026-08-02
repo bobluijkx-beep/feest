@@ -10,6 +10,10 @@ const STATUS_COPY: Record<string, { title: string; message: string }> = {
     title: "Bedankt voor je bestelling!",
     message: "Je tickets zijn onderweg naar je e-mailadres.",
   },
+  PAID_NO_TICKETS: {
+    title: "Bedankt voor je bestelling!",
+    message: "Je ontvangt zo een bevestiging per e-mail.",
+  },
   FAILED: { title: "Betaling mislukt", message: "Er ging iets mis met je betaling. Probeer het opnieuw." },
   CANCELLED: { title: "Betaling geannuleerd", message: "Je hebt de betaling geannuleerd." },
   EXPIRED: { title: "Betaling verlopen", message: "De betaaltermijn is verlopen. Probeer het opnieuw." },
@@ -26,7 +30,7 @@ export default async function ThankYouPage({
 
   let order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { status: true, molliePaymentId: true },
+    select: { status: true, molliePaymentId: true, _count: { select: { tickets: true } } },
   });
   if (!order) notFound();
 
@@ -38,12 +42,15 @@ export default async function ThankYouPage({
     await processMolliePaymentWebhook(order.molliePaymentId);
     order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { status: true, molliePaymentId: true },
+      select: { status: true, molliePaymentId: true, _count: { select: { tickets: true } } },
     });
   }
 
   const status = order?.status ?? "PENDING";
-  const copy = STATUS_COPY[status] ?? STATUS_COPY.PENDING;
+  // Een product-only order (bv. oliebollen) heeft geen tickets — "je tickets zijn
+  // onderweg" zou dan misleidend zijn.
+  const copyKey = status === "PAID" && order?._count.tickets === 0 ? "PAID_NO_TICKETS" : status;
+  const copy = STATUS_COPY[copyKey] ?? STATUS_COPY.PENDING;
 
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "2rem 1rem" }}>

@@ -5,13 +5,13 @@ import type { RenderableTemplate } from "./template-engine";
  * bewerkbare templates + editor zijn onderdeel van fase 2). */
 export const defaultEmailTemplates: Record<EmailTemplateType, RenderableTemplate> = {
   ORDER_CONFIRMATION: {
-    subject: "Je tickets voor {{event_naam}}",
+    subject: "Je bestelling voor {{event_naam}}",
     bodyHtml: `
       <p>Beste {{voornaam}},</p>
-      <p>Bedankt voor je bestelling! Hierbij ontvang je {{aantal_tickets}} ticket(s) voor
-      <strong>{{event_naam}}</strong> op {{datum}} in {{locatie}}.</p>
-      <p>Je tickets (met QR-code) vind je als bijlage bij deze e-mail. Neem ze mee op je
-      telefoon of geprint naar het evenement.</p>
+      <p>Bedankt voor je bestelling voor <strong>{{event_naam}}</strong> op {{datum}} in
+      {{locatie}}.</p>
+      {{tickets_sectie}}
+      {{merchandise}}
       <p>Tot dan!<br/>Lionsclub Voorschoten</p>
     `.trim(),
   },

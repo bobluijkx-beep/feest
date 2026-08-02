@@ -9,6 +9,9 @@ export async function generateTicketPdf(params: {
   buyerName: string;
   ticketTypeName: string;
   qrToken: string;
+  /** Overige artikelen (merchandise) uit dezelfde bestelling — puur informatief, geen
+   * eigen QR/check-in. Zie docs/architectuurvoorstel.md ("merchandise & webshop"). */
+  merchandiseLines?: string[];
 }): Promise<Uint8Array> {
   const qrPng = await QRCode.toBuffer(params.qrToken, { type: "png", margin: 1, width: 300 });
 
@@ -40,6 +43,14 @@ export async function generateTicketPdf(params: {
     )}`,
   );
   if (params.venue) drawLine(`Locatie: ${params.venue}`);
+
+  if (params.merchandiseLines && params.merchandiseLines.length > 0) {
+    y -= 6;
+    drawLine("Ook besteld:", { size: 11, bold: true });
+    for (const line of params.merchandiseLines) {
+      drawLine(line, { size: 11 });
+    }
+  }
 
   const qrImage = await pdf.embedPng(qrPng);
   page.drawImage(qrImage, { x: (400 - 220) / 2, y: y - 240, width: 220, height: 220 });

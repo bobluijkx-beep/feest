@@ -14,13 +14,27 @@ type OrderWithRelations = {
   eventId: string;
   event: { organizationId: string; name: string; venue: string | null; startsAt: Date };
   tickets: { qrToken: string }[];
+  items: { productId: string | null; quantity: number; product: { name: string } | null }[];
 };
+
+function merchandiseLines(order: OrderWithRelations): string[] {
+  return order.items
+    .filter((item) => item.productId && item.product)
+    .map((item) => `${item.quantity}x ${item.product!.name}`);
+}
 
 async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateType): Promise<RenderableTemplate> {
   const templateRow = await prisma.emailTemplate.findUnique({
     where: { eventId_type_language: { eventId: order.eventId, type, language: "nl" } },
   });
   const template = templateRow ?? defaultEmailTemplates[type];
+
+  const lines = merchandiseLines(order);
+  const ticketsSection =
+    order.tickets.length > 0
+      ? "<p>Je tickets (met QR-code) vind je als bijlage bij deze e-mail. Neem ze mee op je telefoon of geprint naar het evenement.</p>"
+      : "";
+  const merchandiseSection = lines.length > 0 ? `<p>Ook besteld: ${lines.join(", ")}.</p>` : "";
 
   return renderTemplate(template, {
     voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
@@ -29,6 +43,8 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
     ticketcode: order.tickets.map((t) => t.qrToken).join(", "),
     datum: order.event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "long", timeZone: "Europe/Amsterdam" }),
     locatie: order.event.venue ?? "",
+    tickets_sectie: ticketsSection,
+    merchandise: merchandiseSection,
   });
 }
 
@@ -49,58 +65,62 @@ async function logEmailAttempt(
   });
 }
 
-/** Stuurt de orderbevestiging (tickets als PDF-bijlage + ICS-agenda-item) voor een
- * betaalde order. Zelfstandig herbruikbaar vanuit de webhook-handler of een queue. */
+/** Stuurt de orderbevestiging voor een betaalde order. Bevat ticket-PDF's (+ ICS-
+ * agenda-item) alleen als de order ook echt ticketsoort-regels bevat — een pure
+ * merchandise-order (geen TicketType-regels, bv. een oliebollenverkoop) krijgt gewoon
+ * een orderbevestiging zonder bijlagen. Merchandise-regels worden, als ze aanwezig zijn,
+ * altijd vermeld — zowel in de mail als op elk ticket-PDF. Zelfstandig herbruikbaar
+ * vanuit de webhook-handler of een queue. */
 export async function sendOrderConfirmationEmail(orderId: string): Promise<void> {
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
     include: {
       event: true,
       tickets: { include: { order: false } },
-      items: { include: { ticketType: true } },
+      items: { include: { ticketType: true, product: true } },
     },
   });
 
   const { subject, bodyHtml } = await renderOrderEmail(order, "ORDER_CONFIRMATION");
+  const lines = merchandiseLines(order);
 
   const ticketTypeNameById = new Map<string, string>();
   for (const item of order.items) {
     if (item.ticketTypeId && item.ticketType) ticketTypeNameById.set(item.ticketTypeId, item.ticketType.name);
   }
 
-  const ticketAttachments = await Promise.all(
-    order.tickets.map(async (ticket, index) => {
-      const pdfBytes = await generateTicketPdf({
-        eventName: order.event.name,
-        venue: order.event.venue,
-        startsAt: order.event.startsAt,
-        buyerName: order.buyerName,
-        ticketTypeName: ticketTypeNameById.get(ticket.ticketTypeId) ?? "Ticket",
-        qrToken: ticket.qrToken,
-      });
-      return {
-        filename: `ticket-${index + 1}.pdf`,
-        content: Buffer.from(pdfBytes).toString("base64"),
-      };
-    }),
-  );
+  const attachments: { filename: string; content: string }[] = [];
 
-  const icsContent = generateIcsInvite({
-    eventName: order.event.name,
-    venue: order.event.venue,
-    startsAt: order.event.startsAt,
-    endsAt: order.event.endsAt,
-  });
+  if (order.tickets.length > 0) {
+    const ticketAttachments = await Promise.all(
+      order.tickets.map(async (ticket, index) => {
+        const pdfBytes = await generateTicketPdf({
+          eventName: order.event.name,
+          venue: order.event.venue,
+          startsAt: order.event.startsAt,
+          buyerName: order.buyerName,
+          ticketTypeName: ticketTypeNameById.get(ticket.ticketTypeId) ?? "Ticket",
+          qrToken: ticket.qrToken,
+          merchandiseLines: lines,
+        });
+        return {
+          filename: `ticket-${index + 1}.pdf`,
+          content: Buffer.from(pdfBytes).toString("base64"),
+        };
+      }),
+    );
+    attachments.push(...ticketAttachments);
 
-  const result = await sendEmail({
-    to: order.buyerEmail,
-    subject,
-    html: bodyHtml,
-    attachments: [
-      ...ticketAttachments,
-      { filename: "evenement.ics", content: Buffer.from(icsContent).toString("base64") },
-    ],
-  });
+    const icsContent = generateIcsInvite({
+      eventName: order.event.name,
+      venue: order.event.venue,
+      startsAt: order.event.startsAt,
+      endsAt: order.event.endsAt,
+    });
+    attachments.push({ filename: "evenement.ics", content: Buffer.from(icsContent).toString("base64") });
+  }
+
+  const result = await sendEmail({ to: order.buyerEmail, subject, html: bodyHtml, attachments });
 
   await logEmailAttempt(order.event.organizationId, order.id, "email_confirmation", result);
 }
@@ -110,7 +130,7 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
 export async function sendPaymentFailedEmail(orderId: string): Promise<void> {
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: { event: true, tickets: true },
+    include: { event: true, tickets: true, items: { include: { product: true } } },
   });
 
   const { subject, bodyHtml } = await renderOrderEmail(order, "PAYMENT_FAILED");

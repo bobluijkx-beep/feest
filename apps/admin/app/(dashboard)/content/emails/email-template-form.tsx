@@ -11,6 +11,8 @@ const SAMPLE_VARS = {
   ticketcode: "abc123, def456",
   datum: "14 november 2026",
   locatie: "Café De Voorbeeld",
+  tickets_sectie: "<p>Je tickets (met QR-code) vind je als bijlage bij deze e-mail.</p>",
+  merchandise: "<p>Ook besteld: 1x T-shirt (maat L).</p>",
 };
 
 const initialState: SaveTemplateState = {};
@@ -67,7 +69,12 @@ export function EmailTemplateForm({
         <p>
           Beschikbare placeholders: <code>{"{{voornaam}}"}</code> <code>{"{{event_naam}}"}</code>{" "}
           <code>{"{{aantal_tickets}}"}</code> <code>{"{{ticketcode}}"}</code> <code>{"{{datum}}"}</code>{" "}
-          <code>{"{{locatie}}"}</code>
+          <code>{"{{locatie}}"}</code> <code>{"{{tickets_sectie}}"}</code> <code>{"{{merchandise}}"}</code>
+        </p>
+        <p style={{ fontSize: "0.85rem", color: "#555" }}>
+          <code>{"{{tickets_sectie}}"}</code> en <code>{"{{merchandise}}"}</code> zijn kant-en-klare
+          HTML-blokken die vanzelf leeg zijn als een bestelling geen tickets, resp. geen merchandise
+          bevat (bv. een pure oliebollenverkoop).
         </p>
         <button type="submit" disabled={pending}>
           {pending ? "Opslaan…" : "Opslaan"}

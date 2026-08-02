@@ -7,6 +7,7 @@ const NAV_BY_ROLE: Record<string, { href: string; label: string }[]> = {
   ADMIN: [
     { href: "/", label: "Dashboard" },
     { href: "/orders", label: "Bestellingen" },
+    { href: "/ticket-types", label: "Ticketsoorten" },
     { href: "/settings", label: "Instellingen" },
     { href: "/content/emails", label: "E-mailtemplates" },
     { href: "/content/pages", label: "Paginabeheer" },
@@ -16,6 +17,7 @@ const NAV_BY_ROLE: Record<string, { href: string; label: string }[]> = {
   FINANCE: [
     { href: "/", label: "Dashboard" },
     { href: "/orders", label: "Bestellingen" },
+    { href: "/ticket-types", label: "Ticketsoorten" },
     { href: "/settings", label: "Instellingen" },
   ],
   EDITOR: [

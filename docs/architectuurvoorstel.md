@@ -223,20 +223,54 @@ payment, QStash-opruiming, webhook-idempotentie) verandert niet.
 - Publieke eventpagina krijgt een "Merchandise"-sectie naast "Tickets" in hetzelfde
   afrekenformulier (aantal-per-product, net als nu per ticketsoort).
 
-### Hergebruik voor een oliebollenverkoop
+### Hergebruik voor een oliebollenverkoop — al ondersteund door de bestaande architectuur
 
-Dit vereist **geen nieuwe app of architectuur** — het platform is al multi-event
-(`Organization` → meerdere `Event`s). Een oliebollenactie wordt gewoon een nieuw `Event`
-met nul `TicketType`s en één of meer `Product`s, binnen dezelfde Vercel-projecten/RBAC/
-Mollie-koppeling/audit-log. Enige aanpassing: de publieke pagina/copy ("Tickets",
-"Afrekenen met iDeal") moet neutraler/conditioneel worden zodat een product-only event er
-niet uitziet als een ticketpagina zonder tickets.
+Dit vereist **geen nieuwe app, geen nieuw domein-per-event en geen architectuurwijziging**
+— het platform is al multi-event (`Organization` → meerdere `Event`s) met één publieke app
+(`apps/web`) die elk event op zijn eigen pad rendert: `shop.lionsvoorschoten.org/
+goededoelenfeest-2026` en `shop.lionsvoorschoten.org/oliebollen` zijn dus al gewoon twee
+routes (`/[eventSlug]`) binnen dezelfde Next.js-app, elk met eigen naam, tickets/producten,
+content-blokken (hero/FAQ/sponsors) en e-mailtemplates, op dezelfde gedeelde backend
+(database, Mollie, RBAC, audit-log). Een oliebollenactie wordt gewoon een nieuw `Event`
+met nul `TicketType`s en één of meer `Product`s.
+
+Twee dingen ontbreken nog om dit ook echt zo te laten werken, allebei nu aan dit voorstel
+toegevoegd:
+
+1. **Custom domain** (`shop.lionsvoorschoten.org` i.p.v. de huidige `*.vercel.app`-URL) —
+   een Vercel/DNS-configuratiestap (domein toevoegen bij het `feest-website`-Vercel-project
+   + DNS-record bij de registrar), geen code. Los van de fasering hieronder, op te pakken
+   zodra gewenst.
+2. **Evenementenbeheer in de admin** — er bestaat nu geen scherm om een nieuw `Event` aan
+   te maken; het huidige (enige) event is destijds rechtstreeks in de database gezet.
+   Nieuwe `/events`-pagina (ADMIN-only): naam, slug, venue, datum/tijd, status
+   (DRAFT/PUBLISHED/ARCHIVED) aanmaken en bewerken — zonder dit kan er op den duur geen
+   nieuw evenement (of oliebollenactie) bij zonder handmatig DB-werk.
+
+### Per-event huisstijl
+
+Bevestigd: elk event moet een eigen visuele identiteit kunnen krijgen (bv. Lions-blauw
+voor het feest, herfsttinten voor oliebollen), niet alleen andere content binnen dezelfde
+opmaak. Dit is een aanvullende scope-dimensie bovenop de merchandise-uitbreiding zelf —
+de publieke site heeft op dit moment vrijwel geen visueel systeem (overal losse inline
+`style={{...}}`, geen kleurenpalet), dus dit vereist ook een klein basis-ontwerp, niet
+alleen een databaseveld.
+
+- `Event` krijgt een `theme Json?`-veld (zelfde vrije-vorm-patroon als `PageBlock.content`):
+  bv. `{ primaryColor, backgroundColor, accentColor, logoUrl }`. Bewust een los Json-veld
+  i.p.v. losse kolommen, zodat een thema-optie later toevoegen geen nieuwe migratie kost.
+- De publieke eventpagina injecteert deze waarden als CSS-custom-properties op het
+  root-element; de bestaande/nieuwe componenten van de publieke site gebruiken die
+  variabelen (`var(--theme-primary)` etc.) in plaats van hardgecodeerde kleuren.
+- Beheer van het thema hoort bij de nieuwe `/events`-pagina (ADMIN-only): eenvoudige
+  kleurkiezers/tekstvelden, met een live voorbeeld net als bij de content-/e-mailtemplate-
+  editors uit fase 2.
 
 ### Voorgestelde fasering
 
-Gezien de omvang (schema + kassaflow + PDF/mail + admin + publieke pagina) stel ik voor
-dit net als fase 1-3 in behapbare stukken te bouwen, elk met eigen verificatie en
-commit-voorstel:
+Gezien de omvang (schema + kassaflow + PDF/mail + admin + publieke pagina + event-beheer +
+huisstijl) stel ik voor dit net als fase 1-3 in behapbare stukken te bouwen, elk met eigen
+verificatie en commit-voorstel:
 
 1. **4a — datamodel + kassaflow:** `Product`-model, migratie, gegeneraliseerde
    `createOrder()`/webhook-stockafhandeling. Verificatie: gemengde test-checkout
@@ -244,10 +278,13 @@ commit-voorstel:
 2. **4b — fulfillment:** PDF/mail-aanpassing (merch-regels op het ticket, receipt-only
    voor product-only orders). Verificatie: e-mail/PDF bekijken voor een gemengde en een
    pure product-order.
-3. **4c — admin + publieke UI:** `/products`-pagina, merchandise-sectie op de publieke
-   pagina. Verificatie: product aanmaken, op de publieke pagina meebestellen, in admin
-   terugzien.
-4. **4d — oliebollen-praktijktest:** een tweede, product-only `Event` aanmaken en een
-   volledige test-aankoop doorlopen als bewijs dat hergebruik werkt zonder codewijziging.
+3. **4c — admin:** `/products`-pagina (zelfde patroon als `/ticket-types`) én de nieuwe
+   `/events`-pagina (aanmaken/bewerken van events, incl. huisstijlvelden).
+4. **4d — publieke UI + huisstijl:** merchandise-sectie in het afrekenformulier, CSS-
+   custom-properties-systeem voor het per-event-thema. Verificatie: twee events met
+   duidelijk verschillende kleurstelling naast elkaar bekijken.
+5. **4e — oliebollen-praktijktest:** een tweede, product-only `Event` aanmaken (eigen
+   thema, geen tickets) via de nieuwe `/events`-pagina en een volledige test-aankoop
+   doorlopen als bewijs dat hergebruik werkt zonder codewijziging.
 
 Elke deelstap wacht op een apart akkoord, zoals steeds in dit project.

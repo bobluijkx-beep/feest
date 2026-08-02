@@ -63,7 +63,10 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
 
   const { subject, bodyHtml } = await renderOrderEmail(order, "ORDER_CONFIRMATION");
 
-  const ticketTypeNameById = new Map(order.items.map((item) => [item.ticketTypeId, item.ticketType.name]));
+  const ticketTypeNameById = new Map<string, string>();
+  for (const item of order.items) {
+    if (item.ticketTypeId && item.ticketType) ticketTypeNameById.set(item.ticketTypeId, item.ticketType.name);
+  }
 
   const ticketAttachments = await Promise.all(
     order.tickets.map(async (ticket, index) => {

@@ -1,6 +1,7 @@
 // Datamodel — zie docs/architectuurvoorstel.md voor de motivatie per keuze.
-// Organization (1 rij nu) -> Event -> TicketType -> Order -> OrderItem -> Ticket -> CheckIn,
+// Organization (1 rij nu) -> Event -> TicketType/Product -> Order -> OrderItem -> Ticket -> CheckIn,
 // plus User, EmailTemplate, PageBlock, Setting en AuditLog.
+// OrderItem verwijst naar precies één van TicketType/Product (CHECK-constraint in de migratie).
 
 generator client {
   provider = "prisma-client-js"
@@ -72,6 +73,7 @@ model Event {
   endsAt         DateTime?
   status         EventStatus     @default(DRAFT)
   ticketTypes    TicketType[]
+  products       Product[]
   orders         Order[]
   emailTemplates EmailTemplate[]
   pageBlocks     PageBlock[]
@@ -104,6 +106,30 @@ model TicketType {
   @@map("ticket_types")
 }
 
+// Merchandise/webshop-artikel, zelfde voorraadpatroon als TicketType maar zonder
+// toegangscontrole: een Product-regel in een order genereert geen Ticket (geen QR/
+// check-in), alleen een vermelding op het ticket-PDF/de bevestigingsmail. Zie
+// docs/architectuurvoorstel.md ("Uitbreiding: merchandise & generieke webshop").
+model Product {
+  id            String      @id @default(cuid())
+  eventId       String
+  event         Event       @relation(fields: [eventId], references: [id])
+  name          String
+  description   String?
+  priceCents    Int
+  currency      String      @default("EUR")
+  totalStock    Int
+  reservedStock Int         @default(0)
+  soldStock     Int         @default(0)
+  isActive      Boolean     @default(true)
+  orderItems    OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([eventId])
+  @@map("products")
+}
+
 model Order {
   id                 String      @id @default(cuid())
   eventId            String
@@ -125,17 +151,23 @@ model Order {
   @@map("orders")
 }
 
+// ticketTypeId en productId zijn allebei optioneel maar precies één van beide moet
+// gezet zijn — afgedwongen met een CHECK-constraint in de migratie zelf (Prisma's
+// schema-DSL kent geen check-syntax), niet alleen als applicatie-aanname.
 model OrderItem {
-  id             String     @id @default(cuid())
+  id             String      @id @default(cuid())
   orderId        String
-  order          Order      @relation(fields: [orderId], references: [id])
-  ticketTypeId   String
-  ticketType     TicketType @relation(fields: [ticketTypeId], references: [id])
+  order          Order       @relation(fields: [orderId], references: [id])
+  ticketTypeId   String?
+  ticketType     TicketType? @relation(fields: [ticketTypeId], references: [id])
+  productId      String?
+  product        Product?    @relation(fields: [productId], references: [id])
   quantity       Int
   unitPriceCents Int
 
   @@index([orderId])
   @@index([ticketTypeId])
+  @@index([productId])
   @@map("order_items")
 }
 

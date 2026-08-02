@@ -28,17 +28,31 @@ export async function deleteTestOrder(orderId: string): Promise<DeleteResult> {
 
     if (status === "PENDING") {
       for (const item of items) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { reservedStock: { decrement: item.quantity } },
-        });
+        if (item.ticketTypeId) {
+          await tx.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: { reservedStock: { decrement: item.quantity } },
+          });
+        } else if (item.productId) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { reservedStock: { decrement: item.quantity } },
+          });
+        }
       }
     } else if (status === "PAID") {
       for (const item of items) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { soldStock: { decrement: item.quantity } },
-        });
+        if (item.ticketTypeId) {
+          await tx.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: { soldStock: { decrement: item.quantity } },
+          });
+        } else if (item.productId) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { soldStock: { decrement: item.quantity } },
+          });
+        }
       }
     }
     // EXPIRED/FAILED/CANCELLED/REFUNDED: voorraad is al eerder gecorrigeerd door de

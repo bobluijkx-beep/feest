@@ -34,15 +34,24 @@ export async function processMolliePaymentWebhook(molliePaymentId: string): Prom
 
     if (payment.status === "paid") {
       for (const item of order.items) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { reservedStock: { decrement: item.quantity }, soldStock: { increment: item.quantity } },
-        });
-        for (let i = 0; i < item.quantity; i++) {
-          const ticket = await tx.ticket.create({
-            data: { orderId: order.id, ticketTypeId: item.ticketTypeId, qrToken: randomUUID() },
+        if (item.ticketTypeId) {
+          await tx.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: { reservedStock: { decrement: item.quantity }, soldStock: { increment: item.quantity } },
           });
-          await tx.ticket.update({ where: { id: ticket.id }, data: { qrToken: signQrToken(ticket.id) } });
+          // Alleen ticketsoort-regels krijgen een scanbaar Ticket; merchandise-regels
+          // (productId) hebben geen toegangscontrole nodig.
+          for (let i = 0; i < item.quantity; i++) {
+            const ticket = await tx.ticket.create({
+              data: { orderId: order.id, ticketTypeId: item.ticketTypeId, qrToken: randomUUID() },
+            });
+            await tx.ticket.update({ where: { id: ticket.id }, data: { qrToken: signQrToken(ticket.id) } });
+          }
+        } else if (item.productId) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { reservedStock: { decrement: item.quantity }, soldStock: { increment: item.quantity } },
+          });
         }
       }
       await tx.order.update({ where: { id: order.id }, data: { status: "PAID" } });
@@ -53,10 +62,17 @@ export async function processMolliePaymentWebhook(molliePaymentId: string): Prom
     const mappedStatus = TERMINAL_MOLLIE_STATUS[payment.status];
     if (mappedStatus) {
       for (const item of order.items) {
-        await tx.ticketType.update({
-          where: { id: item.ticketTypeId },
-          data: { reservedStock: { decrement: item.quantity } },
-        });
+        if (item.ticketTypeId) {
+          await tx.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: { reservedStock: { decrement: item.quantity } },
+          });
+        } else if (item.productId) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { reservedStock: { decrement: item.quantity } },
+          });
+        }
       }
       await tx.order.update({ where: { id: order.id }, data: { status: mappedStatus } });
       becameTerminalFailure = true;

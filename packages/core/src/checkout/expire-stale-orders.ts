@@ -3,7 +3,7 @@ import { prisma } from "../db";
 
 async function expireOrderInTransaction(
   orderId: string,
-  items: { ticketTypeId: string; quantity: number }[],
+  items: { ticketTypeId: string | null; productId: string | null; quantity: number }[],
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<{ status: string }[]>`
@@ -11,10 +11,17 @@ async function expireOrderInTransaction(
     if (locked[0]?.status !== "PENDING") return false;
 
     for (const item of items) {
-      await tx.ticketType.update({
-        where: { id: item.ticketTypeId },
-        data: { reservedStock: { decrement: item.quantity } },
-      });
+      if (item.ticketTypeId) {
+        await tx.ticketType.update({
+          where: { id: item.ticketTypeId },
+          data: { reservedStock: { decrement: item.quantity } },
+        });
+      } else if (item.productId) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { reservedStock: { decrement: item.quantity } },
+        });
+      }
     }
     await tx.order.update({ where: { id: orderId }, data: { status: "EXPIRED" } });
     return true;

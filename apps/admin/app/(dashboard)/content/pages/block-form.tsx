@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PageBlockView } from "@lions/ui";
+import { PageBlockView, Button, Input, Label } from "@lions/ui";
 
 type Fields = Record<string, string>;
 
@@ -58,55 +58,60 @@ export function BlockForm({
   const [showPreview, setShowPreview] = useState(false);
 
   return (
-    <form action={action}>
+    <form action={action} className="flex flex-col gap-4">
       {hiddenFields &&
         Object.entries(hiddenFields).map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
       <input type="hidden" name="type" value={type} />
 
       {fields.map((f) => (
-        <div key={f.name} style={{ marginBottom: "0.75rem" }}>
-          <label>
-            {f.label}
-            <br />
-            {f.kind === "textarea" ? (
-              <textarea
-                name={f.name}
-                value={values[f.name]}
-                onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                rows={4}
-                style={{ width: "100%" }}
-              />
-            ) : (
-              <input
-                type="text"
-                name={f.name}
-                value={values[f.name]}
-                onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                style={{ width: "100%" }}
-              />
-            )}
-          </label>
+        <div key={f.name} className="flex flex-col gap-1">
+          <Label htmlFor={f.name}>{f.label}</Label>
+          {f.kind === "textarea" ? (
+            <textarea
+              id={f.name}
+              name={f.name}
+              value={values[f.name]}
+              onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
+              rows={4}
+              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          ) : (
+            <Input
+              id={f.name}
+              type="text"
+              name={f.name}
+              value={values[f.name]}
+              onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
+            />
+          )}
         </div>
       ))}
 
-      <div style={{ marginBottom: "0.75rem" }}>
-        <label>
-          Volgorde <input type="number" name="order" defaultValue={initial.order} style={{ width: 80 }} />
-        </label>
-      </div>
-      <div style={{ marginBottom: "1rem" }}>
-        <label>
-          <input type="checkbox" name="isPublished" defaultChecked={initial.isPublished} /> Gepubliceerd
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="order">Volgorde</Label>
+          <Input id="order" type="number" name="order" defaultValue={initial.order} className="w-20" />
+        </div>
+        <label className="flex items-center gap-2 pb-1.5 text-sm">
+          <input
+            type="checkbox"
+            name="isPublished"
+            defaultChecked={initial.isPublished}
+            className="size-4 rounded border-input"
+          />
+          Gepubliceerd
         </label>
       </div>
 
-      <button type="submit">{submitLabel}</button>{" "}
-      <button type="button" onClick={() => setShowPreview((v) => !v)}>
-        {showPreview ? "Voorbeeld verbergen" : "Voorbeeld tonen"}
-      </button>
+      <div className="flex items-center gap-3">
+        <Button type="submit">{submitLabel}</Button>
+        <Button type="button" variant="outline" onClick={() => setShowPreview((v) => !v)}>
+          {showPreview ? "Voorbeeld verbergen" : "Voorbeeld tonen"}
+        </Button>
+      </div>
 
       {showPreview && (
-        <div style={{ border: "1px solid #ddd", padding: "1rem", marginTop: "1rem" }}>
+        <div className="rounded-lg border border-border p-4">
           <PageBlockView type={type} content={values} />
         </div>
       )}

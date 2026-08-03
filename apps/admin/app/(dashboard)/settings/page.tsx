@@ -11,11 +11,5 @@ export default async function SettingsPage() {
     hasMollieApiKey(actor.organizationId, "live"),
   ]);
 
-  return (
-    <main>
-      <h1>Instellingen</h1>
-      <h2>Mollie</h2>
-      <MollieSettingsForm mode={mode} hasTestKey={hasTestKey} hasLiveKey={hasLiveKey} />
-    </main>
-  );
+  return <MollieSettingsForm mode={mode} hasTestKey={hasTestKey} hasLiveKey={hasLiveKey} />;
 }

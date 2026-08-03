@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@lions/ui";
 import { deleteOrder, type OrderActionState } from "./actions";
 
 const initialState: OrderActionState = {};
@@ -20,13 +21,12 @@ export function DeleteOrderButton({ orderId }: { orderId: string }) {
           e.preventDefault();
         }
       }}
-      style={{ display: "inline-block" }}
     >
       <input type="hidden" name="orderId" value={orderId} />
-      <button type="submit" disabled={pending}>
+      <Button type="submit" variant="destructive" size="sm" disabled={pending}>
         {pending ? "Bezig…" : "Verwijderen"}
-      </button>
-      {state.error && <div style={{ color: "crimson", fontSize: "0.85rem" }}>{state.error}</div>}
+      </Button>
+      {state.error && <div className="mt-1 text-xs text-destructive">{state.error}</div>}
     </form>
   );
 }

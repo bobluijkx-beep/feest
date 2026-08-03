@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Card, CardHeader, CardTitle, CardAction, CardContent, Badge, Button, Input, Label, Select } from "@lions/ui";
 import { updateProduct, deleteProduct, type ProductActionState } from "./actions";
 
 const initialState: ProductActionState = {};
@@ -24,70 +25,87 @@ export function ProductRowForm({ product }: { product: Product }) {
   const committed = product.reservedStock + product.soldStock;
 
   return (
-    <tr style={{ borderTop: "1px solid #ddd" }}>
-      <td colSpan={7} style={{ padding: "0.75rem 0" }}>
-        <p style={{ margin: "0 0 0.25rem", fontSize: "0.85rem", color: "#555" }}>Evenement: {product.eventName}</p>
-        <form action={updateAction} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+    <Card>
+      <CardHeader>
+        <CardTitle>{product.name}</CardTitle>
+        <CardAction>
+          <Badge variant="outline">{product.eventName}</Badge>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <form action={updateAction} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="id" value={product.id} />
-          <select name="kind" defaultValue={product.kind}>
-            <option value="TICKET">Ticket</option>
-            <option value="MERCHANDISE">Merchandise</option>
-          </select>
-          <input type="text" name="name" defaultValue={product.name} style={{ width: "10rem" }} required />
-          <input
-            type="text"
-            name="description"
-            defaultValue={product.description ?? ""}
-            placeholder="Omschrijving (optioneel)"
-            style={{ width: "12rem" }}
-          />
-          <label>
-            €{" "}
-            <input
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`kind-${product.id}`}>Soort</Label>
+            <Select id={`kind-${product.id}`} name="kind" defaultValue={product.kind} className="w-36">
+              <option value="TICKET">Ticket</option>
+              <option value="MERCHANDISE">Merchandise</option>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`name-${product.id}`}>Naam</Label>
+            <Input id={`name-${product.id}`} type="text" name="name" defaultValue={product.name} required className="w-48" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`description-${product.id}`}>Omschrijving</Label>
+            <Input
+              id={`description-${product.id}`}
+              type="text"
+              name="description"
+              defaultValue={product.description ?? ""}
+              placeholder="Optioneel"
+              className="w-48"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`priceEuros-${product.id}`}>Prijs (€)</Label>
+            <Input
+              id={`priceEuros-${product.id}`}
               type="number"
               name="priceEuros"
               defaultValue={(product.priceCents / 100).toFixed(2)}
               step="0.01"
               min="0.01"
-              style={{ width: "6rem" }}
               required
+              className="w-24"
             />
-          </label>
-          <label>
-            Aantal{" "}
-            <input
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`totalStock-${product.id}`}>Aantal</Label>
+            <Input
+              id={`totalStock-${product.id}`}
               type="number"
               name="totalStock"
               defaultValue={product.totalStock}
               min={committed}
-              style={{ width: "5rem" }}
               required
+              className="w-20"
             />
+          </div>
+          <p className="pb-1.5 text-xs text-muted-foreground">({committed} gereserveerd/verkocht)</p>
+          <label className="flex items-center gap-2 pb-1.5 text-sm">
+            <input type="checkbox" name="isActive" defaultChecked={product.isActive} className="size-4 rounded border-input" />
+            Actief
           </label>
-          <span style={{ fontSize: "0.85rem", color: "#555" }}>({committed} gereserveerd/verkocht)</span>
-          <label>
-            <input type="checkbox" name="isActive" defaultChecked={product.isActive} /> Actief
-          </label>
-          <button type="submit" disabled={updatePending}>
+          <Button type="submit" disabled={updatePending}>
             {updatePending ? "Opslaan…" : "Opslaan"}
-          </button>
+          </Button>
         </form>
-        {updateState.error && <p style={{ color: "crimson", margin: "0.25rem 0 0" }}>{updateState.error}</p>}
+        {updateState.error && <p className="text-sm text-destructive">{updateState.error}</p>}
 
         <form
           action={deleteAction}
-          style={{ marginTop: "0.5rem" }}
           onSubmit={(e) => {
             if (!window.confirm(`Product "${product.name}" verwijderen?`)) e.preventDefault();
           }}
         >
           <input type="hidden" name="id" value={product.id} />
-          <button type="submit" disabled={deletePending}>
+          <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
             {deletePending ? "Bezig…" : "Verwijderen"}
-          </button>
+          </Button>
         </form>
-        {deleteState.error && <p style={{ color: "crimson", margin: "0.25rem 0 0" }}>{deleteState.error}</p>}
-      </td>
-    </tr>
+        {deleteState.error && <p className="text-sm text-destructive">{deleteState.error}</p>}
+      </CardContent>
+    </Card>
   );
 }

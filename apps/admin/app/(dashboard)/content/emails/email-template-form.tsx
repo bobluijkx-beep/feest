@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { renderTemplate } from "@lions/core/email/template-engine";
+import { Button, Input, Label, Card, CardContent } from "@lions/ui";
 import { saveEmailTemplate, type SaveTemplateState } from "./actions";
 
 const SAMPLE_VARS = {
@@ -36,63 +37,56 @@ export function EmailTemplateForm({
   const preview = renderTemplate({ subject, bodyHtml }, SAMPLE_VARS);
 
   return (
-    <div>
-      <form action={formAction}>
+    <div className="flex flex-col gap-4">
+      <form action={formAction} className="flex flex-col gap-4">
         <input type="hidden" name="eventId" value={eventId} />
         <input type="hidden" name="type" value={type} />
-        <div style={{ marginBottom: "0.75rem" }}>
-          <label>
-            Onderwerp
-            <br />
-            <input
-              type="text"
-              name="subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </label>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="subject">Onderwerp</Label>
+          <Input id="subject" type="text" name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
         </div>
-        <div style={{ marginBottom: "0.75rem" }}>
-          <label>
-            Inhoud (HTML)
-            <br />
-            <textarea
-              name="bodyHtml"
-              value={bodyHtml}
-              onChange={(e) => setBodyHtml(e.target.value)}
-              rows={10}
-              style={{ width: "100%", fontFamily: "monospace" }}
-            />
-          </label>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="bodyHtml">Inhoud (HTML)</Label>
+          <textarea
+            id="bodyHtml"
+            name="bodyHtml"
+            value={bodyHtml}
+            onChange={(e) => setBodyHtml(e.target.value)}
+            rows={10}
+            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
         </div>
-        <p>
+        <p className="text-xs text-muted-foreground">
           Beschikbare placeholders: <code>{"{{voornaam}}"}</code> <code>{"{{event_naam}}"}</code>{" "}
           <code>{"{{aantal_tickets}}"}</code> <code>{"{{ticketcode}}"}</code> <code>{"{{datum}}"}</code>{" "}
           <code>{"{{locatie}}"}</code> <code>{"{{tickets_sectie}}"}</code> <code>{"{{merchandise}}"}</code>
         </p>
-        <p style={{ fontSize: "0.85rem", color: "#555" }}>
-          <code>{"{{tickets_sectie}}"}</code> en <code>{"{{merchandise}}"}</code> zijn kant-en-klare
-          HTML-blokken die vanzelf leeg zijn als een bestelling geen tickets, resp. geen merchandise
-          bevat (bv. een pure oliebollenverkoop).
+        <p className="text-xs text-muted-foreground">
+          <code>{"{{tickets_sectie}}"}</code> en <code>{"{{merchandise}}"}</code> zijn kant-en-klare HTML-blokken die
+          vanzelf leeg zijn als een bestelling geen tickets, resp. geen merchandise bevat (bv. een pure
+          oliebollenverkoop).
         </p>
-        <button type="submit" disabled={pending}>
-          {pending ? "Opslaan…" : "Opslaan"}
-        </button>{" "}
-        <button type="button" onClick={() => setShowPreview((v) => !v)}>
-          {showPreview ? "Voorbeeld verbergen" : "Voorbeeld tonen"}
-        </button>
-        {state.error && <p style={{ color: "crimson" }}>{state.error}</p>}
-        {state.success && <p style={{ color: "green" }}>Opgeslagen.</p>}
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Opslaan…" : "Opslaan"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setShowPreview((v) => !v)}>
+            {showPreview ? "Voorbeeld verbergen" : "Voorbeeld tonen"}
+          </Button>
+          {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+          {state.success && <p className="text-sm text-primary">Opgeslagen.</p>}
+        </div>
       </form>
 
       {showPreview && (
-        <div style={{ border: "1px solid #ddd", padding: "1rem", marginTop: "1rem" }}>
-          <p>
-            <strong>Onderwerp:</strong> {preview.subject}
-          </p>
-          <div dangerouslySetInnerHTML={{ __html: preview.bodyHtml }} />
-        </div>
+        <Card>
+          <CardContent className="flex flex-col gap-2">
+            <p className="text-sm">
+              <strong>Onderwerp:</strong> {preview.subject}
+            </p>
+            <div className="text-sm" dangerouslySetInnerHTML={{ __html: preview.bodyHtml }} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -1,3 +1,5 @@
+import { Input, Label, Select } from "@lions/ui";
+
 export function EventFormFields({
   defaults,
 }: {
@@ -30,62 +32,84 @@ export function EventFormFields({
   };
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-      <label>
-        Naam
-        <br />
-        <input type="text" name="name" defaultValue={d.name} required style={{ width: "16rem" }} />
-      </label>
-      <label>
-        Slug (in de URL)
-        <br />
-        <input type="text" name="slug" defaultValue={d.slug} required style={{ width: "12rem" }} />
-      </label>
-      <label>
-        Status
-        <br />
-        <select name="status" defaultValue={d.status}>
+    <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="name">Naam</Label>
+        <Input id="name" type="text" name="name" defaultValue={d.name} required className="w-64" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="slug">Slug (in de URL)</Label>
+        <Input id="slug" type="text" name="slug" defaultValue={d.slug} required className="w-48" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="status">Status</Label>
+        <Select id="status" name="status" defaultValue={d.status} className="w-40">
           <option value="DRAFT">DRAFT</option>
           <option value="PUBLISHED">PUBLISHED</option>
           <option value="ARCHIVED">ARCHIVED</option>
-        </select>
-      </label>
-      <label style={{ width: "100%" }}>
-        Omschrijving
-        <br />
-        <input type="text" name="description" defaultValue={d.description} style={{ width: "100%" }} />
-      </label>
-      <label>
-        Locatie
-        <br />
-        <input type="text" name="venue" defaultValue={d.venue} style={{ width: "12rem" }} />
-      </label>
-      <label>
-        Start (datum/tijd)
-        <br />
-        <input type="datetime-local" name="startsAt" defaultValue={d.startsAt} required />
-      </label>
-      <label>
-        Einde (optioneel)
-        <br />
-        <input type="datetime-local" name="endsAt" defaultValue={d.endsAt} />
-      </label>
-      <fieldset style={{ width: "100%" }}>
-        <legend>Huisstijl</legend>
-        <label>
-          Hoofdkleur <input type="color" name="primaryColor" defaultValue={d.primaryColor || "#1d4ed8"} />
-        </label>{" "}
-        <label>
-          Achtergrondkleur <input type="color" name="backgroundColor" defaultValue={d.backgroundColor || "#ffffff"} />
-        </label>{" "}
-        <label>
-          Accentkleur <input type="color" name="accentColor" defaultValue={d.accentColor || "#f59e0b"} />
-        </label>
-        <br />
-        <label>
-          Logo-URL{" "}
-          <input type="text" name="logoUrl" defaultValue={d.logoUrl} placeholder="https://…" style={{ width: "20rem" }} />
-        </label>
+        </Select>
+      </div>
+      <div className="flex w-full flex-col gap-1">
+        <Label htmlFor="description">Omschrijving</Label>
+        <Input id="description" type="text" name="description" defaultValue={d.description} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="venue">Locatie</Label>
+        <Input id="venue" type="text" name="venue" defaultValue={d.venue} className="w-48" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="startsAt">Start (datum/tijd)</Label>
+        <Input id="startsAt" type="datetime-local" name="startsAt" defaultValue={d.startsAt} required className="w-56" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="endsAt">Einde (optioneel)</Label>
+        <Input id="endsAt" type="datetime-local" name="endsAt" defaultValue={d.endsAt} className="w-56" />
+      </div>
+      <fieldset className="flex w-full flex-col gap-3 rounded-lg border border-border p-3">
+        <legend className="px-1 text-xs font-medium text-muted-foreground">Huisstijl</legend>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="primaryColor">Hoofdkleur</Label>
+            <input
+              id="primaryColor"
+              type="color"
+              name="primaryColor"
+              defaultValue={d.primaryColor || "#1d4ed8"}
+              className="h-8 w-10 rounded-md border border-input"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="backgroundColor">Achtergrondkleur</Label>
+            <input
+              id="backgroundColor"
+              type="color"
+              name="backgroundColor"
+              defaultValue={d.backgroundColor || "#ffffff"}
+              className="h-8 w-10 rounded-md border border-input"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="accentColor">Accentkleur</Label>
+            <input
+              id="accentColor"
+              type="color"
+              name="accentColor"
+              defaultValue={d.accentColor || "#f59e0b"}
+              className="h-8 w-10 rounded-md border border-input"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="logoUrl">Logo-URL</Label>
+          <Input
+            id="logoUrl"
+            type="text"
+            name="logoUrl"
+            defaultValue={d.logoUrl}
+            placeholder="https://…"
+            className="w-full max-w-md"
+          />
+        </div>
       </fieldset>
     </div>
   );

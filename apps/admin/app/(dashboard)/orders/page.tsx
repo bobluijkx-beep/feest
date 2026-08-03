@@ -1,7 +1,17 @@
 import { prisma } from "@lions/core";
+import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { RefundButton } from "./refund-button";
 import { DeleteOrderButton } from "./delete-order-button";
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  PAID: "default",
+  PENDING: "secondary",
+  FAILED: "destructive",
+  CANCELLED: "destructive",
+  EXPIRED: "destructive",
+  REFUNDED: "outline",
+};
 
 export default async function OrdersPage() {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
@@ -13,48 +23,50 @@ export default async function OrdersPage() {
   });
 
   return (
-    <main>
-      <h1>Bestellingen</h1>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th align="left">Koper</th>
-            <th align="left">Event</th>
-            <th align="left">Status</th>
-            <th align="right">Tickets</th>
-            <th align="right">Totaal</th>
-            <th align="left">Besteld op</th>
-            <th align="left">Acties</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id} style={{ borderTop: "1px solid #ddd" }}>
-              <td>
-                {order.buyerName}
-                <br />
-                <small>{order.buyerEmail}</small>
-              </td>
-              <td>{order.event.name}</td>
-              <td>{order.status}</td>
-              <td align="right">
-                {order.tickets.length || order.items.reduce((sum, item) => sum + item.quantity, 0)}
-              </td>
-              <td align="right">€{(order.totalCents / 100).toFixed(2)}</td>
-              <td>{order.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td>
-              <td style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Koper</TableHead>
+          <TableHead>Event</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Tickets</TableHead>
+          <TableHead className="text-right">Totaal</TableHead>
+          <TableHead>Besteld op</TableHead>
+          <TableHead>Acties</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {orders.map((order) => (
+          <TableRow key={order.id}>
+            <TableCell>
+              <div>{order.buyerName}</div>
+              <div className="text-xs text-muted-foreground">{order.buyerEmail}</div>
+            </TableCell>
+            <TableCell>{order.event.name}</TableCell>
+            <TableCell>
+              <Badge variant={STATUS_VARIANT[order.status] ?? "outline"}>{order.status}</Badge>
+            </TableCell>
+            <TableCell className="text-right">
+              {order.tickets.length || order.items.reduce((sum, item) => sum + item.quantity, 0)}
+            </TableCell>
+            <TableCell className="text-right">€{(order.totalCents / 100).toFixed(2)}</TableCell>
+            <TableCell>{order.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</TableCell>
+            <TableCell>
+              <div className="flex flex-col gap-1">
                 {order.status === "PAID" && <RefundButton orderId={order.id} />}
                 {actor.role === "ADMIN" && <DeleteOrderButton orderId={order.id} />}
-              </td>
-            </tr>
-          ))}
-          {orders.length === 0 && (
-            <tr>
-              <td colSpan={7}>Nog geen bestellingen.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </main>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+        {orders.length === 0 && (
+          <TableRow>
+            <TableCell colSpan={7} className="text-center text-muted-foreground">
+              Nog geen bestellingen.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 }

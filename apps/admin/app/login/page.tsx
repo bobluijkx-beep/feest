@@ -1,3 +1,4 @@
+import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Input, Label } from "@lions/ui";
 import { signIn } from "../actions/auth";
 
 export default async function LoginPage({
@@ -8,26 +9,29 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <main style={{ maxWidth: 360, margin: "4rem auto", padding: "0 1rem" }}>
-      <h1>Inloggen</h1>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      <form action={signIn}>
-        <div style={{ marginBottom: "0.75rem" }}>
-          <label>
-            E-mailadres
-            <br />
-            <input type="email" name="email" required style={{ width: "100%" }} />
-          </label>
-        </div>
-        <div style={{ marginBottom: "1rem" }}>
-          <label>
-            Wachtwoord
-            <br />
-            <input type="password" name="password" required style={{ width: "100%" }} />
-          </label>
-        </div>
-        <button type="submit">Inloggen</button>
-      </form>
-    </main>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>Lionsclub Voorschoten — Admin</CardTitle>
+          <CardDescription>Log in met je bestuurs-account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={signIn} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="email">E-mailadres</Label>
+              <Input id="email" name="email" type="email" autoComplete="email" required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password">Wachtwoord</Label>
+              <Input id="password" name="password" type="password" autoComplete="current-password" required />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" className="mt-2">
+              Inloggen
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

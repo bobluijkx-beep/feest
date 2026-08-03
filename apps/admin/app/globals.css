@@ -1,8 +1,6 @@
-* {
-  box-sizing: border-box;
-}
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@lions/ui/theme.css";
+@source "../../../packages/ui/src";
 
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-}
+@custom-variant dark (&:is(.dark *));

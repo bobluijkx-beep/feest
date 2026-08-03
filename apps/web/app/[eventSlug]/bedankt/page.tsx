@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma, processMolliePaymentWebhook } from "@lions/core";
+import { Card, CardContent } from "@lions/ui";
 
 const STATUS_COPY: Record<string, { title: string; message: string }> = {
   PENDING: {
@@ -53,10 +54,14 @@ export default async function ThankYouPage({
   const copy = STATUS_COPY[copyKey] ?? STATUS_COPY.PENDING;
 
   return (
-    <main style={{ maxWidth: 640, margin: "0 auto", padding: "2rem 1rem" }}>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
       {status === "PENDING" && <meta httpEquiv="refresh" content="3" />}
-      <h1>{copy.title}</h1>
-      <p>{copy.message}</p>
+      <Card className="w-full max-w-md">
+        <CardContent className="flex flex-col gap-2 text-center">
+          <h1 className="text-xl font-semibold text-primary">{copy.title}</h1>
+          <p className="text-sm text-muted-foreground">{copy.message}</p>
+        </CardContent>
+      </Card>
     </main>
   );
 }

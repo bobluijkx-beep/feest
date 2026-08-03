@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
+import { Card } from "@lions/ui";
 import { submitScan, flushQueue, getQueueCount, type CheckinResult } from "@/lib/offline-queue";
 
 type Feedback = { kind: "ok" | "warn" | "error"; message: string; detail?: string } | null;
@@ -137,42 +138,41 @@ export function ScannerClient() {
     };
   }, []);
 
-  const feedbackColor =
-    feedback?.kind === "ok" ? "#0a7a2f" : feedback?.kind === "warn" ? "#b8860b" : feedback?.kind === "error" ? "#c0392b" : "#333";
+  const feedbackClasses =
+    feedback?.kind === "ok"
+      ? "border-primary text-primary bg-primary/5"
+      : feedback?.kind === "warn"
+        ? "border-amber-500 text-amber-600 bg-amber-500/5"
+        : feedback?.kind === "error"
+          ? "border-destructive text-destructive bg-destructive/5"
+          : "border-border text-muted-foreground";
 
   return (
-    <div>
+    <div className="flex flex-col gap-3">
       {!isOnline && (
-        <p style={{ background: "#fdecea", padding: "0.5rem", marginBottom: "0.5rem" }}>
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           Offline — scans worden lokaal opgeslagen en later gesynchroniseerd.
         </p>
       )}
       {pendingCount > 0 && (
-        <p style={{ background: "#fff8e1", padding: "0.5rem", marginBottom: "0.5rem" }}>
+        <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
           {pendingCount} scan(s) wachten op synchronisatie.
         </p>
       )}
 
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <video ref={videoRef} style={{ width: "100%", borderRadius: 8 }} muted playsInline />
+      <Card className="p-0">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video ref={videoRef} className="w-full rounded-xl" muted playsInline />
+      </Card>
 
-      <div
-        style={{
-          marginTop: "1rem",
-          padding: "1rem",
-          textAlign: "center",
-          minHeight: 80,
-          border: `2px solid ${feedbackColor}`,
-          color: feedbackColor,
-        }}
-      >
+      <div className={`min-h-20 rounded-xl border-2 p-4 text-center ${feedbackClasses}`}>
         {feedback ? (
           <>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>{feedback.message}</div>
-            {feedback.detail && <div>{feedback.detail}</div>}
+            <div className="text-xl font-bold">{feedback.message}</div>
+            {feedback.detail && <div className="text-sm">{feedback.detail}</div>}
           </>
         ) : (
-          <div>Richt de camera op een ticket-QR-code.</div>
+          <div className="text-sm">Richt de camera op een ticket-QR-code.</div>
         )}
       </div>
     </div>

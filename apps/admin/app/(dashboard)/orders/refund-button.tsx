@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@lions/ui";
 import { refundOrder, type OrderActionState } from "./actions";
 
 const initialState: OrderActionState = {};
@@ -16,14 +17,13 @@ export function RefundButton({ orderId }: { orderId: string }) {
           e.preventDefault();
         }
       }}
-      style={{ display: "inline-block" }}
     >
       <input type="hidden" name="orderId" value={orderId} />
-      <button type="submit" disabled={pending}>
+      <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Bezig…" : "Terugbetalen"}
-      </button>
-      {state.error && <div style={{ color: "crimson", fontSize: "0.85rem" }}>{state.error}</div>}
-      {state.success && <div style={{ color: "green", fontSize: "0.85rem" }}>Terugbetaald.</div>}
+      </Button>
+      {state.error && <div className="mt-1 text-xs text-destructive">{state.error}</div>}
+      {state.success && <div className="mt-1 text-xs text-primary">Terugbetaald.</div>}
     </form>
   );
 }

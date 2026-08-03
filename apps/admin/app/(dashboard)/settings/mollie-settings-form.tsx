@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button, Card, CardHeader, CardTitle, CardContent, Input, Label } from "@lions/ui";
 import { updateMollieSettings, type SettingsFormState } from "./actions";
 
 const initialState: SettingsFormState = {};
@@ -17,39 +18,55 @@ export function MollieSettingsForm({
   const [state, formAction, pending] = useActionState(updateMollieSettings, initialState);
 
   return (
-    <form action={formAction} style={{ maxWidth: 480 }}>
-      <fieldset style={{ marginBottom: "1rem" }}>
-        <legend>Modus</legend>
-        <label style={{ display: "block" }}>
-          <input type="radio" name="mode" value="test" defaultChecked={mode === "test"} /> Test
-        </label>
-        <label style={{ display: "block" }}>
-          <input type="radio" name="mode" value="live" defaultChecked={mode === "live"} /> Live (echte betalingen!)
-        </label>
-      </fieldset>
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle>Mollie</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={formAction} className="flex flex-col gap-4">
+          <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-3">
+            <legend className="px-1 text-xs font-medium text-muted-foreground">Modus</legend>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" name="mode" value="test" defaultChecked={mode === "test"} className="size-4" />
+              Test
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" name="mode" value="live" defaultChecked={mode === "live"} className="size-4" />
+              <span>
+                Live <span className="text-destructive">(echte betalingen!)</span>
+              </span>
+            </label>
+          </fieldset>
 
-      <div style={{ marginBottom: "0.75rem" }}>
-        <label>
-          Test-API-key {hasTestKey && <em>(ingesteld — laat leeg om te behouden)</em>}
-          <br />
-          <input type="password" name="testKey" placeholder={hasTestKey ? "•••• (ingesteld)" : "test_..."} style={{ width: "100%" }} />
-        </label>
-      </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="testKey">
+              Test-API-key
+              {hasTestKey && (
+                <span className="text-xs font-normal text-muted-foreground">(ingesteld — laat leeg om te behouden)</span>
+              )}
+            </Label>
+            <Input id="testKey" type="password" name="testKey" placeholder={hasTestKey ? "•••• (ingesteld)" : "test_..."} />
+          </div>
 
-      <div style={{ marginBottom: "1rem" }}>
-        <label>
-          Live-API-key {hasLiveKey && <em>(ingesteld — laat leeg om te behouden)</em>}
-          <br />
-          <input type="password" name="liveKey" placeholder={hasLiveKey ? "•••• (ingesteld)" : "live_..."} style={{ width: "100%" }} />
-        </label>
-      </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="liveKey">
+              Live-API-key
+              {hasLiveKey && (
+                <span className="text-xs font-normal text-muted-foreground">(ingesteld — laat leeg om te behouden)</span>
+              )}
+            </Label>
+            <Input id="liveKey" type="password" name="liveKey" placeholder={hasLiveKey ? "•••• (ingesteld)" : "live_..."} />
+          </div>
 
-      <button type="submit" disabled={pending}>
-        {pending ? "Opslaan…" : "Opslaan"}
-      </button>
-
-      {state.error && <p style={{ color: "crimson" }}>{state.error}</p>}
-      {state.success && <p style={{ color: "green" }}>Opgeslagen.</p>}
-    </form>
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={pending}>
+              {pending ? "Opslaan…" : "Opslaan"}
+            </Button>
+            {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+            {state.success && <p className="text-sm text-primary">Opgeslagen.</p>}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

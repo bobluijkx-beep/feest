@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button, Card, CardHeader, CardTitle, CardContent, Input, Label, Select } from "@lions/ui";
 import { createStaffUser, type CreateStaffUserState } from "./actions";
 
 const initialState: CreateStaffUserState = {};
@@ -9,40 +10,42 @@ export function CreateUserForm() {
   const [state, formAction, pending] = useActionState(createStaffUser, initialState);
 
   return (
-    <div style={{ border: "1px solid #ddd", padding: "1rem", marginBottom: "1.5rem" }}>
-      <h2>Nieuwe gebruiker</h2>
-      <form action={formAction} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-        <label>
-          E-mailadres
-          <br />
-          <input type="email" name="email" required />
-        </label>
-        <label>
-          Rol
-          <br />
-          <select name="role" required defaultValue="EDITOR">
-            <option value="ADMIN">ADMIN</option>
-            <option value="FINANCE">FINANCE</option>
-            <option value="EDITOR">EDITOR</option>
-            <option value="DOOR_STAFF">DOOR_STAFF</option>
-          </select>
-        </label>
-        <button type="submit" disabled={pending}>
-          {pending ? "Bezig…" : "Aanmaken"}
-        </button>
-      </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>Nieuwe gebruiker</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <form action={formAction} className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="email">E-mailadres</Label>
+            <Input id="email" type="email" name="email" required className="w-64" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="role">Rol</Label>
+            <Select id="role" name="role" required defaultValue="EDITOR" className="w-40">
+              <option value="ADMIN">ADMIN</option>
+              <option value="FINANCE">FINANCE</option>
+              <option value="EDITOR">EDITOR</option>
+              <option value="DOOR_STAFF">DOOR_STAFF</option>
+            </Select>
+          </div>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Bezig…" : "Aanmaken"}
+          </Button>
+        </form>
 
-      {state.error && <p style={{ color: "crimson" }}>{state.error}</p>}
+        {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
-      {state.tempPassword && (
-        <div style={{ marginTop: "1rem", background: "#fffbe6", border: "1px solid #f0c000", padding: "0.75rem" }}>
-          <p>
-            Account voor <strong>{state.createdEmail}</strong> aangemaakt. Tijdelijk wachtwoord (wordt maar één keer
-            getoond, geef dit veilig door):
-          </p>
-          <code>{state.tempPassword}</code>
-        </div>
-      )}
-    </div>
+        {state.tempPassword && (
+          <div className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm">
+            <p>
+              Account voor <strong>{state.createdEmail}</strong> aangemaakt. Tijdelijk wachtwoord (wordt maar één keer
+              getoond, geef dit veilig door):
+            </p>
+            <code className="mt-1 block font-mono text-sm">{state.tempPassword}</code>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@lions/core";
+import { Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 
 const PAGE_SIZE = 50;
@@ -30,45 +31,58 @@ export default async function AuditLogPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <main>
-      <h1>Audit-log</h1>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th align="left">Tijdstip</th>
-            <th align="left">Actie</th>
-            <th align="left">Door</th>
-            <th align="left">Entiteit</th>
-            <th align="left">Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => (
-            <tr key={entry.id} style={{ borderTop: "1px solid #ddd" }}>
-              <td>{entry.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td>
-              <td>{entry.action}</td>
-              <td>{entry.actorUserId ? (emailById.get(entry.actorUserId) ?? entry.actorUserId) : "systeem"}</td>
-              <td>
-                {entry.entityType} ({entry.entityId})
-              </td>
-              <td>
-                <code>{entry.metadata ? JSON.stringify(entry.metadata) : ""}</code>
-              </td>
-            </tr>
-          ))}
-          {entries.length === 0 && (
-            <tr>
-              <td colSpan={5}>Nog geen regels.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tijdstip</TableHead>
+                <TableHead>Actie</TableHead>
+                <TableHead>Door</TableHead>
+                <TableHead>Entiteit</TableHead>
+                <TableHead>Details</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell>{entry.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</TableCell>
+                  <TableCell>{entry.action}</TableCell>
+                  <TableCell>{entry.actorUserId ? (emailById.get(entry.actorUserId) ?? entry.actorUserId) : "systeem"}</TableCell>
+                  <TableCell>
+                    {entry.entityType} ({entry.entityId})
+                  </TableCell>
+                  <TableCell>
+                    <code className="text-xs">{entry.metadata ? JSON.stringify(entry.metadata) : ""}</code>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {entries.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    Nog geen regels.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <p>
+      <p className="text-sm text-muted-foreground">
         Pagina {page} van {totalPages}.{" "}
-        {page > 1 && <Link href={`/audit-log?page=${page - 1}`}>← Vorige</Link>}{" "}
-        {page < totalPages && <Link href={`/audit-log?page=${page + 1}`}>Volgende →</Link>}
+        {page > 1 && (
+          <Link href={`/audit-log?page=${page - 1}`} className="text-primary hover:underline">
+            ← Vorige
+          </Link>
+        )}{" "}
+        {page < totalPages && (
+          <Link href={`/audit-log?page=${page + 1}`} className="text-primary hover:underline">
+            Volgende →
+          </Link>
+        )}
       </p>
-    </main>
+    </div>
   );
 }

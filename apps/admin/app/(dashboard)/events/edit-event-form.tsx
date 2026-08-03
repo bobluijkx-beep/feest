@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Card, CardHeader, CardTitle, CardContent, Button } from "@lions/ui";
 import { updateEvent, type EventActionState } from "./actions";
 import { EventFormFields } from "./event-form-fields";
 
@@ -25,14 +26,23 @@ export function EditEventForm({ event }: { event: EventDefaults }) {
   const [state, formAction, pending] = useActionState(updateEvent, initialState);
 
   return (
-    <form action={formAction} style={{ border: "1px solid #ddd", padding: "1rem", marginBottom: "1rem" }}>
-      <input type="hidden" name="id" value={event.id} />
-      <EventFormFields defaults={event} />
-      <button type="submit" disabled={pending} style={{ marginTop: "0.75rem" }}>
-        {pending ? "Opslaan…" : "Opslaan"}
-      </button>
-      {state.error && <p style={{ color: "crimson" }}>{state.error}</p>}
-      {state.success && <p style={{ color: "green" }}>Opgeslagen.</p>}
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>{event.name}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={formAction} className="flex flex-col gap-3">
+          <input type="hidden" name="id" value={event.id} />
+          <EventFormFields defaults={event} />
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={pending}>
+              {pending ? "Opslaan…" : "Opslaan"}
+            </Button>
+            {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+            {state.success && <p className="text-sm text-primary">Opgeslagen.</p>}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

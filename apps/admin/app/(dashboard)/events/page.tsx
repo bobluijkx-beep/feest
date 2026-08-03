@@ -1,4 +1,5 @@
 import { prisma, toAmsterdamDatetimeLocalValue } from "@lions/core";
+import { Card, CardHeader, CardTitle, CardContent } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { EditEventForm } from "./edit-event-form";
 import { CreateEventForm } from "./create-event-form";
@@ -20,9 +21,7 @@ export default async function EventsPage() {
   });
 
   return (
-    <main>
-      <h1>Evenementen</h1>
-
+    <div className="flex flex-col gap-4">
       {events.map((event) => {
         const theme = isRecord(event.theme) ? event.theme : {};
         return (
@@ -46,8 +45,14 @@ export default async function EventsPage() {
         );
       })}
 
-      <h2>Nieuw event</h2>
-      <CreateEventForm />
-    </main>
+      <Card>
+        <CardHeader>
+          <CardTitle>Nieuw event</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CreateEventForm />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

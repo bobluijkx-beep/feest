@@ -32,13 +32,13 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       const subtitle = str(content.subtitle);
       const imageUrl = str(content.imageUrl);
       return (
-        <section style={{ textAlign: "center", padding: "2rem 0" }}>
+        <section className="py-8 text-center">
           {imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="" style={{ maxWidth: "100%", marginBottom: "1rem" }} />
+            <img src={imageUrl} alt="" className="mx-auto mb-4 max-w-full rounded-xl" />
           )}
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+          <h2 className="font-heading text-xl font-semibold">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
         </section>
       );
     }
@@ -48,9 +48,13 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       const body = str(content.body);
       if (!title && !body) return null;
       return (
-        <section style={{ padding: "1rem 0" }}>
-          {title && <h2>{title}</h2>}
-          {body?.split("\n").map((line, i) => <p key={i}>{line}</p>)}
+        <section className="py-4">
+          {title && <h2 className="font-heading text-lg font-medium">{title}</h2>}
+          {body?.split("\n").map((line, i) => (
+            <p key={i} className="text-sm text-muted-foreground">
+              {line}
+            </p>
+          ))}
         </section>
       );
     }
@@ -64,14 +68,20 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
         <>
           {logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={name} style={{ maxHeight: 60 }} />
+            <img src={logoUrl} alt={name} className="max-h-[60px]" />
           )}
-          <span>{name}</span>
+          <span className="text-sm">{name}</span>
         </>
       );
       return (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", margin: "0.5rem" }}>
-          {link ? <a href={link}>{inner}</a> : inner}
+        <div className="m-2 inline-flex items-center gap-2">
+          {link ? (
+            <a href={link} className="inline-flex items-center gap-2 hover:opacity-80">
+              {inner}
+            </a>
+          ) : (
+            inner
+          )}
         </div>
       );
     }
@@ -81,9 +91,9 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       const answer = str(content.answer);
       if (!question || !answer) return null;
       return (
-        <div style={{ marginBottom: "1rem" }}>
-          <strong>{question}</strong>
-          <p>{answer}</p>
+        <div className="mb-4">
+          <strong className="text-sm font-medium">{question}</strong>
+          <p className="text-sm text-muted-foreground">{answer}</p>
         </div>
       );
     }
@@ -93,8 +103,10 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       const href = str(content.href);
       if (!label || !href) return null;
       return (
-        <p style={{ textAlign: "center" }}>
-          <a href={href}>{label}</a>
+        <p className="text-center">
+          <a href={href} className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+            {label}
+          </a>
         </p>
       );
     }

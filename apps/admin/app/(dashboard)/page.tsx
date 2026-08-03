@@ -5,9 +5,9 @@ import { EventTabs } from "@/lib/event-tabs";
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ border: "1px solid #ddd", padding: "1rem", minWidth: 160 }}>
-      <div style={{ fontSize: "0.85rem", color: "#555" }}>{label}</div>
-      <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>{value}</div>
+    <div className="rounded-2xl bg-primary px-4 py-3.5 text-primary-foreground">
+      <p className="text-xs text-primary-foreground/80">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
@@ -15,7 +15,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
 async function SalesDashboard({ organizationId, eventIdParam }: { organizationId: string; eventIdParam?: string }) {
   const { events, selected: event } = await getSelectedEvent(organizationId, eventIdParam);
   if (!event) {
-    return <p>Nog geen event aangemaakt.</p>;
+    return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
   }
 
   const [paidAgg, failedCount, ticketProducts, soldTicketCount, checkedInCount] = await Promise.all([
@@ -34,10 +34,10 @@ async function SalesDashboard({ organizationId, eventIdParam }: { organizationId
   const conversionRate = conversionDenominator > 0 ? Math.round((paidOrderCount / conversionDenominator) * 100) : null;
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <EventTabs events={events} selectedId={event.id} basePath="/" />
-      <p>Event: {event.name}</p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+      <p className="text-sm text-muted-foreground">Event: {event.name}</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatTile label="Verkochte tickets" value={String(soldTicketCount)} />
         <StatTile label="Omzet" value={`€${(revenueCents / 100).toFixed(2)}`} />
         <StatTile label="Resterende capaciteit" value={`${remainingCapacity} / ${totalCapacity}`} />
@@ -45,7 +45,7 @@ async function SalesDashboard({ organizationId, eventIdParam }: { organizationId
         <StatTile label="Mislukte betalingen" value={String(failedCount)} />
         <StatTile label="Ingecheckt" value={String(checkedInCount)} />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -58,20 +58,12 @@ export default async function DashboardPage({
   const { eventId } = await searchParams;
 
   if (user.role === "ADMIN" || user.role === "FINANCE") {
-    return (
-      <main>
-        <h1>Verkoopdashboard</h1>
-        <SalesDashboard organizationId={user.organizationId} eventIdParam={eventId} />
-      </main>
-    );
+    return <SalesDashboard organizationId={user.organizationId} eventIdParam={eventId} />;
   }
 
   return (
-    <main>
-      <h1>Welkom</h1>
-      <p>
-        Ingelogd als {user.email} ({user.role}).
-      </p>
-    </main>
+    <p className="text-sm text-muted-foreground">
+      Ingelogd als {user.email} ({user.role}).
+    </p>
   );
 }

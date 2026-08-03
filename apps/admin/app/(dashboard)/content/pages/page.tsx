@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@lions/core";
+import { Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, buttonVariants } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EventTabs } from "@/lib/event-tabs";
@@ -14,51 +15,58 @@ export default async function PageBlocksPage({
   const { events, selected: event } = await getSelectedEvent(actor.organizationId, eventId);
 
   if (!event) {
-    return (
-      <main>
-        <h1>Paginabeheer</h1>
-        <p>Nog geen event aangemaakt.</p>
-      </main>
-    );
+    return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
   }
 
   const blocks = await prisma.pageBlock.findMany({ where: { eventId: event.id }, orderBy: { order: "asc" } });
 
   return (
-    <main>
-      <h1>Paginabeheer</h1>
-      <EventTabs events={events} selectedId={event.id} basePath="/content/pages" />
-      <p>Event: {event.name}</p>
-      <p>
-        <Link href={`/content/pages/new?eventId=${event.id}`}>+ Blok toevoegen</Link>
-      </p>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th align="left">Type</th>
-            <th align="left">Volgorde</th>
-            <th align="left">Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {blocks.map((b) => (
-            <tr key={b.id} style={{ borderTop: "1px solid #ddd" }}>
-              <td>{b.type}</td>
-              <td>{b.order}</td>
-              <td>{b.isPublished ? "Gepubliceerd" : "Concept"}</td>
-              <td>
-                <Link href={`/content/pages/${b.id}`}>Bewerken</Link>
-              </td>
-            </tr>
-          ))}
-          {blocks.length === 0 && (
-            <tr>
-              <td colSpan={4}>Nog geen blokken.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </main>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <EventTabs events={events} selectedId={event.id} basePath="/content/pages" />
+        <Link href={`/content/pages/new?eventId=${event.id}`} className={buttonVariants({ size: "sm" })}>
+          + Blok toevoegen
+        </Link>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Volgorde</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {blocks.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell>{b.type}</TableCell>
+                  <TableCell>{b.order}</TableCell>
+                  <TableCell>
+                    <Badge variant={b.isPublished ? "default" : "secondary"}>
+                      {b.isPublished ? "Gepubliceerd" : "Concept"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/content/pages/${b.id}`} className="text-sm text-primary hover:underline">
+                      Bewerken
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {blocks.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    Nog geen blokken.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

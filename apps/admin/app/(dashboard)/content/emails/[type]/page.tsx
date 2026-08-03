@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma, defaultEmailTemplates } from "@lions/core";
 import type { EmailTemplateType } from "@lions/db";
+import { Card, CardHeader, CardTitle, CardContent } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EmailTemplateForm } from "../email-template-form";
@@ -30,9 +31,13 @@ export default async function EmailTemplateEditPage({
   const initial = existing ?? defaultEmailTemplates[templateType];
 
   return (
-    <main>
-      <h1>E-mailtemplate: {templateType}</h1>
-      <EmailTemplateForm eventId={event.id} type={templateType} subject={initial.subject} bodyHtml={initial.bodyHtml} />
-    </main>
+    <Card>
+      <CardHeader>
+        <CardTitle>E-mailtemplate: {templateType}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <EmailTemplateForm eventId={event.id} type={templateType} subject={initial.subject} bodyHtml={initial.bodyHtml} />
+      </CardContent>
+    </Card>
   );
 }

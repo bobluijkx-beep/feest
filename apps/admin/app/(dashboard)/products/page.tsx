@@ -1,4 +1,5 @@
 import { prisma } from "@lions/core";
+import { Card, CardHeader, CardTitle, CardContent } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { ProductRowForm } from "./product-row-form";
 import { CreateProductForm } from "./create-product-form";
@@ -10,6 +11,11 @@ export default async function ProductsPage() {
     where: { organizationId: actor.organizationId },
     orderBy: { startsAt: "desc" },
   });
+
+  if (events.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
+  }
+
   const eventNameById = new Map(events.map((event) => [event.id, event.name]));
 
   const products = await prisma.product.findMany({
@@ -18,32 +24,23 @@ export default async function ProductsPage() {
   });
 
   return (
-    <main>
-      <h1>Producten</h1>
-      {events.length === 0 && <p>Nog geen event aangemaakt.</p>}
+    <div className="flex flex-col gap-4">
+      {products.map((product) => (
+        <ProductRowForm
+          key={product.id}
+          product={{ ...product, eventName: eventNameById.get(product.eventId) ?? "?" }}
+        />
+      ))}
+      {products.length === 0 && <p className="text-sm text-muted-foreground">Nog geen producten.</p>}
 
-      {events.length > 0 && (
-        <>
-          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.5rem" }}>
-            <tbody>
-              {products.map((product) => (
-                <ProductRowForm
-                  key={product.id}
-                  product={{ ...product, eventName: eventNameById.get(product.eventId) ?? "?" }}
-                />
-              ))}
-              {products.length === 0 && (
-                <tr>
-                  <td>Nog geen producten.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          <h2>Nieuw product</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Nieuw product</CardTitle>
+        </CardHeader>
+        <CardContent>
           <CreateProductForm events={events.map((event) => ({ id: event.id, name: event.name }))} />
-        </>
-      )}
-    </main>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

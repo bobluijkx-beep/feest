@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Card, CardHeader, CardTitle, CardContent, buttonVariants } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { BlockForm } from "../block-form";
@@ -26,29 +27,39 @@ export default async function NewPageBlockPage({
 
   if (!type || !BLOCK_TYPES.some((b) => b.type === type)) {
     return (
-      <main>
-        <h1>Blok toevoegen</h1>
-        <ul>
+      <Card>
+        <CardHeader>
+          <CardTitle>Blok toevoegen</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
           {BLOCK_TYPES.map((b) => (
-            <li key={b.type}>
-              <Link href={`/content/pages/new?eventId=${event.id}&type=${b.type}`}>{b.label}</Link>
-            </li>
+            <Link
+              key={b.type}
+              href={`/content/pages/new?eventId=${event.id}&type=${b.type}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              {b.label}
+            </Link>
           ))}
-        </ul>
-      </main>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <main>
-      <h1>Nieuw blok: {type}</h1>
-      <BlockForm
-        type={type}
-        action={createPageBlock}
-        initial={{ order: 0, isPublished: false, content: {} }}
-        submitLabel="Aanmaken"
-        hiddenFields={{ eventId: event.id }}
-      />
-    </main>
+    <Card>
+      <CardHeader>
+        <CardTitle>Nieuw blok: {type}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <BlockForm
+          type={type}
+          action={createPageBlock}
+          initial={{ order: 0, isPublished: false, content: {} }}
+          submitLabel="Aanmaken"
+          hiddenFields={{ eventId: event.id }}
+        />
+      </CardContent>
+    </Card>
   );
 }

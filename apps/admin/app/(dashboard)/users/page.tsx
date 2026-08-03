@@ -1,4 +1,5 @@
 import { prisma } from "@lions/core";
+import { Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Select, Button } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { CreateUserForm } from "./create-user-form";
 import { updateStaffRole, toggleStaffActive } from "./actions";
@@ -12,48 +13,63 @@ export default async function UsersPage() {
   });
 
   return (
-    <main>
-      <h1>Gebruikers</h1>
-
+    <div className="flex flex-col gap-4">
       <CreateUserForm />
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th align="left">E-mailadres</th>
-            <th align="left">Rol</th>
-            <th align="left">Status</th>
-            <th align="left"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id} style={{ borderTop: "1px solid #ddd" }}>
-              <td>{u.email}</td>
-              <td>
-                <form action={updateStaffRole} style={{ display: "inline-flex", gap: "0.5rem" }}>
-                  <input type="hidden" name="userId" value={u.id} />
-                  <select name="role" defaultValue={u.role}>
-                    <option value="ADMIN">ADMIN</option>
-                    <option value="FINANCE">FINANCE</option>
-                    <option value="EDITOR">EDITOR</option>
-                    <option value="DOOR_STAFF">DOOR_STAFF</option>
-                  </select>
-                  <button type="submit">Opslaan</button>
-                </form>
-              </td>
-              <td>{u.isActive ? "Actief" : "Inactief"}</td>
-              <td>
-                <form action={toggleStaffActive}>
-                  <input type="hidden" name="userId" value={u.id} />
-                  <input type="hidden" name="isActive" value={String(u.isActive)} />
-                  <button type="submit">{u.isActive ? "Deactiveren" : "Activeren"}</button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>E-mailadres</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell>
+                    <form action={updateStaffRole} className="flex items-center gap-2">
+                      <input type="hidden" name="userId" value={u.id} />
+                      <Select name="role" defaultValue={u.role} className="w-36">
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="FINANCE">FINANCE</option>
+                        <option value="EDITOR">EDITOR</option>
+                        <option value="DOOR_STAFF">DOOR_STAFF</option>
+                      </Select>
+                      <Button type="submit" size="sm" variant="outline">
+                        Opslaan
+                      </Button>
+                    </form>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={u.isActive ? "default" : "secondary"}>{u.isActive ? "Actief" : "Inactief"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <form action={toggleStaffActive}>
+                      <input type="hidden" name="userId" value={u.id} />
+                      <input type="hidden" name="isActive" value={String(u.isActive)} />
+                      <Button type="submit" size="sm" variant={u.isActive ? "destructive" : "outline"}>
+                        {u.isActive ? "Deactiveren" : "Activeren"}
+                      </Button>
+                    </form>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {users.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    Nog geen gebruikers.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

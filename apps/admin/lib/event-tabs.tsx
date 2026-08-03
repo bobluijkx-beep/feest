@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cn } from "@lions/ui";
 
 /** Simpele event-switcher (platte links met ?eventId=...), geen client-JS nodig — past
  * bij de rest van deze admin-app die bewust minimale client-interactiviteit gebruikt.
@@ -15,16 +16,19 @@ export function EventTabs({
   if (events.length <= 1) return null;
 
   return (
-    <p style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+    <div className="flex flex-wrap gap-4">
       {events.map((event) => (
         <Link
           key={event.id}
           href={`${basePath}?eventId=${event.id}`}
-          style={{ fontWeight: event.id === selectedId ? "bold" : "normal" }}
+          className={cn(
+            "text-sm",
+            event.id === selectedId ? "font-semibold text-foreground" : "font-normal text-muted-foreground",
+          )}
         >
           {event.name}
         </Link>
       ))}
-    </p>
+    </div>
   );
 }

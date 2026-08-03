@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@lions/core";
 import type { EmailTemplateType } from "@lions/db";
+import { Card, CardContent, Badge } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EventTabs } from "@/lib/event-tabs";
@@ -22,30 +23,31 @@ export default async function EmailTemplatesPage({
   const { events, selected: event } = await getSelectedEvent(actor.organizationId, eventId);
 
   if (!event) {
-    return (
-      <main>
-        <h1>E-mailtemplates</h1>
-        <p>Nog geen event aangemaakt.</p>
-      </main>
-    );
+    return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
   }
 
   const templates = await prisma.emailTemplate.findMany({ where: { eventId: event.id, language: "nl" } });
   const customTypes = new Set(templates.map((t) => t.type));
 
   return (
-    <main>
-      <h1>E-mailtemplates</h1>
+    <div className="flex flex-col gap-4">
       <EventTabs events={events} selectedId={event.id} basePath="/content/emails" />
-      <p>Event: {event.name}</p>
-      <ul>
-        {TYPES.map(({ type, label }) => (
-          <li key={type}>
-            <Link href={`/content/emails/${type}?eventId=${event.id}`}>{label}</Link> —{" "}
-            {customTypes.has(type) ? "aangepast" : "standaard"}
-          </li>
-        ))}
-      </ul>
-    </main>
+      <Card>
+        <CardContent className="flex flex-col divide-y divide-border p-0">
+          {TYPES.map(({ type, label }) => (
+            <Link
+              key={type}
+              href={`/content/emails/${type}?eventId=${event.id}`}
+              className="flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/50"
+            >
+              <span>{label}</span>
+              <Badge variant={customTypes.has(type) ? "default" : "outline"}>
+                {customTypes.has(type) ? "aangepast" : "standaard"}
+              </Badge>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

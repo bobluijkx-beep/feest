@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@lions/ui";
 import { createEvent, type EventActionState } from "./actions";
 import { EventFormFields } from "./event-form-fields";
 
@@ -10,13 +11,15 @@ export function CreateEventForm() {
   const [state, formAction, pending] = useActionState(createEvent, initialState);
 
   return (
-    <form action={formAction} style={{ border: "1px solid #ddd", padding: "1rem" }}>
+    <form action={formAction} className="flex flex-col gap-3">
       <EventFormFields />
-      <button type="submit" disabled={pending} style={{ marginTop: "0.75rem" }}>
-        {pending ? "Aanmaken…" : "+ Nieuw event"}
-      </button>
-      {state.error && <p style={{ color: "crimson" }}>{state.error}</p>}
-      {state.success && <p style={{ color: "green" }}>Aangemaakt.</p>}
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Aanmaken…" : "+ Nieuw event"}
+        </Button>
+        {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+        {state.success && <p className="text-sm text-primary">Aangemaakt.</p>}
+      </div>
     </form>
   );
 }

@@ -22,7 +22,7 @@ export default async function NewPageBlockPage({
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
   const { type, eventId } = await searchParams;
 
-  const { selected: event } = await getSelectedEvent(actor.organizationId, eventId);
+  const { selected: event } = await getSelectedEvent(actor, eventId);
   if (!event) notFound();
 
   if (!type || !BLOCK_TYPES.some((b) => b.type === type)) {

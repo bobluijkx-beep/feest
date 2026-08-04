@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma, verifyQrToken, getCurrentUser, requireRole, AuthError } from "@lions/core";
+import { prisma, verifyQrToken, getCurrentUser, requireRole, hasEventAccess, AuthError } from "@lions/core";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 interface TicketInfo {
@@ -37,6 +37,19 @@ export async function POST(request: Request) {
   const verified = verifyQrToken(qrToken);
   if (!verified) {
     return NextResponse.json({ status: "invalid" });
+  }
+
+  if (actor.role === "DOOR_STAFF") {
+    const ticketPreview = await prisma.ticket.findUnique({
+      where: { id: verified.ticketId },
+      select: { order: { select: { eventId: true } } },
+    });
+    if (!ticketPreview) {
+      return NextResponse.json({ status: "invalid" });
+    }
+    if (!(await hasEventAccess(actor, ticketPreview.order.eventId))) {
+      return NextResponse.json({ status: "no_access" });
+    }
   }
 
   // Atomisch: SELECT ... FOR UPDATE voorkomt dat twee gelijktijdige scans van hetzelfde

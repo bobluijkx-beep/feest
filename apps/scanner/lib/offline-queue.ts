@@ -22,6 +22,7 @@ export type CheckinResult =
   | { status: "already_checked_in"; ticket: TicketInfo | null }
   | { status: "cancelled"; ticket?: null }
   | { status: "invalid"; ticket?: null }
+  | { status: "no_access"; ticket?: null }
   | { status: "queued" };
 
 let dbPromise: Promise<IDBPDatabase> | null = null;

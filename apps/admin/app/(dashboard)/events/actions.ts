@@ -22,6 +22,7 @@ interface ParsedEventForm {
   startsAt: Date;
   endsAt: Date | null;
   status: EventStatus;
+  isVisible: boolean;
   theme: Prisma.InputJsonValue;
 }
 
@@ -33,6 +34,7 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
   const startsAtRaw = String(formData.get("startsAt") ?? "");
   const endsAtRaw = String(formData.get("endsAt") ?? "");
   const status = String(formData.get("status") ?? "DRAFT") as EventStatus;
+  const isVisible = formData.get("isVisible") === "true";
   const primaryColor = String(formData.get("primaryColor") ?? "").trim();
   const backgroundColor = String(formData.get("backgroundColor") ?? "").trim();
   const accentColor = String(formData.get("accentColor") ?? "").trim();
@@ -53,6 +55,7 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
     startsAt: parseAmsterdamDatetimeLocal(startsAtRaw),
     endsAt: endsAtRaw ? parseAmsterdamDatetimeLocal(endsAtRaw) : null,
     status,
+    isVisible,
     theme: { primaryColor, backgroundColor, accentColor, logoUrl },
   };
 }

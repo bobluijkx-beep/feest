@@ -12,7 +12,7 @@ export default async function PageBlocksPage({
 }) {
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
   const { eventId } = await searchParams;
-  const { events, selected: event } = await getSelectedEvent(actor.organizationId, eventId);
+  const { events, selected: event } = await getSelectedEvent(actor, eventId);
 
   if (!event) {
     return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;

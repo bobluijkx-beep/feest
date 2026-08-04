@@ -16,6 +16,7 @@ interface EventDefaults {
   startsAt: string;
   endsAt: string;
   status: string;
+  isVisible: boolean;
   primaryColor: string;
   backgroundColor: string;
   accentColor: string;

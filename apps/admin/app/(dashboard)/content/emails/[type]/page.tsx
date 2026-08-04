@@ -22,7 +22,7 @@ export default async function EmailTemplateEditPage({
   if (!VALID_TYPES.includes(type as EmailTemplateType)) notFound();
   const templateType = type as EmailTemplateType;
 
-  const { selected: event } = await getSelectedEvent(actor.organizationId, eventId);
+  const { selected: event } = await getSelectedEvent(actor, eventId);
   if (!event) notFound();
 
   const existing = await prisma.emailTemplate.findUnique({

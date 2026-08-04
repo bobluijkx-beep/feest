@@ -4,6 +4,7 @@ export * from "./auth/supabase-server";
 export * from "./auth/supabase-admin";
 export * from "./auth/session";
 export * from "./auth/guard";
+export * from "./auth/event-access";
 export * from "./settings/encryption";
 export * from "./settings/settings";
 export * from "./mollie/client";

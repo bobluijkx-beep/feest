@@ -12,6 +12,9 @@ export interface CreateStaffUserState {
   tempPassword?: string;
 }
 
+const VALID_ROLES: UserRole[] = ["ADMIN", "FINANCE", "EDITOR", "DOOR_STAFF"];
+const EVENT_SCOPED_ROLES: UserRole[] = ["EDITOR", "DOOR_STAFF"];
+
 function generateTempPassword(): string {
   return `Feest-${randomBytes(6).toString("base64url")}!`;
 }
@@ -24,9 +27,9 @@ export async function createStaffUser(
 
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "") as UserRole;
-  const validRoles: UserRole[] = ["ADMIN", "FINANCE", "EDITOR", "DOOR_STAFF"];
+  const eventIds = EVENT_SCOPED_ROLES.includes(role) ? formData.getAll("eventIds").map(String) : [];
 
-  if (!email || !validRoles.includes(role)) {
+  if (!email || !VALID_ROLES.includes(role)) {
     return { error: "Vul een geldig e-mailadres en rol in." };
   }
 
@@ -53,6 +56,7 @@ export async function createStaffUser(
       supabaseAuthId: data.user.id,
       email,
       role,
+      eventAccess: eventIds.length ? { create: eventIds.map((eventId) => ({ eventId })) } : undefined,
     },
   });
 
@@ -62,29 +66,37 @@ export async function createStaffUser(
     action: "user_created",
     entityType: "user",
     entityId: created.id,
-    metadata: { email, role },
+    metadata: { email, role, eventIds },
   });
 
   revalidatePath("/users");
   return { createdEmail: email, tempPassword };
 }
 
-export async function updateStaffRole(formData: FormData): Promise<void> {
+export async function updateStaffUser(formData: FormData): Promise<void> {
   const actor = await requireStaffRole(["ADMIN"]);
 
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "") as UserRole;
-  const validRoles: UserRole[] = ["ADMIN", "FINANCE", "EDITOR", "DOOR_STAFF"];
-  if (!userId || !validRoles.includes(role)) return;
+  if (!userId || !VALID_ROLES.includes(role)) return;
 
-  await prisma.user.update({ where: { id: userId }, data: { role } });
+  const eventIds = EVENT_SCOPED_ROLES.includes(role) ? formData.getAll("eventIds").map(String) : [];
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { role } }),
+    prisma.eventAccess.deleteMany({ where: { userId } }),
+    ...(eventIds.length
+      ? [prisma.eventAccess.createMany({ data: eventIds.map((eventId) => ({ userId, eventId })) })]
+      : []),
+  ]);
+
   await logAudit({
     organizationId: actor.organizationId,
     actorUserId: actor.id,
     action: "user_role_changed",
     entityType: "user",
     entityId: userId,
-    metadata: { role },
+    metadata: { role, eventIds },
   });
   revalidatePath("/users");
 }

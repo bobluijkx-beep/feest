@@ -40,6 +40,8 @@ function describeResult(result: CheckinResult): Feedback {
       };
     case "cancelled":
       return { kind: "error", message: "Ticket geannuleerd" };
+    case "no_access":
+      return { kind: "error", message: "Geen toegang tot dit evenement" };
     case "queued":
       return { kind: "warn", message: "Offline — scan opgeslagen" };
     case "invalid":

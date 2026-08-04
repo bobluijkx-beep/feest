@@ -17,7 +17,7 @@ export default async function EventsPage() {
 
   const events = await prisma.event.findMany({
     where: { organizationId: actor.organizationId },
-    orderBy: { startsAt: "desc" },
+    orderBy: { startsAt: "asc" },
   });
 
   return (
@@ -36,6 +36,7 @@ export default async function EventsPage() {
               startsAt: toAmsterdamDatetimeLocalValue(event.startsAt),
               endsAt: event.endsAt ? toAmsterdamDatetimeLocalValue(event.endsAt) : "",
               status: event.status,
+              isVisible: event.isVisible,
               primaryColor: str(theme.primaryColor),
               backgroundColor: str(theme.backgroundColor),
               accentColor: str(theme.accentColor),

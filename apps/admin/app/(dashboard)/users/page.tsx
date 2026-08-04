@@ -1,20 +1,29 @@
 import { prisma } from "@lions/core";
-import { Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Select, Button } from "@lions/ui";
+import { Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Button } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { CreateUserForm } from "./create-user-form";
-import { updateStaffRole, toggleStaffActive } from "./actions";
+import { UserRowForm } from "./user-row-form";
+import { toggleStaffActive } from "./actions";
 
 export default async function UsersPage() {
   const actor = await requireStaffRole(["ADMIN"]);
 
-  const users = await prisma.user.findMany({
-    where: { organizationId: actor.organizationId },
-    orderBy: { createdAt: "asc" },
-  });
+  const [users, events] = await Promise.all([
+    prisma.user.findMany({
+      where: { organizationId: actor.organizationId },
+      orderBy: { createdAt: "asc" },
+      include: { eventAccess: { select: { eventId: true } } },
+    }),
+    prisma.event.findMany({
+      where: { organizationId: actor.organizationId },
+      orderBy: { startsAt: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
-      <CreateUserForm />
+      <CreateUserForm events={events} />
 
       <Card>
         <CardContent className="p-0">
@@ -32,18 +41,12 @@ export default async function UsersPage() {
                 <TableRow key={u.id}>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <form action={updateStaffRole} className="flex items-center gap-2">
-                      <input type="hidden" name="userId" value={u.id} />
-                      <Select name="role" defaultValue={u.role} className="w-36">
-                        <option value="ADMIN">ADMIN</option>
-                        <option value="FINANCE">FINANCE</option>
-                        <option value="EDITOR">EDITOR</option>
-                        <option value="DOOR_STAFF">DOOR_STAFF</option>
-                      </Select>
-                      <Button type="submit" size="sm" variant="outline">
-                        Opslaan
-                      </Button>
-                    </form>
+                    <UserRowForm
+                      userId={u.id}
+                      initialRole={u.role}
+                      initialEventIds={u.eventAccess.map((a) => a.eventId)}
+                      events={events}
+                    />
                   </TableCell>
                   <TableCell>
                     <Badge variant={u.isActive ? "default" : "secondary"}>{u.isActive ? "Actief" : "Inactief"}</Badge>

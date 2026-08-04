@@ -28,7 +28,7 @@ export function CreateProductForm({ events }: { events: { id: string; name: stri
         <Label htmlFor="kind">Soort</Label>
         <Select id="kind" name="kind" defaultValue="MERCHANDISE" className="w-36">
           <option value="TICKET">Ticket</option>
-          <option value="MERCHANDISE">Merchandise</option>
+          <option value="MERCHANDISE">Product</option>
         </Select>
       </div>
       <div className="flex flex-col gap-1">

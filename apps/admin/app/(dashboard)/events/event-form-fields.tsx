@@ -11,6 +11,7 @@ export function EventFormFields({
     startsAt: string;
     endsAt: string;
     status: string;
+    isVisible: boolean;
     primaryColor: string;
     backgroundColor: string;
     accentColor: string;
@@ -25,6 +26,7 @@ export function EventFormFields({
     startsAt: "",
     endsAt: "",
     status: "DRAFT",
+    isVisible: true,
     primaryColor: "#1d4ed8",
     backgroundColor: "#ffffff",
     accentColor: "#f59e0b",
@@ -64,6 +66,19 @@ export function EventFormFields({
       <div className="flex flex-col gap-1">
         <Label htmlFor="endsAt">Einde (optioneel)</Label>
         <Input id="endsAt" type="datetime-local" name="endsAt" defaultValue={d.endsAt} className="w-56" />
+      </div>
+      <div className="flex items-end">
+        <label htmlFor="isVisible" className="flex items-center gap-2 text-sm">
+          <input
+            id="isVisible"
+            type="checkbox"
+            name="isVisible"
+            value="true"
+            defaultChecked={d.isVisible}
+            className="h-4 w-4 rounded border-input"
+          />
+          Zichtbaar in admin
+        </label>
       </div>
       <fieldset className="flex w-full flex-col gap-3 rounded-lg border border-border p-3">
         <legend className="px-1 text-xs font-medium text-muted-foreground">Huisstijl</legend>

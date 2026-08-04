@@ -3,6 +3,7 @@ import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } 
 import { requireStaffRole } from "@/lib/require-role";
 import { RefundButton } from "./refund-button";
 import { DeleteOrderButton } from "./delete-order-button";
+import { EventFilter } from "./event-filter";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PAID: "default",
@@ -13,17 +14,32 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   REFUNDED: "outline",
 };
 
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ eventId?: string }>;
+}) {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  const { eventId } = await searchParams;
 
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { items: true, tickets: true, event: true },
-    take: 100,
-  });
+  const [orders, events] = await Promise.all([
+    prisma.order.findMany({
+      where: eventId ? { eventId } : undefined,
+      orderBy: { createdAt: "desc" },
+      include: { items: true, tickets: true, event: true },
+      take: 100,
+    }),
+    prisma.event.findMany({
+      where: { organizationId: actor.organizationId },
+      orderBy: { startsAt: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
-    <Table>
+    <div className="flex flex-col gap-4">
+      <EventFilter events={events} selectedId={eventId} />
+      <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Koper</TableHead>
@@ -67,6 +83,7 @@ export default async function OrdersPage() {
           </TableRow>
         )}
       </TableBody>
-    </Table>
+      </Table>
+    </div>
   );
 }

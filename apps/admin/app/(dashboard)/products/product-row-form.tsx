@@ -39,7 +39,7 @@ export function ProductRowForm({ product }: { product: Product }) {
             <Label htmlFor={`kind-${product.id}`}>Soort</Label>
             <Select id={`kind-${product.id}`} name="kind" defaultValue={product.kind} className="w-36">
               <option value="TICKET">Ticket</option>
-              <option value="MERCHANDISE">Merchandise</option>
+              <option value="MERCHANDISE">Product</option>
             </Select>
           </div>
           <div className="flex flex-col gap-1">

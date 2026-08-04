@@ -82,10 +82,15 @@ model Event {
   // logoUrl }) — zelfde Json-patroon als PageBlock.content, zodat een nieuwe thema-optie
   // geen migratie kost. Zie docs/architectuurvoorstel.md ("Per-event huisstijl").
   theme          Json?
+  // Of dit event in de dagelijkse admin-pickers verschijnt (dashboard, e-mailtemplates,
+  // paginabeheer) — los van `status`, dat de publieke zichtbaarheid regelt. `/events`
+  // zelf en de bestellingen-filter tonen altijd alles, ook onzichtbare events.
+  isVisible      Boolean         @default(true)
   products       Product[]
   orders         Order[]
   emailTemplates EmailTemplate[]
   pageBlocks     PageBlock[]
+  userAccess     EventAccess[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -183,17 +188,31 @@ model CheckIn {
 }
 
 model User {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  supabaseAuthId String       @unique
-  email          String       @unique
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  supabaseAuthId String        @unique
+  email          String        @unique
   role           UserRole
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
+  isActive       Boolean       @default(true)
+  eventAccess    EventAccess[]
+  createdAt      DateTime      @default(now())
 
   @@index([organizationId])
   @@map("users")
+}
+
+// Beperkt EDITOR/DOOR_STAFF tot specifieke events (ADMIN/FINANCE blijven org-breed
+// ongelimiteerd en negeren deze tabel — zie packages/core/src/auth/event-access.ts).
+model EventAccess {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+  @@map("event_access")
 }
 
 model EmailTemplate {

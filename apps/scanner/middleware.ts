@@ -25,8 +25,15 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
+  // Wachtwoord-vergeten-flow moet ook zonder (of met een net-uitgewisselde recovery-)
+  // sessie bereikbaar zijn — dit zijn de enige andere publieke pagina's.
+  const isPublicPage =
+    isLoginPage ||
+    request.nextUrl.pathname.startsWith("/wachtwoord-vergeten") ||
+    request.nextUrl.pathname.startsWith("/wachtwoord-resetten") ||
+    request.nextUrl.pathname.startsWith("/auth/reset-callback");
 
-  if (!user && !isLoginPage) {
+  if (!user && !isPublicPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

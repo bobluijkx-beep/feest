@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Input, Label } from "@lions/ui";
 import { signIn } from "../actions/auth";
 
@@ -30,6 +31,9 @@ export default async function LoginPage({
               Inloggen
             </Button>
           </form>
+          <Link href="/wachtwoord-vergeten" className="mt-4 block text-sm text-primary hover:underline">
+            Ik ben mijn wachtwoord vergeten
+          </Link>
         </CardContent>
       </Card>
     </div>

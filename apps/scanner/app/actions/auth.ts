@@ -29,9 +29,18 @@ export async function requestPasswordReset(formData: FormData): Promise<void> {
   if (email) {
     const supabase = await getSupabaseServerClient();
     const baseUrl = process.env.NEXT_PUBLIC_SCANNER_URL ?? "http://localhost:3002";
-    // Geen foutmelding bij een onbekend e-mailadres — dat zou deze pagina bruikbaar maken
-    // om te achterhalen welke adressen een account hebben.
-    await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${baseUrl}/auth/reset-callback` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${baseUrl}/auth/reset-callback`,
+    });
+
+    // Alleen een rate-limit-fout tonen we door: dat lekt niets over welke adressen een
+    // account hebben, maar voorkomt dat iemand denkt dat de mail onderweg is terwijl
+    // Supabase 'm nooit heeft verstuurd (de standaard e-maillimiet is erg laag).
+    if (error?.status === 429) {
+      redirect(
+        `/wachtwoord-vergeten?error=${encodeURIComponent("Te veel resetpogingen. Probeer het over een uur opnieuw.")}`,
+      );
+    }
   }
 
   redirect("/wachtwoord-vergeten?sent=1");

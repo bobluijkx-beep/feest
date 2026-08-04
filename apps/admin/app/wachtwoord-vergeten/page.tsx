@@ -5,9 +5,9 @@ import { requestPasswordReset } from "../actions/auth";
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string }>;
+  searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
-  const { sent } = await searchParams;
+  const { sent, error } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
@@ -28,6 +28,7 @@ export default async function ForgotPasswordPage({
                 <Label htmlFor="email">E-mailadres</Label>
                 <Input id="email" name="email" type="email" autoComplete="email" required />
               </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="mt-2">
                 Resetlink versturen
               </Button>

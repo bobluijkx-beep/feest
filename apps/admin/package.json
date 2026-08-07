@@ -13,6 +13,7 @@
     "@lions/core": "workspace:*",
     "@lions/db": "workspace:*",
     "@lions/ui": "workspace:*",
+    "@upstash/qstash": "^2.7.20",
     "dotenv": "^16.4.5",
     "next": "^15.1.0",
     "react": "^19.0.0",

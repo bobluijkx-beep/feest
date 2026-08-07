@@ -54,15 +54,29 @@ enum ProductKind {
   MERCHANDISE
 }
 
+enum EmailCampaignStatus {
+  QUEUED
+  SENDING
+  DONE
+}
+
+enum EmailCampaignRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED_OPTOUT
+}
+
 model Organization {
-  id        String     @id @default(cuid())
-  name      String
-  slug      String     @unique
-  events    Event[]
-  users     User[]
-  settings  Setting[]
-  auditLogs AuditLog[]
-  createdAt DateTime   @default(now())
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  events         Event[]
+  users          User[]
+  settings       Setting[]
+  auditLogs      AuditLog[]
+  emailCampaigns EmailCampaign[]
+  createdAt      DateTime        @default(now())
 
   @@map("organizations")
 }
@@ -89,6 +103,7 @@ model Event {
   products       Product[]
   orders         Order[]
   emailTemplates EmailTemplate[]
+  emailCampaigns EmailCampaign[]
   pageBlocks     PageBlock[]
   userAccess     EventAccess[]
   createdAt      DateTime        @default(now())
@@ -146,11 +161,11 @@ model Order {
 }
 
 model OrderItem {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   orderId        String
-  order          Order    @relation(fields: [orderId], references: [id])
+  order          Order   @relation(fields: [orderId], references: [id])
   productId      String
-  product        Product  @relation(fields: [productId], references: [id])
+  product        Product @relation(fields: [productId], references: [id])
   quantity       Int
   unitPriceCents Int
 
@@ -227,6 +242,61 @@ model EmailTemplate {
 
   @@unique([eventId, type, language])
   @@map("email_templates")
+}
+
+// Gepersonaliseerde bulkmail naar een segment deelnemers van een event (los van de
+// transactionele EmailTemplate-mails). Segment/verzendlogica: packages/core/src/email/.
+model EmailCampaign {
+  id              String                   @id @default(cuid())
+  organizationId  String
+  organization    Organization             @relation(fields: [organizationId], references: [id])
+  eventId         String
+  event           Event                    @relation(fields: [eventId], references: [id])
+  createdByUserId String?
+  subject         String
+  bodyHtml        String
+  // Snapshot van de gekozen filters (event/producttype/check-in) — audit + reproduceerbaarheid.
+  segment         Json
+  status          EmailCampaignStatus      @default(QUEUED)
+  totalRecipients Int                      @default(0)
+  sentCount       Int                      @default(0)
+  failedCount     Int                      @default(0)
+  skippedCount    Int                      @default(0)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  recipients      EmailCampaignRecipient[]
+
+  @@index([organizationId])
+  @@index([eventId])
+  @@map("email_campaigns")
+}
+
+model EmailCampaignRecipient {
+  id              String                       @id @default(cuid())
+  campaignId      String
+  campaign        EmailCampaign                @relation(fields: [campaignId], references: [id])
+  email           String
+  // Personalisatie-snapshot t.t.v. samenstellen van de doelgroep (voornaam e.d.) —
+  // vastgelegd nu, niet opnieuw opgezocht bij verzending, zodat een langlopende batch
+  // consistent blijft ook als onderliggende orders intussen wijzigen.
+  personalization Json
+  status          EmailCampaignRecipientStatus @default(PENDING)
+  error           String?
+  sentAt          DateTime?
+
+  @@index([campaignId, status])
+  @@map("email_campaign_recipients")
+}
+
+// Bewust NIET org-gescoped: de app is in de praktijk single-tenant en een afmeldlink
+// hoeft geen organizationId te bevatten om te werken. Kan later alsnog org-gescoped
+// worden als multi-tenant relevant wordt.
+model EmailOptOut {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("email_opt_outs")
 }
 
 model PageBlock {

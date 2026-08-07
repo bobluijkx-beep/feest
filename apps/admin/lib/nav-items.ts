@@ -5,6 +5,7 @@ import {
   Package,
   Settings,
   Mail,
+  Send,
   FileText,
   Users,
   History,
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/settings", label: "Instellingen", icon: Settings, roles: ["ADMIN", "FINANCE"] },
   { href: "/content/emails", label: "E-mailtemplates", icon: Mail, roles: ["ADMIN", "EDITOR"] },
   { href: "/content/pages", label: "Paginabeheer", icon: FileText, roles: ["ADMIN", "EDITOR"] },
+  { href: "/mailings", label: "Mailings", icon: Send, roles: ["ADMIN", "EDITOR"] },
   { href: "/users", label: "Gebruikers", icon: Users, roles: ["ADMIN"] },
   { href: "/audit-log", label: "Audit-log", icon: History, roles: ["ADMIN"] },
 ];

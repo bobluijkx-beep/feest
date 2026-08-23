@@ -47,6 +47,10 @@ export function CreateProductForm({ events }: { events: { id: string; name: stri
         <Label htmlFor="totalStock">Aantal</Label>
         <Input id="totalStock" type="number" name="totalStock" min="0" required className="w-20" />
       </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="image">Foto</Label>
+        <input id="image" type="file" name="image" accept="image/*" className="w-48 text-sm" />
+      </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Toevoegen…" : "+ Nieuw product"}
       </Button>

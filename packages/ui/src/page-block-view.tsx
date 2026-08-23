@@ -2,6 +2,9 @@
 // zodat beide exact dezelfde weergave per blok-type gebruiken. Puur presentationeel, geen
 // hooks/browser-API's — werkt zonder "use client" in beide Next.js-apps.
 
+import { HeroFrame } from "./components/hero-frame";
+import { buttonVariants } from "./components/button";
+
 export interface PageBlockData {
   id: string;
   type: string;
@@ -31,14 +34,24 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       if (!title) return null;
       const subtitle = str(content.subtitle);
       const imageUrl = str(content.imageUrl);
+      const eyebrow = str(content.eyebrow);
+      const ctaLabel = str(content.ctaLabel);
+      const ctaHref = str(content.ctaHref);
       return (
-        <section className="py-8 text-center">
-          {imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="" className="mx-auto mb-4 max-w-full rounded-xl" />
-          )}
-          <h2 className="font-heading text-xl font-semibold">{title}</h2>
-          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+        <section className="py-4">
+          <HeroFrame eyebrow={eyebrow}>
+            {imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="" className="mx-auto mb-4 max-w-full rounded-xl" />
+            )}
+            <h2 className="font-display text-3xl">{title}</h2>
+            {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
+            {ctaLabel && ctaHref && (
+              <a href={ctaHref} className={buttonVariants({ size: "lg", className: "mt-4" })}>
+                {ctaLabel}
+              </a>
+            )}
+          </HeroFrame>
         </section>
       );
     }

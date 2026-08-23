@@ -11,6 +11,7 @@ export * from "./mollie/client";
 export * from "./tickets/qr";
 export * from "./tickets/pdf";
 export * from "./tickets/ics";
+export * from "./storage/product-images";
 export * from "./email/resend";
 export * from "./email/template-engine";
 export * from "./email/default-templates";

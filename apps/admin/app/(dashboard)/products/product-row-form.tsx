@@ -11,6 +11,7 @@ interface Product {
   kind: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   priceCents: number;
   totalStock: number;
   reservedStock: number;
@@ -35,6 +36,14 @@ export function ProductRowForm({ product }: { product: Product }) {
       <CardContent className="flex flex-col gap-3">
         <form action={updateAction} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="id" value={product.id} />
+          {product.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.imageUrl}
+              alt=""
+              className="size-14 rounded-md border border-input object-cover"
+            />
+          )}
           <div className="flex flex-col gap-1">
             <Label htmlFor={`kind-${product.id}`}>Soort</Label>
             <Select id={`kind-${product.id}`} name="kind" defaultValue={product.kind} className="w-36">
@@ -83,6 +92,10 @@ export function ProductRowForm({ product }: { product: Product }) {
             />
           </div>
           <p className="pb-1.5 text-xs text-muted-foreground">({committed} gereserveerd/verkocht)</p>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`image-${product.id}`}>Foto vervangen</Label>
+            <input id={`image-${product.id}`} type="file" name="image" accept="image/*" className="w-40 text-sm" />
+          </div>
           <label className="flex items-center gap-2 pb-1.5 text-sm">
             <input type="checkbox" name="isActive" defaultChecked={product.isActive} className="size-4 rounded border-input" />
             Actief

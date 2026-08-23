@@ -13,9 +13,12 @@ function contentFromFormData(type: string, formData: FormData): Record<string, s
   switch (type) {
     case "hero":
       return {
+        eyebrow: field(formData, "eyebrow"),
         title: field(formData, "title"),
         subtitle: field(formData, "subtitle"),
         imageUrl: field(formData, "imageUrl"),
+        ctaLabel: field(formData, "ctaLabel"),
+        ctaHref: field(formData, "ctaHref"),
       };
     case "programme":
       return { title: field(formData, "title"), body: field(formData, "body") };

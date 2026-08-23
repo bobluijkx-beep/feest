@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, logAudit } from "@lions/core";
+import { prisma, logAudit, uploadProductImage } from "@lions/core";
 import type { ProductKind } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
@@ -16,6 +16,11 @@ function parsePriceCents(raw: FormDataEntryValue | null): number | null {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) return null;
   return Math.round(value * 100);
+}
+
+function getImageFile(formData: FormData): File | null {
+  const file = formData.get("image");
+  return file instanceof File && file.size > 0 ? file : null;
 }
 
 export async function createProduct(
@@ -43,6 +48,15 @@ export async function createProduct(
   const created = await prisma.product.create({
     data: { eventId, kind, name, description: description || null, priceCents, totalStock },
   });
+
+  // Het bestandspad in Storage is gebaseerd op het product-id, dat pas na het aanmaken
+  // bekend is — daarom hier een tweede stap i.p.v. de afbeelding al bij het aanmaken zelf
+  // meesturen (zelfde soort multi-step Server Action als createBulkCampaign).
+  const image = getImageFile(formData);
+  if (image) {
+    const imageUrl = await uploadProductImage(created.id, image);
+    await prisma.product.update({ where: { id: created.id }, data: { imageUrl } });
+  }
 
   await logAudit({
     organizationId: actor.organizationId,
@@ -85,9 +99,12 @@ export async function updateProduct(
     return { error: `Aantal kan niet lager dan ${committed} (al gereserveerd/verkocht).` };
   }
 
+  const image = getImageFile(formData);
+  const imageUrl = image ? await uploadProductImage(id, image) : undefined;
+
   await prisma.product.update({
     where: { id },
-    data: { kind, name, description: description || null, priceCents, totalStock, isActive },
+    data: { kind, name, description: description || null, priceCents, totalStock, isActive, imageUrl },
   });
 
   await logAudit({

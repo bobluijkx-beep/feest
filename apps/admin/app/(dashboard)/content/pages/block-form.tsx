@@ -13,9 +13,12 @@ interface FieldDef {
 
 const FIELD_DEFS: Record<string, FieldDef[]> = {
   hero: [
+    { name: "eyebrow", label: "Aankondiging boven de titel (optioneel)" },
     { name: "title", label: "Titel" },
     { name: "subtitle", label: "Subtitel", kind: "textarea" },
     { name: "imageUrl", label: "Afbeelding-URL (optioneel)" },
+    { name: "ctaLabel", label: "Knoptekst (optioneel)" },
+    { name: "ctaHref", label: "Link voor de knop (optioneel)" },
   ],
   programme: [
     { name: "title", label: "Titel" },

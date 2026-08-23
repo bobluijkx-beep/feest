@@ -124,6 +124,7 @@ model Product {
   kind          ProductKind @default(MERCHANDISE)
   name          String
   description   String?
+  imageUrl      String?
   priceCents    Int
   currency      String      @default("EUR")
   totalStock    Int

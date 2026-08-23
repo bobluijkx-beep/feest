@@ -15,7 +15,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
     .filter((item) => item.quantity > 0);
 
   if (!eventId || !buyerName || !buyerEmail || items.length === 0) {
-    redirect(`/${eventSlug}?error=stock`);
+    redirect(`/${eventSlug}/afrekenen?error=stock`);
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
@@ -32,10 +32,10 @@ export async function startCheckout(formData: FormData): Promise<void> {
     });
     checkoutUrl = result.checkoutUrl;
   } catch (err) {
-    if (err instanceof InsufficientStockError) redirect(`/${eventSlug}?error=stock`);
+    if (err instanceof InsufficientStockError) redirect(`/${eventSlug}/afrekenen?error=stock`);
     console.error("Checkout mislukt", err);
-    redirect(`/${eventSlug}?error=unknown`);
+    redirect(`/${eventSlug}/afrekenen?error=unknown`);
   }
 
-  redirect(checkoutUrl ?? `/${eventSlug}?error=unknown`);
+  redirect(checkoutUrl ?? `/${eventSlug}/afrekenen?error=unknown`);
 }

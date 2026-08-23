@@ -16,6 +16,8 @@ export function EventFormFields({
     backgroundColor: string;
     accentColor: string;
     logoUrl: string;
+    illustration: string;
+    dark: boolean;
   };
 }) {
   const d = defaults ?? {
@@ -31,6 +33,8 @@ export function EventFormFields({
     backgroundColor: "#ffffff",
     accentColor: "#f59e0b",
     logoUrl: "",
+    illustration: "",
+    dark: false,
   };
 
   return (
@@ -82,6 +86,17 @@ export function EventFormFields({
       </div>
       <fieldset className="flex w-full flex-col gap-3 rounded-lg border border-border p-3">
         <legend className="px-1 text-xs font-medium text-muted-foreground">Huisstijl</legend>
+        <label htmlFor="dark" className="flex items-center gap-2 text-sm">
+          <input
+            id="dark"
+            type="checkbox"
+            name="dark"
+            value="true"
+            defaultChecked={d.dark}
+            className="h-4 w-4 rounded border-input"
+          />
+          Donker thema (donkere achtergrond, lichte tekst)
+        </label>
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="primaryColor">Hoofdkleur</Label>
@@ -124,6 +139,13 @@ export function EventFormFields({
             placeholder="https://…"
             className="w-full max-w-md"
           />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="illustration">Sfeer-illustratie</Label>
+          <Select id="illustration" name="illustration" defaultValue={d.illustration} className="w-48">
+            <option value="">Geen</option>
+            <option value="disco">Discobal</option>
+          </Select>
         </div>
       </fieldset>
     </div>

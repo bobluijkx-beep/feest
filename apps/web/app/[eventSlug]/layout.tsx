@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { cn } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { CartProvider } from "./cart-context";
 import { StorefrontHeader } from "./storefront-header";
@@ -31,12 +32,22 @@ export default async function EventLayout({
   const backgroundColor = str(themeRaw.backgroundColor);
   const accentColor = str(themeRaw.accentColor);
   const logoUrl = str(themeRaw.logoUrl);
+  const isDark = themeRaw.dark === "true";
   if (primaryColor) themeOverrides["--primary"] = primaryColor;
   if (backgroundColor) themeOverrides["--background"] = backgroundColor;
   if (accentColor) themeOverrides["--accent"] = accentColor;
 
+  // Bij "donker thema" hergebruiken we bewust de bestaande .dark-klasse uit
+  // packages/ui/src/theme.css i.p.v. losse tokens te overschrijven — die klasse geeft al
+  // een correct op elkaar afgestemde set (foreground/card/muted-foreground/border/input
+  // etc.), inclusief een primary-foreground die al bedoeld is om op een lichte primary op
+  // een donkere pagina te staan. primary/accent hierboven overschrijven daarna alsnog de
+  // tint (bv. richting zilver) zonder de rest van de balans te breken.
   return (
-    <div className="min-h-screen bg-background" style={themeOverrides as React.CSSProperties}>
+    <div
+      className={cn("min-h-screen bg-background text-foreground", isDark && "dark")}
+      style={themeOverrides as React.CSSProperties}
+    >
       <CartProvider eventSlug={eventSlug}>
         <StorefrontHeader eventSlug={eventSlug} eventName={event.name} logoUrl={logoUrl} />
         {children}

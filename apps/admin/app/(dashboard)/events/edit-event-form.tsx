@@ -21,6 +21,8 @@ interface EventDefaults {
   backgroundColor: string;
   accentColor: string;
   logoUrl: string;
+  illustration: string;
+  dark: boolean;
 }
 
 export function EditEventForm({ event }: { event: EventDefaults }) {

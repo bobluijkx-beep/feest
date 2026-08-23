@@ -39,6 +39,8 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
   const backgroundColor = String(formData.get("backgroundColor") ?? "").trim();
   const accentColor = String(formData.get("accentColor") ?? "").trim();
   const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+  const illustration = String(formData.get("illustration") ?? "").trim();
+  const dark = formData.get("dark") === "true" ? "true" : "";
 
   if (!name) return { error: "Vul een naam in." };
   if (!SLUG_PATTERN.test(slug)) {
@@ -56,7 +58,7 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
     endsAt: endsAtRaw ? parseAmsterdamDatetimeLocal(endsAtRaw) : null,
     status,
     isVisible,
-    theme: { primaryColor, backgroundColor, accentColor, logoUrl },
+    theme: { primaryColor, backgroundColor, accentColor, logoUrl, illustration, dark },
   };
 }
 

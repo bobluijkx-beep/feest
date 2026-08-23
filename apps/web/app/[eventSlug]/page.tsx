@@ -26,9 +26,15 @@ export default async function EventPage({
     .toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: "Europe/Amsterdam" })
     .toUpperCase();
 
+  const themeRaw = event.theme;
+  const illustration =
+    themeRaw && typeof themeRaw === "object" && !Array.isArray(themeRaw) && themeRaw.illustration === "disco"
+      ? "disco"
+      : undefined;
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
-      <HeroFrame eyebrow={dateEyebrow}>
+      <HeroFrame eyebrow={dateEyebrow} illustration={illustration}>
         <h1 className="font-display text-4xl">{event.name}</h1>
         {event.description && <p className="mt-3 text-sm text-muted-foreground">{event.description}</p>}
         <p className="mt-2 text-sm text-muted-foreground">

@@ -19,6 +19,7 @@ function contentFromFormData(type: string, formData: FormData): Record<string, s
         imageUrl: field(formData, "imageUrl"),
         ctaLabel: field(formData, "ctaLabel"),
         ctaHref: field(formData, "ctaHref"),
+        illustration: field(formData, "illustration"),
       };
     case "programme":
       return { title: field(formData, "title"), body: field(formData, "body") };

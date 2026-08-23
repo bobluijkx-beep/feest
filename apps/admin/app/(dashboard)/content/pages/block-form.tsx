@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { PageBlockView, Button, Input, Label } from "@lions/ui";
+import { PageBlockView, Button, Input, Label, Select } from "@lions/ui";
 
 type Fields = Record<string, string>;
 
 interface FieldDef {
   name: string;
   label: string;
-  kind?: "text" | "textarea";
+  kind?: "text" | "textarea" | "select";
+  options?: { value: string; label: string }[];
 }
 
 const FIELD_DEFS: Record<string, FieldDef[]> = {
@@ -19,6 +20,15 @@ const FIELD_DEFS: Record<string, FieldDef[]> = {
     { name: "imageUrl", label: "Afbeelding-URL (optioneel)" },
     { name: "ctaLabel", label: "Knoptekst (optioneel)" },
     { name: "ctaHref", label: "Link voor de knop (optioneel)" },
+    {
+      name: "illustration",
+      label: "Sfeer-illustratie",
+      kind: "select",
+      options: [
+        { value: "", label: "Geen" },
+        { value: "disco", label: "Discobal" },
+      ],
+    },
   ],
   programme: [
     { name: "title", label: "Titel" },
@@ -78,6 +88,20 @@ export function BlockForm({
               rows={4}
               className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
+          ) : f.kind === "select" ? (
+            <Select
+              id={f.name}
+              name={f.name}
+              value={values[f.name]}
+              onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
+              className="w-48"
+            >
+              {f.options?.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
           ) : (
             <Input
               id={f.name}

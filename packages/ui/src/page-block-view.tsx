@@ -37,10 +37,9 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       const eyebrow = str(content.eyebrow);
       const ctaLabel = str(content.ctaLabel);
       const ctaHref = str(content.ctaHref);
-      const illustration = content.illustration === "disco" ? "disco" : undefined;
       return (
         <section className="py-4">
-          <HeroFrame eyebrow={eyebrow} illustration={illustration}>
+          <HeroFrame eyebrow={eyebrow}>
             {imageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imageUrl} alt="" className="mx-auto mb-4 max-w-full rounded-xl" />

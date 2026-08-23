@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@lions/db";
-import { prisma, logAudit, parseAmsterdamDatetimeLocal } from "@lions/core";
+import { prisma, logAudit, parseAmsterdamDatetimeLocal, uploadEventHeroImage } from "@lions/core";
 import type { EventStatus } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
@@ -39,7 +39,6 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
   const backgroundColor = String(formData.get("backgroundColor") ?? "").trim();
   const accentColor = String(formData.get("accentColor") ?? "").trim();
   const logoUrl = String(formData.get("logoUrl") ?? "").trim();
-  const illustration = String(formData.get("illustration") ?? "").trim();
   const dark = formData.get("dark") === "true" ? "true" : "";
 
   if (!name) return { error: "Vul een naam in." };
@@ -58,8 +57,13 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
     endsAt: endsAtRaw ? parseAmsterdamDatetimeLocal(endsAtRaw) : null,
     status,
     isVisible,
-    theme: { primaryColor, backgroundColor, accentColor, logoUrl, illustration, dark },
+    theme: { primaryColor, backgroundColor, accentColor, logoUrl, dark },
   };
+}
+
+function getHeroImageFile(formData: FormData): File | null {
+  const file = formData.get("heroImage");
+  return file instanceof File && file.size > 0 ? file : null;
 }
 
 export async function createEvent(_prevState: EventActionState, formData: FormData): Promise<EventActionState> {
@@ -72,6 +76,18 @@ export async function createEvent(_prevState: EventActionState, formData: FormDa
     const created = await prisma.event.create({
       data: { organizationId: actor.organizationId, ...parsed },
     });
+
+    // Het bestandspad in Storage is gebaseerd op het event-id, dat pas na het aanmaken
+    // bekend is — daarom hier een tweede stap i.p.v. de afbeelding al bij het aanmaken
+    // zelf meesturen (zelfde patroon als de productfoto-upload).
+    const heroImage = getHeroImageFile(formData);
+    if (heroImage) {
+      const heroImageUrl = await uploadEventHeroImage(created.id, heroImage);
+      await prisma.event.update({
+        where: { id: created.id },
+        data: { theme: { ...(parsed.theme as Record<string, unknown>), heroImageUrl } },
+      });
+    }
 
     await logAudit({
       organizationId: actor.organizationId,
@@ -102,7 +118,20 @@ export async function updateEvent(_prevState: EventActionState, formData: FormDa
   if ("error" in parsed) return { error: parsed.error };
 
   try {
-    await prisma.event.update({ where: { id }, data: parsed });
+    const heroImage = getHeroImageFile(formData);
+    let heroImageUrl: string | undefined;
+    if (heroImage) {
+      heroImageUrl = await uploadEventHeroImage(id, heroImage);
+    } else {
+      const existing = await prisma.event.findUnique({ where: { id }, select: { theme: true } });
+      const existingTheme = existing?.theme as Record<string, unknown> | null;
+      heroImageUrl = typeof existingTheme?.heroImageUrl === "string" ? existingTheme.heroImageUrl : undefined;
+    }
+
+    await prisma.event.update({
+      where: { id },
+      data: { ...parsed, theme: { ...(parsed.theme as Record<string, unknown>), heroImageUrl } },
+    });
 
     await logAudit({
       organizationId: actor.organizationId,

@@ -20,15 +20,6 @@ const FIELD_DEFS: Record<string, FieldDef[]> = {
     { name: "imageUrl", label: "Afbeelding-URL (optioneel)" },
     { name: "ctaLabel", label: "Knoptekst (optioneel)" },
     { name: "ctaHref", label: "Link voor de knop (optioneel)" },
-    {
-      name: "illustration",
-      label: "Sfeer-illustratie",
-      kind: "select",
-      options: [
-        { value: "", label: "Geen" },
-        { value: "disco", label: "Discobal" },
-      ],
-    },
   ],
   programme: [
     { name: "title", label: "Titel" },

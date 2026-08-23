@@ -21,7 +21,7 @@ interface EventDefaults {
   backgroundColor: string;
   accentColor: string;
   logoUrl: string;
-  illustration: string;
+  heroImageUrl: string;
   dark: boolean;
 }
 

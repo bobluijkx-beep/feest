@@ -1,26 +1,24 @@
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
-import { DiscoBallIllustration } from "./disco-ball-illustration";
-
-export type HeroIllustration = "disco";
 
 /** Gedeelde decoratieve hero-laag voor de publieke site: een radiale gloed + een fijn
  * sparkle-stippelpatroon, beide afgeleid van de event-accentkleur (`--accent`, per event
  * instelbaar via Event.theme) — zo oogt elk event er "wervend" uit met zijn eigen
- * kleurenschema, zonder event-specifieke afbeeldingen. Optioneel een concrete illustratie
- * (`illustration`, bv. "disco") voor events die net dat beetje meer sfeer willen — bewust
- * los van de kleurgloed, want niet elk event past bij een discobal. Gebruikt door zowel de
- * altijd aanwezige event-titel bovenaan (apps/web/app/[eventSlug]/page.tsx) als het
- * optionele admin-bewerkbare "hero"-PageBlock (packages/ui/src/page-block-view.tsx), zodat
- * beide exact dezelfde uitstraling delen. */
+ * kleurenschema, zonder event-specifieke afbeeldingen. Optioneel een echte
+ * achtergrondfoto/-illustratie (`backgroundImageUrl`, bv. een uitsnede uit het eigen
+ * evenementaffiche) die uitdooft naar de randen (CSS mask-image) zodat 'm naadloos in de
+ * paginakleur overloopt, met een donkere overlay eronder voor leesbare tekst erbovenop.
+ * Gebruikt door zowel de altijd aanwezige event-titel bovenaan
+ * (apps/web/app/[eventSlug]/page.tsx) als het admin-bewerkbare "hero"-PageBlock
+ * (packages/ui/src/page-block-view.tsx). */
 export function HeroFrame({
   eyebrow,
-  illustration,
+  backgroundImageUrl,
   className,
   children,
 }: {
   eyebrow?: string;
-  illustration?: HeroIllustration;
+  backgroundImageUrl?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -42,17 +40,39 @@ export function HeroFrame({
           backgroundSize: "22px 22px",
         }}
       />
-      {illustration === "disco" && (
+      {/* z-0 i.p.v. -z-10: een <img> is een "replaced element" en werd in tests niet
+          geschilderd met een negatieve z-index in combinatie met overflow-hidden op deze
+          wrapper (zelfde eigenaardigheid als eerder bij een losse SVG-illustratie hier) —
+          gewone kleurlagen (div's hierboven) hadden dat probleem niet. */}
+      {backgroundImageUrl && (
         <>
-          <DiscoBallIllustration className="absolute -top-4 -right-4 z-0 size-28 opacity-90 sm:size-36" />
-          <DiscoBallIllustration className="absolute -bottom-8 -left-8 z-0 size-20 rotate-12 opacity-60 sm:size-28" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={backgroundImageUrl}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 size-full object-cover opacity-80"
+            style={{
+              maskImage: "linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)",
+            }}
+          />
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-background/55" />
         </>
       )}
-      {/* text-primary i.p.v. text-accent: --accent is in dit ontwerpsysteem een vulkleur
-          (bedoeld samen met --accent-foreground), geen op --background leesbare tekstkleur
-          — --primary is dat wel, zie ook de cta-tekst hieronder in page-block-view.tsx. */}
-      {eyebrow && <p className="mb-2 text-xs font-semibold tracking-widest text-primary uppercase">{eyebrow}</p>}
-      {children}
+      {/* relative z-0: zonder positionering vallen deze in-flow elementen in een eerdere
+          CSS-schilderfase dan de hierboven positioneerde (z-0) achtergrondfoto, en zouden
+          ze er dus ONDER komen te liggen i.p.v. erboven — expliciet positioneren op
+          hetzelfde stackniveau lost dat op (DOM-volgorde bepaalt dan, en deze staat na de
+          afbeelding). */}
+      <div className="relative z-0">
+        {/* text-primary i.p.v. text-accent: --accent is in dit ontwerpsysteem een vulkleur
+            (bedoeld samen met --accent-foreground), geen op --background leesbare
+            tekstkleur — --primary is dat wel, zie ook de cta-tekst hieronder in
+            page-block-view.tsx. */}
+        {eyebrow && <p className="mb-2 text-xs font-semibold tracking-widest text-primary uppercase">{eyebrow}</p>}
+        {children}
+      </div>
     </div>
   );
 }

@@ -16,7 +16,7 @@ export function EventFormFields({
     backgroundColor: string;
     accentColor: string;
     logoUrl: string;
-    illustration: string;
+    heroImageUrl: string;
     dark: boolean;
   };
 }) {
@@ -33,7 +33,7 @@ export function EventFormFields({
     backgroundColor: "#ffffff",
     accentColor: "#f59e0b",
     logoUrl: "",
-    illustration: "",
+    heroImageUrl: "",
     dark: false,
   };
 
@@ -141,11 +141,19 @@ export function EventFormFields({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="illustration">Sfeer-illustratie</Label>
-          <Select id="illustration" name="illustration" defaultValue={d.illustration} className="w-48">
-            <option value="">Geen</option>
-            <option value="disco">Discobal</option>
-          </Select>
+          <Label htmlFor="heroImage">Hero-afbeelding (optioneel)</Label>
+          {d.heroImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={d.heroImageUrl}
+              alt=""
+              className="mb-1 h-20 w-full max-w-md rounded-md border border-input object-cover"
+            />
+          )}
+          <input id="heroImage" type="file" name="heroImage" accept="image/*" className="w-full max-w-md text-sm" />
+          <p className="text-xs text-muted-foreground">
+            Verschijnt uitdovend op de achtergrond van de hero op de landingspagina van dit event.
+          </p>
         </div>
       </fieldset>
     </div>

@@ -27,14 +27,14 @@ export default async function EventPage({
     .toUpperCase();
 
   const themeRaw = event.theme;
-  const illustration =
-    themeRaw && typeof themeRaw === "object" && !Array.isArray(themeRaw) && themeRaw.illustration === "disco"
-      ? "disco"
+  const heroImageUrl =
+    themeRaw && typeof themeRaw === "object" && !Array.isArray(themeRaw) && typeof themeRaw.heroImageUrl === "string"
+      ? themeRaw.heroImageUrl
       : undefined;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
-      <HeroFrame eyebrow={dateEyebrow} illustration={illustration}>
+      <HeroFrame eyebrow={dateEyebrow} backgroundImageUrl={heroImageUrl}>
         <h1 className="font-display text-4xl">{event.name}</h1>
         {event.description && <p className="mt-3 text-sm text-muted-foreground">{event.description}</p>}
         <p className="mt-2 text-sm text-muted-foreground">

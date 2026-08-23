@@ -41,7 +41,7 @@ export default async function EventsPage() {
               backgroundColor: str(theme.backgroundColor),
               accentColor: str(theme.accentColor),
               logoUrl: str(theme.logoUrl),
-              illustration: str(theme.illustration),
+              heroImageUrl: str(theme.heroImageUrl),
               dark: theme.dark === "true",
             }}
           />

@@ -45,7 +45,7 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
               <img src={imageUrl} alt="" className="mx-auto mb-4 max-w-full rounded-xl" />
             )}
             <h2 className="font-display text-3xl">{title}</h2>
-            {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
+            {subtitle && <p className="mt-2 text-base font-semibold text-foreground sm:text-lg">{subtitle}</p>}
             {ctaLabel && ctaHref && (
               <a href={ctaHref} className={buttonVariants({ size: "lg", className: "mt-4" })}>
                 {ctaLabel}

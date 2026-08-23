@@ -8,17 +8,21 @@ import { cn } from "../lib/cn";
  * achtergrondfoto/-illustratie (`backgroundImageUrl`, bv. een uitsnede uit het eigen
  * evenementaffiche) die uitdooft naar de randen (CSS mask-image) zodat 'm naadloos in de
  * paginakleur overloopt, met een donkere overlay eronder voor leesbare tekst erbovenop.
+ * Optioneel ook een `logoUrl` (bv. het clublogo), gecentreerd onderaan de hero — bewust
+ * los van het admin-bewerkbare PageBlock-systeem, zie apps/web/app/[eventSlug]/page.tsx.
  * Gebruikt door zowel de altijd aanwezige event-titel bovenaan
  * (apps/web/app/[eventSlug]/page.tsx) als het admin-bewerkbare "hero"-PageBlock
  * (packages/ui/src/page-block-view.tsx). */
 export function HeroFrame({
   eyebrow,
   backgroundImageUrl,
+  logoUrl,
   className,
   children,
 }: {
   eyebrow?: string;
   backgroundImageUrl?: string;
+  logoUrl?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -72,6 +76,10 @@ export function HeroFrame({
             page-block-view.tsx. */}
         {eyebrow && <p className="mb-2 text-xs font-semibold tracking-widest text-primary uppercase">{eyebrow}</p>}
         {children}
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="" className="mx-auto mt-8 h-16 w-auto opacity-90" />
+        )}
       </div>
     </div>
   );

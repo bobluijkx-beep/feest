@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@lions/db";
-import { prisma, logAudit, parseAmsterdamDatetimeLocal, uploadEventHeroImage } from "@lions/core";
+import { prisma, logAudit, parseAmsterdamDatetimeLocal, uploadEventHeroImage, uploadEventLogoImage } from "@lions/core";
 import type { EventStatus } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
@@ -38,7 +38,6 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
   const primaryColor = String(formData.get("primaryColor") ?? "").trim();
   const backgroundColor = String(formData.get("backgroundColor") ?? "").trim();
   const accentColor = String(formData.get("accentColor") ?? "").trim();
-  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
   const dark = formData.get("dark") === "true" ? "true" : "";
 
   if (!name) return { error: "Vul een naam in." };
@@ -57,12 +56,12 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
     endsAt: endsAtRaw ? parseAmsterdamDatetimeLocal(endsAtRaw) : null,
     status,
     isVisible,
-    theme: { primaryColor, backgroundColor, accentColor, logoUrl, dark },
+    theme: { primaryColor, backgroundColor, accentColor, dark },
   };
 }
 
-function getHeroImageFile(formData: FormData): File | null {
-  const file = formData.get("heroImage");
+function getFile(formData: FormData, field: string): File | null {
+  const file = formData.get(field);
   return file instanceof File && file.size > 0 ? file : null;
 }
 
@@ -78,14 +77,17 @@ export async function createEvent(_prevState: EventActionState, formData: FormDa
     });
 
     // Het bestandspad in Storage is gebaseerd op het event-id, dat pas na het aanmaken
-    // bekend is — daarom hier een tweede stap i.p.v. de afbeelding al bij het aanmaken
+    // bekend is — daarom hier een tweede stap i.p.v. de afbeeldingen al bij het aanmaken
     // zelf meesturen (zelfde patroon als de productfoto-upload).
-    const heroImage = getHeroImageFile(formData);
-    if (heroImage) {
-      const heroImageUrl = await uploadEventHeroImage(created.id, heroImage);
+    const heroImage = getFile(formData, "heroImage");
+    const logo = getFile(formData, "logo");
+    if (heroImage || logo) {
+      const themeUpdate: Record<string, unknown> = { ...(parsed.theme as Record<string, unknown>) };
+      if (heroImage) themeUpdate.heroImageUrl = await uploadEventHeroImage(created.id, heroImage);
+      if (logo) themeUpdate.logoUrl = await uploadEventLogoImage(created.id, logo);
       await prisma.event.update({
         where: { id: created.id },
-        data: { theme: { ...(parsed.theme as Record<string, unknown>), heroImageUrl } },
+        data: { theme: themeUpdate as Prisma.InputJsonValue },
       });
     }
 
@@ -118,19 +120,26 @@ export async function updateEvent(_prevState: EventActionState, formData: FormDa
   if ("error" in parsed) return { error: parsed.error };
 
   try {
-    const heroImage = getHeroImageFile(formData);
-    let heroImageUrl: string | undefined;
-    if (heroImage) {
-      heroImageUrl = await uploadEventHeroImage(id, heroImage);
-    } else {
-      const existing = await prisma.event.findUnique({ where: { id }, select: { theme: true } });
-      const existingTheme = existing?.theme as Record<string, unknown> | null;
-      heroImageUrl = typeof existingTheme?.heroImageUrl === "string" ? existingTheme.heroImageUrl : undefined;
-    }
+    const heroImage = getFile(formData, "heroImage");
+    const logo = getFile(formData, "logo");
+
+    const existing = await prisma.event.findUnique({ where: { id }, select: { theme: true } });
+    const existingTheme = (existing?.theme as Record<string, unknown> | null) ?? {};
+
+    const heroImageUrl = heroImage
+      ? await uploadEventHeroImage(id, heroImage)
+      : typeof existingTheme.heroImageUrl === "string"
+        ? existingTheme.heroImageUrl
+        : undefined;
+    const logoUrl = logo
+      ? await uploadEventLogoImage(id, logo)
+      : typeof existingTheme.logoUrl === "string"
+        ? existingTheme.logoUrl
+        : undefined;
 
     await prisma.event.update({
       where: { id },
-      data: { ...parsed, theme: { ...(parsed.theme as Record<string, unknown>), heroImageUrl } },
+      data: { ...parsed, theme: { ...(parsed.theme as Record<string, unknown>), heroImageUrl, logoUrl } },
     });
 
     await logAudit({

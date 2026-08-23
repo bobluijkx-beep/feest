@@ -130,15 +130,13 @@ export function EventFormFields({
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="logoUrl">Logo-URL</Label>
-          <Input
-            id="logoUrl"
-            type="text"
-            name="logoUrl"
-            defaultValue={d.logoUrl}
-            placeholder="https://…"
-            className="w-full max-w-md"
-          />
+          <Label htmlFor="logo">Logo (optioneel)</Label>
+          {d.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={d.logoUrl} alt="" className="mb-1 h-16 w-auto rounded-md border border-input bg-black/20 p-1" />
+          )}
+          <input id="logo" type="file" name="logo" accept="image/*" className="w-full max-w-md text-sm" />
+          <p className="text-xs text-muted-foreground">Verschijnt gecentreerd onderaan de hero.</p>
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="heroImage">Hero-afbeelding (optioneel)</Label>

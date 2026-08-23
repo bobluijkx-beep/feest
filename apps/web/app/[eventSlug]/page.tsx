@@ -4,6 +4,10 @@ import { prisma } from "@lions/core";
 import { PageBlocksList, HeroFrame, buttonVariants } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export default async function EventPage({
   params,
   searchParams,
@@ -26,18 +30,18 @@ export default async function EventPage({
     .toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: "Europe/Amsterdam" })
     .toUpperCase();
 
-  const themeRaw = event.theme;
-  const heroImageUrl =
-    themeRaw && typeof themeRaw === "object" && !Array.isArray(themeRaw) && typeof themeRaw.heroImageUrl === "string"
-      ? themeRaw.heroImageUrl
-      : undefined;
+  const themeRaw = isRecord(event.theme) ? event.theme : {};
+  const heroImageUrl = typeof themeRaw.heroImageUrl === "string" ? themeRaw.heroImageUrl : undefined;
+  const logoUrl = typeof themeRaw.logoUrl === "string" && themeRaw.logoUrl ? themeRaw.logoUrl : undefined;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
-      <HeroFrame eyebrow={dateEyebrow} backgroundImageUrl={heroImageUrl}>
+      <HeroFrame eyebrow={dateEyebrow} backgroundImageUrl={heroImageUrl} logoUrl={logoUrl}>
         <h1 className="font-display text-4xl">{event.name}</h1>
-        {event.description && <p className="mt-3 text-sm text-muted-foreground">{event.description}</p>}
-        <p className="mt-2 text-sm text-muted-foreground">
+        {event.description && (
+          <p className="mt-3 text-base font-semibold text-foreground sm:text-lg">{event.description}</p>
+        )}
+        <p className="mt-2 text-sm text-foreground/80">
           {event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full", timeZone: "Europe/Amsterdam" })}
           {event.venue ? ` — ${event.venue}` : ""}
         </p>

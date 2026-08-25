@@ -17,7 +17,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
   const merchProducts = products.filter((p) => p.kind === "MERCHANDISE");
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
+    <main className="mx-auto max-w-2xl px-4 py-8 md:max-w-4xl lg:max-w-6xl">
       <h1 className="font-display text-2xl">Producten</h1>
 
       {products.length === 0 && (

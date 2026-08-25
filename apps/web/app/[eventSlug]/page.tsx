@@ -35,7 +35,7 @@ export default async function EventPage({
   const logoUrl = typeof themeRaw.logoUrl === "string" && themeRaw.logoUrl ? themeRaw.logoUrl : undefined;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
+    <main className="mx-auto max-w-2xl px-4 py-8 md:max-w-4xl lg:max-w-6xl">
       <HeroFrame eyebrow={dateEyebrow} backgroundImageUrl={heroImageUrl} logoUrl={logoUrl}>
         <h1 className="font-display text-4xl">{event.name}</h1>
         {event.description && (

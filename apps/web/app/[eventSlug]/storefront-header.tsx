@@ -16,13 +16,13 @@ export function StorefrontHeader({
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-2">
+      <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-2 md:max-w-4xl lg:max-w-6xl">
         <Link href={`/${eventSlug}`} className="flex items-center gap-3 font-display text-lg">
           {/* Bewust groter dan de tekstregel eromheen (niet meer tekst-uitgelijnd) —
               anders is het logo onleesbaar klein. */}
           {logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="h-14 w-auto shrink-0" />
+            <img src={logoUrl} alt="" className="h-28 w-auto shrink-0" />
           )}
           {eventName}
         </Link>

@@ -1,14 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { renderTemplate } from "@lions/core/email/template-engine";
-import { wrapEmailHtml } from "@lions/core/email/layout";
-import { Button, Input, Label, Card, CardContent } from "@lions/ui";
+import { renderWithLayout, DEFAULT_LAYOUT_HTML } from "@lions/core/email/layout";
+import { CAMPAIGN_PLACEHOLDERS } from "@lions/core/email/placeholders";
+import { Button, Input, Label, Select, Card, CardContent } from "@lions/ui";
+import { HtmlEditor } from "../content/emails/html-editor";
 import { createCampaign, type CreateCampaignState } from "./actions";
 import type { CampaignSegment } from "@lions/core";
-
-const PREVIEW_UNSUBSCRIBE_FOOTER =
-  '<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? <a href="#">Afmelden</a>.</p>';
 
 const SAMPLE_VARS = {
   voornaam: "Jan",
@@ -16,21 +14,40 @@ const SAMPLE_VARS = {
   aantal_tickets: "2",
 };
 
+const PREVIEW_UNSUBSCRIBE_FOOTER =
+  '<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? <a href="#">Afmelden</a>.</p>';
+
 const initialState: CreateCampaignState = {};
+
+interface LayoutOption {
+  id: string;
+  name: string;
+  bodyHtml: string;
+  isDefault: boolean;
+}
 
 export function CampaignComposeForm({
   segment,
   recipientCount,
+  layouts,
 }: {
   segment: CampaignSegment;
   recipientCount: number;
+  layouts: LayoutOption[];
 }) {
   const [state, formAction, pending] = useActionState(createCampaign, initialState);
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
+  const [layoutId, setLayoutId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
-  const preview = renderTemplate({ subject, bodyHtml }, SAMPLE_VARS);
+  const selectedLayout = layouts.find((l) => l.id === layoutId);
+  const layoutHtml = selectedLayout?.bodyHtml ?? layouts.find((l) => l.isDefault)?.bodyHtml ?? DEFAULT_LAYOUT_HTML;
+  const preview = renderWithLayout({
+    layoutHtml,
+    content: { subject, bodyHtml: bodyHtml + PREVIEW_UNSUBSCRIBE_FOOTER },
+    vars: SAMPLE_VARS,
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,20 +75,29 @@ export function CampaignComposeForm({
           <Input id="subject" type="text" name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="bodyHtml">Inhoud (HTML)</Label>
-          <textarea
-            id="bodyHtml"
-            name="bodyHtml"
-            value={bodyHtml}
-            onChange={(e) => setBodyHtml(e.target.value)}
-            rows={10}
-            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          />
+          <Label htmlFor="layoutId">Lay-out</Label>
+          <Select
+            id="layoutId"
+            name="layoutId"
+            value={layoutId}
+            onChange={(e) => setLayoutId(e.target.value)}
+            className="max-w-xs"
+          >
+            <option value="">
+              {layouts.find((l) => l.isDefault) ? `Standaard (${layouts.find((l) => l.isDefault)?.name})` : "Standaard"}
+            </option>
+            {layouts.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Beschikbare placeholders: <code>{"{{voornaam}}"}</code> <code>{"{{event_naam}}"}</code>{" "}
-          <code>{"{{aantal_tickets}}"}</code>
-        </p>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="bodyHtml">Inhoud (HTML)</Label>
+          <HtmlEditor value={bodyHtml} onChange={setBodyHtml} placeholders={[...CAMPAIGN_PLACEHOLDERS]} rows={10} />
+          <input type="hidden" name="bodyHtml" value={bodyHtml} />
+        </div>
         <p className="text-xs text-muted-foreground">
           Onder elke mail wordt automatisch een afmeldlink toegevoegd — die hoef je niet zelf op te nemen.
         </p>
@@ -92,11 +118,7 @@ export function CampaignComposeForm({
             <p className="px-4 pt-4 text-sm">
               <strong>Onderwerp:</strong> {preview.subject}
             </p>
-            <iframe
-              title="E-mailvoorbeeld"
-              srcDoc={wrapEmailHtml({ ...preview, bodyHtml: preview.bodyHtml + PREVIEW_UNSUBSCRIBE_FOOTER })}
-              className="h-[500px] w-full rounded-b-lg border-0"
-            />
+            <iframe title="E-mailvoorbeeld" srcDoc={preview.bodyHtml} className="h-[500px] w-full rounded-b-lg border-0" />
           </CardContent>
         </Card>
       )}

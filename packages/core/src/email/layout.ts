@@ -1,11 +1,14 @@
-/** Gedeelde e-mail-laag: omlijst de per-type inhoud (order-confirmation.ts/
- * bulk-campaign.ts leveren alleen de binnenkant, zie default-templates.ts) met een vaste
- * huisstijl-header/footer. Table-based + volledig inline-gestylede HTML, bewust geen
- * flexbox/grid/externe stylesheet/custom font — die worden in te veel mailclients
+import { renderTemplate, type RenderableTemplate } from "./template-engine";
+
+/** Gedeelde e-mail-laag: omlijst de per-type/per-campagne inhoud (order-confirmation.ts/
+ * bulk-campaign.ts leveren alleen de binnenkant, zie default-templates.ts) met een
+ * kies bare huisstijl-header/footer (EmailLayout, org-breed, zie get-layout.ts). Een
+ * lay-out is zelf ook maar een HTML-string met precies één verplichte placeholder,
+ * {{content}} — verder gewone HTML, table-based + volledig inline-gestyled, bewust geen
+ * flexbox/grid/externe stylesheet/custom font, want die worden in te veel mailclients
  * (met name Outlook desktop) genegeerd of stukgerenderd. Geen "server-only": deze module
- * wordt zowel door resend.ts (bij het echt verzenden) als door het admin-voorbeeldscherm
- * (email-template-form.tsx, in de browser) gebruikt, zodat bestuursleden precies zien wat
- * er verstuurd wordt. */
+ * wordt zowel server-side (bij het echt verzenden) als in de browser (het admin-
+ * voorbeeldscherm) gebruikt, zodat bestuursleden precies zien wat er verstuurd wordt. */
 
 const WEB_SAFE_BODY_FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
@@ -14,27 +17,27 @@ const WEB_SAFE_DISPLAY_FONT = "'Arial Black', Arial, 'Segoe UI', sans-serif";
 /** Onzichtbare preview-snippet die mailclients tonen naast de afzender in de inbox-lijst
  * (i.p.v. de eerste toevallige regel van de e-mail zelf, vaak een kale "Beste Jan,"). */
 function preheader(text: string): string {
-  return `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;opacity:0;">${text}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`;
+  return `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;opacity:0;">${text}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`;
 }
 
-/** Omlijst de binnenkant van een e-mail (subject + bodyHtml, al met placeholders
- * vervangen) met de vaste Lionsclub Voorschoten-huisstijl: zwarte kopbalk met
- * clubnaam, witte inhoudskaart, grijze voettekst. Generiek per event (geen
- * event-specifiek logo/kleur) omdat dezelfde e-mail-infrastructuur voor elk event
- * (feest, oliebollenverkoop, …) gebruikt wordt. */
-export function wrapEmailHtml(params: { subject: string; bodyHtml: string }): string {
-  const { subject, bodyHtml } = params;
-  return `<!doctype html>
+/** Placeholder verplicht in elke EmailLayout.bodyHtml — hier wordt de eigenlijke
+ * e-mailinhoud ingevoegd. Los geëxporteerd zodat de admin-editor 'm kan valideren/
+ * aanbieden als invoegbare placeholder, net als {{voornaam}} e.d. */
+export const LAYOUT_CONTENT_PLACEHOLDER = "{{content}}";
+
+/** De meegeleverde standaard-lay-out (zwarte kopbalk met clubnaam, witte inhoudskaart,
+ * grijze voettekst) — het startpunt voor een nieuwe EmailLayout-rij, en de allerlaatste
+ * terugvaloptie (getEmailLayoutHtml in get-layout.ts) als een organisatie nog geen enkele
+ * lay-out heeft (bv. direct na deze migratie, vóór het zaaien van een standaardrij). */
+export const DEFAULT_LAYOUT_HTML = `<!doctype html>
 <html lang="nl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <meta name="supported-color-schemes" content="light" />
-    <title>${subject}</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f2f2f3;">
-    ${preheader(subject)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f2f3;">
       <tr>
         <td align="center" style="padding:32px 16px;">
@@ -49,7 +52,7 @@ export function wrapEmailHtml(params: { subject: string; bodyHtml: string }): st
             </tr>
             <tr>
               <td style="background-color:#ffffff;padding:36px 32px;font-family:${WEB_SAFE_BODY_FONT};font-size:15px;line-height:1.6;color:#1a1a1a;">
-                ${bodyHtml}
+                {{content}}
               </td>
             </tr>
             <tr>
@@ -66,4 +69,37 @@ export function wrapEmailHtml(params: { subject: string; bodyHtml: string }): st
     </table>
   </body>
 </html>`;
+
+/** Combineert een (gekozen) lay-out met de per-mail inhoud tot één verzendklare
+ * HTML-pagina. Twee stappen, bewust in deze volgorde:
+ * 1. De inhoud (`content`) wordt gerenderd met de gewone placeholders (voornaam,
+ *    event_naam, …) — precies zoals voorheen.
+ * 2. Het resultaat wordt als `content`-variabele meegegeven aan een renderTemplate-pas
+ *    over de lay-out zelf, zodat de lay-out zowel `{{content}}` (verplicht) als
+ *    diezelfde placeholders mag gebruiken (bv. `{{event_naam}}` in een aangepaste
+ *    kopregel). De inhoud is dan al gesubstitueerd, dus er is geen risico op een
+ *    tweede/foute substitutieronde binnen de ingevoegde inhoud zelf. */
+export function renderWithLayout(params: {
+  layoutHtml: string;
+  content: RenderableTemplate;
+  vars: Record<string, string>;
+}): RenderableTemplate {
+  const { layoutHtml, content, vars } = params;
+  const renderedContent = renderTemplate(content, vars);
+  const withPreheader = preheader(renderedContent.subject) + renderedContent.bodyHtml;
+  const page = renderTemplate(
+    { subject: renderedContent.subject, bodyHtml: layoutHtml },
+    { ...vars, content: withPreheader },
+  );
+  return page;
+}
+
+/** Gemakslaag voor de admin-preview en de allereenvoudigste gevallen: rendert direct met
+ * de meegeleverde standaard-lay-out, zonder database-lookup. */
+export function wrapEmailHtml(params: { subject: string; bodyHtml: string }): string {
+  return renderWithLayout({
+    layoutHtml: DEFAULT_LAYOUT_HTML,
+    content: { subject: params.subject, bodyHtml: params.bodyHtml },
+    vars: {},
+  }).bodyHtml;
 }

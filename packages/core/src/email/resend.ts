@@ -1,5 +1,4 @@
 import "server-only";
-import { wrapEmailHtml } from "./layout";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
@@ -14,7 +13,10 @@ export type SendEmailResult =
   | { ok: false; messageId: null; error: string };
 
 /** Zelfde raw-fetch-patroon als lib/services/notifications.ts in het HR-portal-project,
- * uitgebreid met bijlagen (ticket-PDF + ICS-agenda-item). */
+ * uitgebreid met bijlagen (ticket-PDF + ICS-agenda-item). Verwacht kant-en-klare,
+ * al-omlijste HTML (`params.html`) — de keuze/toepassing van een EmailLayout gebeurt bij
+ * de aanroeper (order-confirmation.ts/bulk-campaign.ts, via renderWithLayout), omdat
+ * alleen die weet welke lay-out bij dit specifieke type/deze campagne hoort. */
 export async function sendEmail(params: {
   to: string;
   subject: string;
@@ -35,7 +37,7 @@ export async function sendEmail(params: {
         from,
         to: params.to,
         subject: params.subject,
-        html: wrapEmailHtml({ subject: params.subject, bodyHtml: params.html }),
+        html: params.html,
         attachments: params.attachments,
       }),
     });

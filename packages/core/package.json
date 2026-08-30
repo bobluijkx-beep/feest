@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./auth/supabase-server": "./src/auth/supabase-server.ts",
     "./email/template-engine": "./src/email/template-engine.ts",
-    "./email/layout": "./src/email/layout.ts"
+    "./email/layout": "./src/email/layout.ts",
+    "./email/placeholders": "./src/email/placeholders.ts"
   },
   "dependencies": {
     "@lions/db": "workspace:*",

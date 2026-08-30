@@ -15,6 +15,7 @@ export async function createCampaign(_prevState: CreateCampaignState, formData: 
   const segment = parseSegmentFromFormData(formData);
   const subject = String(formData.get("subject") ?? "").trim();
   const bodyHtml = String(formData.get("bodyHtml") ?? "");
+  const layoutId = String(formData.get("layoutId") ?? "") || null;
 
   if (!segment.eventId) return { error: "Kies een event." };
   if (!subject) return { error: "Vul een onderwerp in." };
@@ -30,6 +31,7 @@ export async function createCampaign(_prevState: CreateCampaignState, formData: 
     segment,
     subject,
     bodyHtml,
+    layoutId,
     callbackUrl: `${baseUrl}/api/qstash/send-bulk-batch`,
   });
 

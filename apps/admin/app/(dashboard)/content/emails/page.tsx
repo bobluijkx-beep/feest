@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@lions/core";
 import type { EmailTemplateType } from "@lions/db";
-import { Card, CardContent, Badge } from "@lions/ui";
+import { Card, CardContent, Badge, buttonVariants } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EventTabs } from "@/lib/event-tabs";
@@ -31,7 +31,12 @@ export default async function EmailTemplatesPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <EventTabs events={events} selectedId={event.id} basePath="/content/emails" />
+      <div className="flex items-center justify-between">
+        <EventTabs events={events} selectedId={event.id} basePath="/content/emails" />
+        <Link href="/content/emails/layouts" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Lay-outs beheren
+        </Link>
+      </div>
       <Card>
         <CardContent className="flex flex-col divide-y divide-border p-0">
           {TYPES.map(({ type, label }) => (

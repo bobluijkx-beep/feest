@@ -76,6 +76,7 @@ model Organization {
   settings       Setting[]
   auditLogs      AuditLog[]
   emailCampaigns EmailCampaign[]
+  emailLayouts   EmailLayout[]
   createdAt      DateTime        @default(now())
 
   @@map("organizations")
@@ -239,6 +240,10 @@ model EmailTemplate {
   language  String            @default("nl")
   subject   String
   bodyHtml  String
+  // Optioneel: welke EmailLayout deze specifieke mail omlijst. Leeg = de standaard-lay-out
+  // van de organisatie (EmailLayout.isDefault), zie packages/core/src/email/get-layout.ts.
+  layoutId  String?
+  layout    EmailLayout?      @relation(fields: [layoutId], references: [id])
   updatedAt DateTime          @updatedAt
 
   @@unique([eventId, type, language])
@@ -256,6 +261,8 @@ model EmailCampaign {
   createdByUserId String?
   subject         String
   bodyHtml        String
+  layoutId        String?
+  layout          EmailLayout?             @relation(fields: [layoutId], references: [id])
   // Snapshot van de gekozen filters (event/producttype/check-in) — audit + reproduceerbaarheid.
   segment         Json
   status          EmailCampaignStatus      @default(QUEUED)
@@ -270,6 +277,28 @@ model EmailCampaign {
   @@index([organizationId])
   @@index([eventId])
   @@map("email_campaigns")
+}
+
+// Herbruikbare "envelop" rond de per-mail inhoud (header/footer/huisstijl) — org-breed
+// selecteerbaar per EmailTemplate/EmailCampaign, i.p.v. één hardcoded opmaak voor alles.
+// bodyHtml is vrije HTML die verplicht één keer {{content}} bevat (waar de eigenlijke
+// e-mailinhoud wordt ingevoegd); mag daarnaast dezelfde placeholders gebruiken als de
+// inhoud zelf (renderWithLayout in packages/core/src/email/layout.ts doet één
+// gecombineerde substitutie-pas over lay-out + inhoud).
+model EmailLayout {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  name           String
+  bodyHtml       String
+  isDefault      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  emailTemplates EmailTemplate[]
+  emailCampaigns EmailCampaign[]
+
+  @@index([organizationId])
+  @@map("email_layouts")
 }
 
 model EmailCampaignRecipient {

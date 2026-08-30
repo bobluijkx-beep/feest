@@ -5,7 +5,8 @@ import { prisma } from "../db";
 import { logAudit } from "../audit/log";
 import type { AppUser } from "../auth/session";
 import { sendEmail } from "./resend";
-import { renderTemplate } from "./template-engine";
+import { renderWithLayout } from "./layout";
+import { getEmailLayoutHtml } from "./get-layout";
 import { signUnsubscribeToken } from "./unsubscribe";
 import { buildSegmentRecipients, type CampaignSegment } from "./segment";
 
@@ -40,6 +41,7 @@ export async function createBulkCampaign(params: {
   segment: CampaignSegment;
   subject: string;
   bodyHtml: string;
+  layoutId?: string | null;
   callbackUrl: string;
 }): Promise<{ id: string; totalRecipients: number }> {
   const recipients = await buildSegmentRecipients(params.segment);
@@ -52,6 +54,7 @@ export async function createBulkCampaign(params: {
         createdByUserId: params.actor.id,
         subject: params.subject,
         bodyHtml: params.bodyHtml,
+        layoutId: params.layoutId || null,
         segment: params.segment as unknown as Prisma.InputJsonValue,
         totalRecipients: recipients.length,
       },
@@ -126,6 +129,13 @@ export async function processCampaignBatch(campaignId: string, callbackUrl: stri
   const optOuts = await prisma.emailOptOut.findMany({ select: { email: true } });
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
 
+  // Zelfde lay-out voor de hele batch (één campagne = één gekozen/standaard-lay-out) —
+  // één keer opgezocht i.p.v. per recipient.
+  const layoutHtml = await getEmailLayoutHtml({
+    organizationId: campaign.organizationId,
+    layoutId: campaign.layoutId,
+  });
+
   for (const recipient of batch) {
     if (optedOut.has(recipient.email.toLowerCase())) {
       await prisma.emailCampaignRecipient.update({ where: { id: recipient.id }, data: { status: "SKIPPED_OPTOUT" } });
@@ -134,10 +144,13 @@ export async function processCampaignBatch(campaignId: string, callbackUrl: stri
     }
 
     const personalization = recipient.personalization as Record<string, string>;
-    const rendered = renderTemplate({ subject: campaign.subject, bodyHtml: campaign.bodyHtml }, personalization);
-    const bodyHtml = rendered.bodyHtml + unsubscribeFooter(recipient.email);
+    const rendered = renderWithLayout({
+      layoutHtml,
+      content: { subject: campaign.subject, bodyHtml: campaign.bodyHtml + unsubscribeFooter(recipient.email) },
+      vars: personalization,
+    });
 
-    const result = await sendEmail({ to: recipient.email, subject: rendered.subject, html: bodyHtml });
+    const result = await sendEmail({ to: recipient.email, subject: rendered.subject, html: rendered.bodyHtml });
 
     if (result.ok) {
       await prisma.emailCampaignRecipient.update({

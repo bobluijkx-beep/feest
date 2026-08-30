@@ -30,13 +30,26 @@ export default async function EmailTemplateEditPage({
   });
   const initial = existing ?? defaultEmailTemplates[templateType];
 
+  const layouts = await prisma.emailLayout.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, bodyHtml: true, isDefault: true },
+  });
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>E-mailtemplate: {templateType}</CardTitle>
       </CardHeader>
       <CardContent>
-        <EmailTemplateForm eventId={event.id} type={templateType} subject={initial.subject} bodyHtml={initial.bodyHtml} />
+        <EmailTemplateForm
+          eventId={event.id}
+          type={templateType}
+          subject={initial.subject}
+          bodyHtml={initial.bodyHtml}
+          layoutId={existing?.layoutId ?? ""}
+          layouts={layouts}
+        />
       </CardContent>
     </Card>
   );

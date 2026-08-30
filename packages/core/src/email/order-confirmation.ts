@@ -2,7 +2,9 @@ import "server-only";
 import type { EmailTemplateType } from "@lions/db";
 import { prisma } from "../db";
 import { sendEmail } from "./resend";
-import { renderTemplate, type RenderableTemplate } from "./template-engine";
+import { type RenderableTemplate } from "./template-engine";
+import { renderWithLayout } from "./layout";
+import { getEmailLayoutHtml } from "./get-layout";
 import { defaultEmailTemplates } from "./default-templates";
 import { generateTicketPdf } from "../tickets/pdf";
 import { generateIcsInvite } from "../tickets/ics";
@@ -23,6 +25,9 @@ function merchandiseLines(order: OrderWithRelations): string[] {
     .map((item) => `${item.quantity}x ${item.product.name}`);
 }
 
+/** Rendert een order-mail vólledig verzendklaar: de per-type inhoud (DB-rij of
+ * fallback-default) mét placeholders, omlijst met de gekozen (of standaard-)
+ * EmailLayout van de organisatie. */
 async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateType): Promise<RenderableTemplate> {
   const templateRow = await prisma.emailTemplate.findUnique({
     where: { eventId_type_language: { eventId: order.eventId, type, language: "nl" } },
@@ -36,15 +41,24 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
       : "";
   const merchandiseSection = lines.length > 0 ? `<p>Ook besteld: ${lines.join(", ")}.</p>` : "";
 
-  return renderTemplate(template, {
-    voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
-    event_naam: order.event.name,
-    aantal_tickets: String(order.tickets.length),
-    ticketcode: order.tickets.map((t) => t.qrToken).join(", "),
-    datum: order.event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "long", timeZone: "Europe/Amsterdam" }),
-    locatie: order.event.venue ?? "",
-    tickets_sectie: ticketsSection,
-    merchandise: merchandiseSection,
+  const layoutHtml = await getEmailLayoutHtml({
+    organizationId: order.event.organizationId,
+    layoutId: templateRow?.layoutId,
+  });
+
+  return renderWithLayout({
+    layoutHtml,
+    content: template,
+    vars: {
+      voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
+      event_naam: order.event.name,
+      aantal_tickets: String(order.tickets.length),
+      ticketcode: order.tickets.map((t) => t.qrToken).join(", "),
+      datum: order.event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "long", timeZone: "Europe/Amsterdam" }),
+      locatie: order.event.venue ?? "",
+      tickets_sectie: ticketsSection,
+      merchandise: merchandiseSection,
+    },
   });
 }
 

@@ -2,9 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { renderTemplate } from "@lions/core/email/template-engine";
+import { wrapEmailHtml } from "@lions/core/email/layout";
 import { Button, Input, Label, Card, CardContent } from "@lions/ui";
 import { createCampaign, type CreateCampaignState } from "./actions";
 import type { CampaignSegment } from "@lions/core";
+
+const PREVIEW_UNSUBSCRIBE_FOOTER =
+  '<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? <a href="#">Afmelden</a>.</p>';
 
 const SAMPLE_VARS = {
   voornaam: "Jan",
@@ -84,11 +88,15 @@ export function CampaignComposeForm({
 
       {showPreview && (
         <Card>
-          <CardContent className="flex flex-col gap-2">
-            <p className="text-sm">
+          <CardContent className="flex flex-col gap-2 p-0">
+            <p className="px-4 pt-4 text-sm">
               <strong>Onderwerp:</strong> {preview.subject}
             </p>
-            <div className="text-sm" dangerouslySetInnerHTML={{ __html: preview.bodyHtml }} />
+            <iframe
+              title="E-mailvoorbeeld"
+              srcDoc={wrapEmailHtml({ ...preview, bodyHtml: preview.bodyHtml + PREVIEW_UNSUBSCRIBE_FOOTER })}
+              className="h-[500px] w-full rounded-b-lg border-0"
+            />
           </CardContent>
         </Card>
       )}

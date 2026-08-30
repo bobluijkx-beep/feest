@@ -1,4 +1,5 @@
 import "server-only";
+import { wrapEmailHtml } from "./layout";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
@@ -34,7 +35,7 @@ export async function sendEmail(params: {
         from,
         to: params.to,
         subject: params.subject,
-        html: params.html,
+        html: wrapEmailHtml({ subject: params.subject, bodyHtml: params.html }),
         attachments: params.attachments,
       }),
     });

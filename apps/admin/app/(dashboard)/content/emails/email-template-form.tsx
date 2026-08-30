@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { renderTemplate } from "@lions/core/email/template-engine";
+import { wrapEmailHtml } from "@lions/core/email/layout";
 import { Button, Input, Label, Card, CardContent } from "@lions/ui";
 import { saveEmailTemplate, type SaveTemplateState } from "./actions";
 
@@ -80,11 +81,19 @@ export function EmailTemplateForm({
 
       {showPreview && (
         <Card>
-          <CardContent className="flex flex-col gap-2">
-            <p className="text-sm">
+          <CardContent className="flex flex-col gap-2 p-0">
+            <p className="px-4 pt-4 text-sm">
               <strong>Onderwerp:</strong> {preview.subject}
             </p>
-            <div className="text-sm" dangerouslySetInnerHTML={{ __html: preview.bodyHtml }} />
+            {/* iframe i.p.v. dangerouslySetInnerHTML: de e-mail-opmaak (wrapEmailHtml) is een
+                volledig <html>/<body>-document met eigen achtergrondkleur — dat kun je niet
+                zomaar in een gewone div injecteren zonder de rest van dit scherm te
+                beïnvloeden. Zo ziet het bestuurslid precies wat er verstuurd wordt. */}
+            <iframe
+              title="E-mailvoorbeeld"
+              srcDoc={wrapEmailHtml(preview)}
+              className="h-[500px] w-full rounded-b-lg border-0"
+            />
           </CardContent>
         </Card>
       )}

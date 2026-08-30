@@ -15,6 +15,7 @@ export * from "./storage/product-images";
 export * from "./storage/event-images";
 export * from "./email/resend";
 export * from "./email/template-engine";
+export * from "./email/layout";
 export * from "./email/default-templates";
 export * from "./email/order-confirmation";
 export * from "./email/segment";

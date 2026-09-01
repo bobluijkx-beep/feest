@@ -33,7 +33,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
 
       {merchProducts.length > 0 && (
         <div className="mt-6">
-          <h2 className="mb-3 font-heading text-base font-medium">Producten</h2>
+          <h2 className="mb-3 font-heading text-base font-medium">Feestartikelen</h2>
           <ProductGrid products={merchProducts} eventSlug={eventSlug} />
         </div>
       )}

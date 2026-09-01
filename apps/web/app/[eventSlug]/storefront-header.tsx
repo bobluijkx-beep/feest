@@ -22,7 +22,7 @@ export function StorefrontHeader({
               anders is het logo onleesbaar klein. */}
           {logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="h-[102px] w-auto shrink-0" />
+            <img src={logoUrl} alt="" className="h-[82px] w-auto shrink-0" />
           )}
           {/* Op mobiel is er naast het (bewust grote) logo en de nav-links te weinig
               ruimte voor een lange eventnaam — die viel dan woord voor woord onder

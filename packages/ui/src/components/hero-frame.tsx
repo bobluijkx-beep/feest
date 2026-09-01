@@ -78,7 +78,7 @@ export function HeroFrame({
         {children}
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" className="mx-auto mt-8 h-[115px] w-auto opacity-90" />
+          <img src={logoUrl} alt="" className="mx-auto mt-8 h-[92px] w-auto opacity-90" />
         )}
       </div>
     </div>

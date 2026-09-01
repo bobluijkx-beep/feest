@@ -2,10 +2,10 @@ import Link from "next/link";
 import { prisma } from "@lions/core";
 import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
-import { RefundButton } from "./refund-button";
-import { EventFilter } from "./event-filter";
-import { OrderDetailDialog } from "./order-detail-dialog";
-import { CheckInSummary } from "./checkin-summary";
+import { OrderDetailDialog } from "../order-detail-dialog";
+import { CheckInSummary } from "../checkin-summary";
+import { ReactivateOrderButton } from "../reactivate-order-button";
+import { DeleteOrderButton } from "../delete-order-button";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PAID: "default",
@@ -16,35 +16,30 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   REFUNDED: "outline",
 };
 
-export default async function OrdersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ eventId?: string }>;
-}) {
+/** Afdeling "Inactief": bestellingen die met "Op inactief zetten" uit het standaardoverzicht
+ * zijn gehaald. Alleen hiervandaan kan een order weer actief gemaakt worden, of — uitsluitend
+ * ADMIN — definitief verwijderd worden. */
+export default async function InactiveOrdersPage() {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
-  const { eventId } = await searchParams;
 
-  const [orders, events, inactiveCount] = await Promise.all([
-    prisma.order.findMany({
-      where: { isVisible: true, ...(eventId ? { eventId } : {}) },
-      orderBy: { createdAt: "desc" },
-      include: { items: true, tickets: { include: { checkIns: true } }, event: true },
-      take: 100,
-    }),
-    prisma.event.findMany({
-      where: { organizationId: actor.organizationId },
-      orderBy: { startsAt: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.order.count({ where: { isVisible: false } }),
-  ]);
+  const orders = await prisma.order.findMany({
+    where: { isVisible: false },
+    orderBy: { updatedAt: "desc" },
+    include: { items: true, tickets: { include: { checkIns: true } }, event: true },
+    take: 100,
+  });
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
-        <EventFilter events={events} selectedId={eventId} />
-        <Link href="/orders/inactief" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
-          Inactieve bestellingen bekijken{inactiveCount > 0 ? ` (${inactiveCount})` : ""}
+        <div>
+          <h1 className="text-lg font-medium">Inactieve bestellingen</h1>
+          <p className="text-sm text-muted-foreground">
+            Verborgen uit het standaardoverzicht. Definitief verwijderen kan alleen hier.
+          </p>
+        </div>
+        <Link href="/orders" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
+          ← Terug naar actieve bestellingen
         </Link>
       </div>
       <Table>
@@ -82,7 +77,8 @@ export default async function OrdersPage({
             <TableCell>
               <div className="flex flex-col items-start gap-1">
                 <OrderDetailDialog orderId={order.id} />
-                {order.status === "PAID" && <RefundButton orderId={order.id} />}
+                <ReactivateOrderButton orderId={order.id} />
+                {actor.role === "ADMIN" && <DeleteOrderButton orderId={order.id} />}
               </div>
             </TableCell>
           </TableRow>
@@ -90,7 +86,7 @@ export default async function OrdersPage({
         {orders.length === 0 && (
           <TableRow>
             <TableCell colSpan={8} className="text-center text-muted-foreground">
-              Nog geen bestellingen.
+              Geen inactieve bestellingen.
             </TableCell>
           </TableRow>
         )}

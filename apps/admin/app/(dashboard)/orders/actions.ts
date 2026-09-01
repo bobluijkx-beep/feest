@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   prisma,
   refundOrder as refundOrderCore,
-  cancelOrder as cancelOrderCore,
+  setOrderVisibility,
   deleteTestOrder,
   sendOrderConfirmationEmail,
   sendPaymentFailedEmail,
@@ -46,6 +46,10 @@ export async function refundOrder(
   return { success: true };
 }
 
+/** Permanent verwijderen kan uitsluitend vanuit de "Inactief"-afdeling: een order moet
+ * eerst op inactief gezet zijn (isVisible: false) voordat hij weggegooid mag worden. Dit
+ * is een echte serverside-check, niet alleen een UI-restrictie (de knop staat sowieso
+ * alleen op /orders/inactief). */
 export async function deleteOrder(
   _prevState: OrderActionState,
   formData: FormData,
@@ -56,6 +60,9 @@ export async function deleteOrder(
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return { error: "Bestelling niet gevonden." };
+  if (order.isVisible) {
+    return { error: "Alleen inactieve bestellingen kunnen verwijderd worden. Zet de bestelling eerst op inactief." };
+  }
 
   const result = await deleteTestOrder(orderId);
   if (!result.ok) return { error: result.error };
@@ -70,34 +77,40 @@ export async function deleteOrder(
   });
 
   revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
   return { success: true };
 }
 
-/** "Op inactief zetten" in de admin: geen terugbetaling (dat blijft de aparte
- * Terugbetalen-actie, alleen voor PAID + stuurt echt geld terug via Mollie) — dit
- * annuleert de order/tickets en geeft voorraad vrij, zonder externe call. Werkt op
- * zowel PENDING als PAID (cancelOrder in packages/core regelt het verschil). */
-export async function cancelOrder(_prevState: OrderActionState, formData: FormData): Promise<OrderActionState> {
+/** "Op inactief zetten"/"Weer actief maken": een pure zichtbaarheids-toggle
+ * (`Order.isVisible`) die de regel uit het standaardoverzicht haalt — géén statuswijziging,
+ * geen effect op tickets/voorraad. Een echte annulering/terugbetaling loopt via de aparte
+ * Terugbetalen-actie; permanent verwijderen kan pas daarna, vanuit /orders/inactief. */
+export async function setOrderVisible(
+  _prevState: OrderActionState,
+  formData: FormData,
+): Promise<OrderActionState> {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
   const orderId = String(formData.get("orderId") ?? "");
+  const isVisible = String(formData.get("isVisible") ?? "") === "true";
   if (!orderId) return { error: "Ontbrekend orderId." };
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return { error: "Bestelling niet gevonden." };
 
-  const result = await cancelOrderCore(orderId);
+  const result = await setOrderVisibility(orderId, isVisible);
   if (!result.ok) return { error: result.error };
 
   await logAudit({
     organizationId: actor.organizationId,
     actorUserId: actor.id,
-    action: "order_cancelled",
+    action: isVisible ? "order_reactivated" : "order_deactivated",
     entityType: "order",
     entityId: orderId,
-    metadata: { buyerEmail: order.buyerEmail, previousStatus: order.status },
+    metadata: { buyerEmail: order.buyerEmail },
   });
 
   revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
   return { success: true };
 }
 
@@ -138,6 +151,7 @@ export async function sendOrderEmail(_prevState: OrderActionState, formData: For
 export interface OrderDetail {
   id: string;
   status: string;
+  isVisible: boolean;
   totalCents: number;
   currency: string;
   molliePaymentId: string | null;
@@ -184,6 +198,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
   return {
     id: order.id,
     status: order.status,
+    isVisible: order.isVisible,
     totalCents: order.totalCents,
     currency: order.currency,
     molliePaymentId: order.molliePaymentId,

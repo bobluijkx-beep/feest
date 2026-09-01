@@ -11,7 +11,7 @@ import {
   DialogTrigger,
   Select,
 } from "@lions/ui";
-import { getOrderDetail, cancelOrder, sendOrderEmail, type OrderDetail, type OrderActionState } from "./actions";
+import { getOrderDetail, setOrderVisible, sendOrderEmail, type OrderDetail, type OrderActionState } from "./actions";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PAID: "default",
@@ -20,6 +20,11 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   CANCELLED: "destructive",
   EXPIRED: "destructive",
   REFUNDED: "outline",
+};
+
+const TICKET_STATUS_LABELS: Record<string, string> = {
+  UNUSED: "Nog niet ingecheckt",
+  CANCELLED: "Geannuleerd",
 };
 
 const EMAIL_TYPE_LABELS: Record<string, string> = {
@@ -58,18 +63,16 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
     if (next) load();
   }
 
-  const [cancelState, cancelAction, cancelPending] = useActionState(cancelOrder, initialActionState);
+  const [visibilityState, visibilityAction, visibilityPending] = useActionState(setOrderVisible, initialActionState);
   const [emailState, emailAction, emailPending] = useActionState(sendOrderEmail, initialActionState);
 
-  // Na een geslaagde deactivering/verzending de detailweergave verversen zodat de nieuwe
-  // status/badge meteen klopt — de server actions doen zelf revalidatePath("/orders") al
+  // Na een geslaagde zichtbaarheidswijziging/verzending de detailweergave verversen zodat
+  // de knop/badge meteen klopt — de server actions doen zelf revalidatePath("/orders") al
   // voor de lijst erachter, maar dat ververst niet de al-open dialoog.
   useEffect(() => {
-    if (cancelState.success) load();
+    if (visibilityState.success) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cancelState]);
-
-  const canDeactivate = detail && (detail.status === "PENDING" || detail.status === "PAID");
+  }, [visibilityState]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -86,7 +89,10 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
         {detail && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <Badge variant={STATUS_VARIANT[detail.status] ?? "outline"}>{detail.status}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={STATUS_VARIANT[detail.status] ?? "outline"}>{detail.status}</Badge>
+                {!detail.isVisible && <Badge variant="outline">Inactief</Badge>}
+              </div>
               <span className="text-sm font-medium">{fmtEuro(detail.totalCents)}</span>
             </div>
 
@@ -135,14 +141,20 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
 
             {detail.tickets.length > 0 && (
               <div>
-                <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Tickets</h3>
+                <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Tickets — incheckstatus
+                </h3>
                 <ul className="flex flex-col gap-1 text-sm">
                   {detail.tickets.map((ticket) => (
-                    <li key={ticket.id} className="flex items-center justify-between">
+                    <li key={ticket.id} className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs">{ticket.qrToken.slice(0, 12)}…</span>
-                      <span className="text-muted-foreground">
-                        {ticket.status}
-                        {ticket.checkedInAt ? ` — ${fmtDateTime(ticket.checkedInAt)}` : ""}
+                      <span className="flex items-center gap-2">
+                        <Badge variant={ticket.checkedInAt ? "default" : "outline"}>
+                          {ticket.checkedInAt ? "Ingecheckt" : TICKET_STATUS_LABELS[ticket.status] ?? ticket.status}
+                        </Badge>
+                        {ticket.checkedInAt && (
+                          <span className="text-xs text-muted-foreground">{fmtDateTime(ticket.checkedInAt)}</span>
+                        )}
                       </span>
                     </li>
                   ))}
@@ -193,26 +205,29 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
               {emailState.success && <p className="text-xs text-primary">E-mail verstuurd.</p>}
             </div>
 
-            {canDeactivate && (
-              <form
-                action={cancelAction}
-                onSubmit={(e) => {
-                  if (
-                    !window.confirm(
-                      "Deze bestelling op inactief zetten? Eventuele tickets worden ongeldig en de voorraad komt vrij. Dit stuurt geen e-mail naar de koper.",
-                    )
-                  ) {
-                    e.preventDefault();
-                  }
-                }}
+            <form
+              action={visibilityAction}
+              onSubmit={(e) => {
+                const message = detail.isVisible
+                  ? "Deze bestelling op inactief zetten? De regel verdwijnt dan uit het standaardoverzicht (verplaatst naar de afdeling Inactief). Status, tickets en voorraad blijven ongewijzigd; er wordt geen e-mail naar de koper gestuurd."
+                  : "Deze bestelling weer actief maken? De regel verschijnt dan weer in het standaardoverzicht.";
+                if (!window.confirm(message)) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="orderId" value={orderId} />
+              <input type="hidden" name="isVisible" value={detail.isVisible ? "false" : "true"} />
+              <Button
+                type="submit"
+                variant={detail.isVisible ? "destructive" : "outline"}
+                size="sm"
+                disabled={visibilityPending}
               >
-                <input type="hidden" name="orderId" value={orderId} />
-                <Button type="submit" variant="destructive" size="sm" disabled={cancelPending}>
-                  {cancelPending ? "Bezig…" : "Op inactief zetten"}
-                </Button>
-                {cancelState.error && <p className="mt-1 text-xs text-destructive">{cancelState.error}</p>}
-              </form>
-            )}
+                {visibilityPending ? "Bezig…" : detail.isVisible ? "Op inactief zetten" : "Weer actief maken"}
+              </Button>
+              {visibilityState.error && <p className="mt-1 text-xs text-destructive">{visibilityState.error}</p>}
+            </form>
           </div>
         )}
       </DialogContent>

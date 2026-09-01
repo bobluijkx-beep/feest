@@ -29,7 +29,7 @@ export * from "./checkout/create-order";
 export * from "./checkout/webhook";
 export * from "./checkout/expire-stale-orders";
 export * from "./checkout/refund-order";
-export * from "./checkout/cancel-order";
+export * from "./checkout/set-order-visibility";
 export * from "./checkout/delete-test-order";
 export * from "./audit/log";
 export * from "./utils/datetime";

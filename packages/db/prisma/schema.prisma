@@ -152,6 +152,7 @@ model Order {
   currency           String      @default("EUR")
   molliePaymentId    String?     @unique
   stockHoldExpiresAt DateTime?
+  isVisible          Boolean     @default(true)
   items              OrderItem[]
   tickets            Ticket[]
   createdAt          DateTime    @default(now())
@@ -159,6 +160,7 @@ model Order {
 
   @@index([eventId])
   @@index([status, stockHoldExpiresAt])
+  @@index([isVisible])
   @@map("orders")
 }
 

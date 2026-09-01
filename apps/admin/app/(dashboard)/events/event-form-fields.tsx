@@ -109,7 +109,22 @@ export function EventFormFields({
             />
           </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="backgroundColor">Achtergrondkleur</Label>
+            {/* Een <input type="color"> kan geen "leeg" tonen — hij toont altijd een
+                geldige hexkleur. Zonder deze checkbox zou élke keer opslaan (ook om een
+                heel andere reden) een bewust ongezette achtergrondkleur alsnog vastleggen
+                als #ffffff, wat bv. een donker thema stilletjes wit maakt. Alleen als
+                bestuursleden 'm expliciet aanvinken wordt backgroundColor meegestuurd. */}
+            <label htmlFor="useBackgroundColor" className="flex items-center gap-1.5 text-sm">
+              <input
+                id="useBackgroundColor"
+                type="checkbox"
+                name="useBackgroundColor"
+                value="true"
+                defaultChecked={!!d.backgroundColor}
+                className="h-4 w-4 rounded border-input"
+              />
+              Achtergrondkleur
+            </label>
             <input
               id="backgroundColor"
               type="color"

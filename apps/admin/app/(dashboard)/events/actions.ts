@@ -36,7 +36,11 @@ function parseEventForm(formData: FormData): ParsedEventForm | { error: string }
   const status = String(formData.get("status") ?? "DRAFT") as EventStatus;
   const isVisible = formData.get("isVisible") === "true";
   const primaryColor = String(formData.get("primaryColor") ?? "").trim();
-  const backgroundColor = String(formData.get("backgroundColor") ?? "").trim();
+  // Alleen meesturen als expliciet aangevinkt — zie de toelichting bij het checkbox-veld
+  // in event-form-fields.tsx. Ongevinkt = geen override, de pagina valt terug op de
+  // standaardachtergrond (of die van .dark bij een donker thema).
+  const useBackgroundColor = formData.get("useBackgroundColor") === "true";
+  const backgroundColor = useBackgroundColor ? String(formData.get("backgroundColor") ?? "").trim() : "";
   const accentColor = String(formData.get("accentColor") ?? "").trim();
   const dark = formData.get("dark") === "true" ? "true" : "";
 

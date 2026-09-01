@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { cn } from "@lions/ui";
+import { cn, Starfield } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { CartProvider } from "./cart-context";
 import { StorefrontHeader } from "./storefront-header";
@@ -48,10 +48,22 @@ export default async function EventLayout({
       className={cn("min-h-screen bg-background text-foreground", isDark && "dark")}
       style={themeOverrides as React.CSSProperties}
     >
-      <CartProvider eventSlug={eventSlug}>
-        <StorefrontHeader eventSlug={eventSlug} eventName={event.name} logoUrl={logoUrl} />
-        {children}
-      </CartProvider>
+      {/* Alleen bij donker thema — een sterrenhemel past niet bij een lichte huisstijl
+          (bv. de oliebollenverkoop). position: fixed, z-0: blijft op zijn plek terwijl de
+          pagina scrolt, "achter" de content. */}
+      {isDark && <Starfield />}
+      {/* relative z-0: zonder positionering valt dit in-flow blok in een eerdere
+          CSS-schilderfase dan de hierboven positioneerde (z-0) sterrenhemel, en zou het er
+          dus ONDER komen te liggen i.p.v. erboven — zelfde eigenaardigheid als eerder al
+          uitgezocht bij HeroFrame (packages/ui/src/components/hero-frame.tsx). Expliciet
+          op hetzelfde stackniveau zetten lost het op (DOM-volgorde bepaalt dan, en dit
+          staat na de sterrenhemel). */}
+      <div className="relative z-0">
+        <CartProvider eventSlug={eventSlug}>
+          <StorefrontHeader eventSlug={eventSlug} eventName={event.name} logoUrl={logoUrl} />
+          {children}
+        </CartProvider>
+      </div>
     </div>
   );
 }

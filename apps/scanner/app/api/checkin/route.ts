@@ -5,6 +5,7 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 interface TicketInfo {
   buyerName: string;
   ticketTypeName: string;
+  extraItems: { productName: string; quantity: number }[];
 }
 
 /** Valideert + verwerkt een gescande ticket-QR. Gebruikt hier bewust getCurrentUser/
@@ -73,10 +74,18 @@ export async function POST(request: Request) {
   if (result.status === "ok" || result.status === "already_checked_in") {
     const ticket = await prisma.ticket.findUnique({
       where: { id: verified.ticketId },
-      include: { order: true, product: true },
+      include: {
+        order: { include: { items: { include: { product: true } } } },
+        product: true,
+      },
     });
     if (ticket) {
-      ticketInfo = { buyerName: ticket.order.buyerName, ticketTypeName: ticket.product.name };
+      // "Extra producten": feestartikelen in dezelfde bestelling, zodat de deurbemanning
+      // meteen ziet of er bv. ook een muntje/consumptiebon is meegekocht bij dit ticket.
+      const extraItems = ticket.order.items
+        .filter((item) => item.product.kind === "MERCHANDISE")
+        .map((item) => ({ productName: item.product.name, quantity: item.quantity }));
+      ticketInfo = { buyerName: ticket.order.buyerName, ticketTypeName: ticket.product.name, extraItems };
     }
   }
 

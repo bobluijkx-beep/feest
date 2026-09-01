@@ -15,6 +15,7 @@ interface QueuedScan {
 export interface TicketInfo {
   buyerName: string;
   ticketTypeName: string;
+  extraItems: { productName: string; quantity: number }[];
 }
 
 export type CheckinResult =

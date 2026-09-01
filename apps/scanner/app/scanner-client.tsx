@@ -5,7 +5,12 @@ import QrScanner from "qr-scanner";
 import { Card } from "@lions/ui";
 import { submitScan, flushQueue, getQueueCount, type CheckinResult } from "@/lib/offline-queue";
 
-type Feedback = { kind: "ok" | "warn" | "error"; message: string; detail?: string } | null;
+type Feedback = {
+  kind: "ok" | "warn" | "error";
+  message: string;
+  detail?: string;
+  extraItems?: { productName: string; quantity: number }[];
+} | null;
 
 function playTone(frequency: number, durationMs: number) {
   try {
@@ -31,12 +36,14 @@ function describeResult(result: CheckinResult): Feedback {
         kind: "ok",
         message: "Toegang verleend",
         detail: result.ticket ? `${result.ticket.buyerName} — ${result.ticket.ticketTypeName}` : undefined,
+        extraItems: result.ticket?.extraItems,
       };
     case "already_checked_in":
       return {
         kind: "warn",
         message: "Al ingecheckt",
         detail: result.ticket ? `${result.ticket.buyerName} — ${result.ticket.ticketTypeName}` : undefined,
+        extraItems: result.ticket?.extraItems,
       };
     case "cancelled":
       return { kind: "error", message: "Ticket geannuleerd" };
@@ -172,6 +179,11 @@ export function ScannerClient() {
           <>
             <div className="text-xl font-bold">{feedback.message}</div>
             {feedback.detail && <div className="text-sm">{feedback.detail}</div>}
+            {feedback.extraItems && feedback.extraItems.length > 0 && (
+              <div className="mt-2 text-sm font-medium">
+                Ook gekocht: {feedback.extraItems.map((item) => `${item.quantity}x ${item.productName}`).join(", ")}
+              </div>
+            )}
           </>
         ) : (
           <div className="text-sm">Richt de camera op een ticket-QR-code.</div>

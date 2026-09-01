@@ -11,7 +11,15 @@ import {
   DialogTrigger,
   Select,
 } from "@lions/ui";
-import { getOrderDetail, setOrderVisible, sendOrderEmail, type OrderDetail, type OrderActionState } from "./actions";
+import {
+  getOrderDetail,
+  setOrderVisible,
+  setOrderStatus,
+  setTicketCheckIn,
+  sendOrderEmail,
+  type OrderDetail,
+  type OrderActionState,
+} from "./actions";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PAID: "default",
@@ -20,6 +28,15 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   CANCELLED: "destructive",
   EXPIRED: "destructive",
   REFUNDED: "outline",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: "In afwachting",
+  PAID: "Betaald",
+  EXPIRED: "Verlopen",
+  FAILED: "Mislukt",
+  CANCELLED: "Geannuleerd",
+  REFUNDED: "Terugbetaald",
 };
 
 const TICKET_STATUS_LABELS: Record<string, string> = {
@@ -43,6 +60,41 @@ function fmtEuro(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;
 }
 
+/** Los component (i.p.v. inline in de map()) omdat elk ticket zijn eigen useActionState
+ * nodig heeft — dat mag niet binnen een .map()-callback van de ouder. */
+function TicketCheckInToggle({
+  ticketId,
+  orderId,
+  checkedIn,
+  disabled,
+  onChanged,
+}: {
+  ticketId: string;
+  orderId: string;
+  checkedIn: boolean;
+  disabled: boolean;
+  onChanged: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(setTicketCheckIn, initialActionState);
+
+  useEffect(() => {
+    if (state.success) onChanged();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="ticketId" value={ticketId} />
+      <input type="hidden" name="orderId" value={orderId} />
+      <input type="hidden" name="checkedIn" value={checkedIn ? "false" : "true"} />
+      <Button type="submit" variant="outline" size="sm" disabled={disabled || pending}>
+        {pending ? "Bezig…" : checkedIn ? "Inchecken ongedaan maken" : "Handmatig inchecken"}
+      </Button>
+      {state.error && <p className="mt-1 text-xs text-destructive">{state.error}</p>}
+    </form>
+  );
+}
+
 export function OrderDetailDialog({ orderId }: { orderId: string }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
@@ -64,15 +116,21 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
   }
 
   const [visibilityState, visibilityAction, visibilityPending] = useActionState(setOrderVisible, initialActionState);
+  const [statusState, statusAction, statusPending] = useActionState(setOrderStatus, initialActionState);
   const [emailState, emailAction, emailPending] = useActionState(sendOrderEmail, initialActionState);
 
-  // Na een geslaagde zichtbaarheidswijziging/verzending de detailweergave verversen zodat
-  // de knop/badge meteen klopt — de server actions doen zelf revalidatePath("/orders") al
+  // Na een geslaagde wijziging/verzending de detailweergave verversen zodat de
+  // knop/badge meteen klopt — de server actions doen zelf revalidatePath("/orders") al
   // voor de lijst erachter, maar dat ververst niet de al-open dialoog.
   useEffect(() => {
     if (visibilityState.success) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibilityState]);
+
+  useEffect(() => {
+    if (statusState.success) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusState]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -144,20 +202,30 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
                 <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Tickets — incheckstatus
                 </h3>
-                <ul className="flex flex-col gap-1 text-sm">
-                  {detail.tickets.map((ticket) => (
-                    <li key={ticket.id} className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs">{ticket.qrToken.slice(0, 12)}…</span>
-                      <span className="flex items-center gap-2">
-                        <Badge variant={ticket.checkedInAt ? "default" : "outline"}>
-                          {ticket.checkedInAt ? "Ingecheckt" : TICKET_STATUS_LABELS[ticket.status] ?? ticket.status}
-                        </Badge>
-                        {ticket.checkedInAt && (
-                          <span className="text-xs text-muted-foreground">{fmtDateTime(ticket.checkedInAt)}</span>
-                        )}
-                      </span>
-                    </li>
-                  ))}
+                <ul className="flex flex-col gap-2 text-sm">
+                  {detail.tickets.map((ticket) => {
+                    const checkedIn = ticket.status === "CHECKED_IN";
+                    return (
+                      <li key={ticket.id} className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono text-xs">{ticket.qrToken.slice(0, 12)}…</span>
+                          <Badge variant={checkedIn ? "default" : "outline"}>
+                            {checkedIn ? "Ingecheckt" : TICKET_STATUS_LABELS[ticket.status] ?? ticket.status}
+                          </Badge>
+                          {ticket.checkedInAt && (
+                            <span className="text-xs text-muted-foreground">{fmtDateTime(ticket.checkedInAt)}</span>
+                          )}
+                        </span>
+                        <TicketCheckInToggle
+                          ticketId={ticket.id}
+                          orderId={orderId}
+                          checkedIn={checkedIn}
+                          disabled={ticket.status === "CANCELLED"}
+                          onChanged={load}
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -203,6 +271,41 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
               </form>
               {emailState.error && <p className="text-xs text-destructive">{emailState.error}</p>}
               {emailState.success && <p className="text-xs text-primary">E-mail verstuurd.</p>}
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+              <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Status wijzigen</h3>
+              <form
+                action={statusAction}
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                  const newStatus = String(new FormData(e.currentTarget).get("status") ?? "");
+                  if (newStatus === detail.status) {
+                    e.preventDefault();
+                    return;
+                  }
+                  if (
+                    !window.confirm(
+                      `Status wijzigen naar "${STATUS_LABELS[newStatus] ?? newStatus}"? Voorraad en eventuele tickets worden automatisch aangepast aan de nieuwe status. Er gaat geen e-mail naar de koper en er vindt geen Mollie-terugbetaling plaats (dat blijft de aparte Terugbetalen-actie).`,
+                    )
+                  ) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <input type="hidden" name="orderId" value={orderId} />
+                <Select key={detail.status} name="status" defaultValue={detail.status} className="w-48">
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="submit" variant="outline" size="sm" disabled={statusPending}>
+                  {statusPending ? "Bezig…" : "Status opslaan"}
+                </Button>
+              </form>
+              {statusState.error && <p className="text-xs text-destructive">{statusState.error}</p>}
             </div>
 
             <form

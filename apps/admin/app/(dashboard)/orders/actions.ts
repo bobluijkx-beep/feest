@@ -5,13 +5,15 @@ import {
   prisma,
   refundOrder as refundOrderCore,
   setOrderVisibility,
+  setOrderStatus as setOrderStatusCore,
+  setTicketCheckedIn,
   deleteTestOrder,
   sendOrderConfirmationEmail,
   sendPaymentFailedEmail,
   sendCancelledEmail,
   logAudit,
 } from "@lions/core";
-import type { EmailTemplateType } from "@lions/db";
+import type { EmailTemplateType, OrderStatus } from "@lions/db";
 import { requireStaffRole } from "@/lib/require-role";
 
 export interface OrderActionState {
@@ -107,6 +109,66 @@ export async function setOrderVisible(
     entityType: "order",
     entityId: orderId,
     metadata: { buyerEmail: order.buyerEmail },
+  });
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
+  return { success: true };
+}
+
+const SETTABLE_STATUSES: OrderStatus[] = ["PENDING", "PAID", "EXPIRED", "FAILED", "CANCELLED", "REFUNDED"];
+
+/** Handmatige statuscorrectie — bv. een betaling die buiten Mollie om alsnog is
+ * ontvangen, of een status die verkeerd staat. setOrderStatusCore past voorraad en
+ * tickets automatisch aan op basis van de statusovergang (zie set-order-status.ts);
+ * stuurt geen e-mail en doet geen Mollie-call (dat blijven de aparte Terugbetalen-/
+ * e-mailacties). */
+export async function setOrderStatus(_prevState: OrderActionState, formData: FormData): Promise<OrderActionState> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  const orderId = String(formData.get("orderId") ?? "");
+  const status = String(formData.get("status") ?? "") as OrderStatus;
+  if (!orderId) return { error: "Ontbrekend orderId." };
+  if (!SETTABLE_STATUSES.includes(status)) return { error: "Ongeldige status." };
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return { error: "Bestelling niet gevonden." };
+
+  const result = await setOrderStatusCore(orderId, status);
+  if (!result.ok) return { error: result.error };
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "order_status_changed",
+    entityType: "order",
+    entityId: orderId,
+    metadata: { buyerEmail: order.buyerEmail, previousStatus: order.status, newStatus: status },
+  });
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
+  return { success: true };
+}
+
+/** Handmatige incheckcorrectie per ticket — zie setTicketCheckedIn (packages/core) voor
+ * de precieze regels (o.a. een geannuleerd ticket kan niet ingecheckt worden). */
+export async function setTicketCheckIn(_prevState: OrderActionState, formData: FormData): Promise<OrderActionState> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const orderId = String(formData.get("orderId") ?? "");
+  const checkedIn = String(formData.get("checkedIn") ?? "") === "true";
+  if (!ticketId || !orderId) return { error: "Ontbrekend ticketId/orderId." };
+
+  const result = await setTicketCheckedIn(ticketId, checkedIn, actor.email);
+  if (!result.ok) return { error: result.error };
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: checkedIn ? "ticket_checked_in_manually" : "ticket_check_in_undone",
+    entityType: "ticket",
+    entityId: ticketId,
+    metadata: { orderId },
   });
 
   revalidatePath("/orders");

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button, Card, CardContent, Input, buttonVariants } from "@lions/ui";
 import { useCart } from "../cart-context";
 
-export function CartPageClient({ eventSlug }: { eventSlug: string }) {
+export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: string; hasMerchandise: boolean }) {
   const { items, updateQuantity, removeItem, totalCents } = useCart();
 
   if (items.length === 0) {
@@ -18,10 +18,28 @@ export function CartPageClient({ eventSlug }: { eventSlug: string }) {
     );
   }
 
+  // Alleen relevant zolang de koper uitsluitend tickets heeft — zodra er al een
+  // feestartikel in de winkelwagen ligt (of het event er geen heeft) is de melding
+  // overbodig en verdwijnt hij vanzelf.
+  const onlyTickets = hasMerchandise && items.every((item) => item.kind === "TICKET");
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 md:max-w-4xl lg:max-w-6xl">
       <div className="mx-auto max-w-2xl">
         <h1 className="font-display text-2xl">Winkelwagen</h1>
+
+        {onlyTickets && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+            <span>
+              Je hebt alleen tickets in je winkelwagen — vergeet je de feestartikelen niet? Denk aan een petje of
+              waaier voor erbij.
+            </span>
+            <Link href={`/${eventSlug}/producten#feestartikelen`} className={buttonVariants({ size: "sm", variant: "outline" })}>
+              Bekijk feestartikelen
+            </Link>
+          </div>
+        )}
+
         <div className="mt-6 flex flex-col gap-3">
           {items.map((item) => (
             <Card key={item.productId}>

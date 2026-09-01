@@ -32,7 +32,9 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
       )}
 
       {merchProducts.length > 0 && (
-        <div className="mt-6">
+        // scroll-mt: zodat de sticky header het kopje niet verbergt bij het
+        // binnenspringen via een #feestartikelen-link (bv. vanuit de winkelwagen).
+        <div id="feestartikelen" className="mt-6 scroll-mt-40">
           <h2 className="mb-3 font-heading text-base font-medium">Feestartikelen</h2>
           <ProductGrid products={merchProducts} eventSlug={eventSlug} />
         </div>

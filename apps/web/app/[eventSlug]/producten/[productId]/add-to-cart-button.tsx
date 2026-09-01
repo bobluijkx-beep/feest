@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Input } from "@lions/ui";
+import { Button } from "@lions/ui";
 import { useCart, type CartItem } from "../../cart-context";
+import { QuantityInput } from "../../quantity-input";
 
 export function AddToCartButton({
   product,
@@ -17,14 +18,7 @@ export function AddToCartButton({
 
   return (
     <div className="mt-4 flex items-center gap-3">
-      <Input
-        type="number"
-        min={1}
-        max={available}
-        value={quantity}
-        onChange={(e) => setQuantity(Math.max(1, Math.min(available, Number(e.target.value) || 1)))}
-        className="w-20"
-      />
+      <QuantityInput value={quantity} onChange={setQuantity} min={1} max={available} />
       <Button
         onClick={() => {
           addItem(product, quantity);

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Card, CardContent, Input, buttonVariants } from "@lions/ui";
+import { Button, Card, CardContent, buttonVariants } from "@lions/ui";
 import { useCart } from "../cart-context";
+import { QuantityInput } from "../quantity-input";
 
 export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: string; hasMerchandise: boolean }) {
   const { items, updateQuantity, removeItem, totalCents } = useCart();
@@ -54,13 +55,7 @@ export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: strin
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-sm text-muted-foreground">€{(item.priceCents / 100).toFixed(2)}</p>
                 </div>
-                <Input
-                  type="number"
-                  min={0}
-                  value={item.quantity}
-                  onChange={(e) => updateQuantity(item.productId, Number(e.target.value) || 0)}
-                  className="w-16"
-                />
+                <QuantityInput value={item.quantity} onChange={(q) => updateQuantity(item.productId, q)} min={0} />
                 <Button variant="ghost" size="sm" onClick={() => removeItem(item.productId)}>
                   Verwijderen
                 </Button>

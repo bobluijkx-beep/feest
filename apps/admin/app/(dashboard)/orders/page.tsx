@@ -4,6 +4,7 @@ import { requireStaffRole } from "@/lib/require-role";
 import { RefundButton } from "./refund-button";
 import { DeleteOrderButton } from "./delete-order-button";
 import { EventFilter } from "./event-filter";
+import { OrderDetailDialog } from "./order-detail-dialog";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PAID: "default",
@@ -68,7 +69,8 @@ export default async function OrdersPage({
             <TableCell className="text-right">€{(order.totalCents / 100).toFixed(2)}</TableCell>
             <TableCell>{order.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</TableCell>
             <TableCell>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col items-start gap-1">
+                <OrderDetailDialog orderId={order.id} />
                 {order.status === "PAID" && <RefundButton orderId={order.id} />}
                 {actor.role === "ADMIN" && <DeleteOrderButton orderId={order.id} />}
               </div>

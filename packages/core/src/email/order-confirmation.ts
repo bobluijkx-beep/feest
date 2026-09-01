@@ -149,3 +149,19 @@ export async function sendPaymentFailedEmail(orderId: string): Promise<void> {
 
   await logEmailAttempt(order.event.organizationId, order.id, "email_payment_failed", result);
 }
+
+/** Stuurt de annuleringsmelding — gebruikt door de admin bij het handmatig op inactief
+ * zetten van een order (cancelOrder in checkout/cancel-order.ts stuurt zelf geen mail,
+ * dit is een bewuste, aparte stap zodat een board member kan kiezen of de koper hierover
+ * bericht krijgt). Geen bijlagen: eventuele tickets zijn per definitie al geannuleerd. */
+export async function sendCancelledEmail(orderId: string): Promise<void> {
+  const order = await prisma.order.findUniqueOrThrow({
+    where: { id: orderId },
+    include: { event: true, tickets: true, items: { include: { product: true } } },
+  });
+
+  const { subject, bodyHtml } = await renderOrderEmail(order, "CANCELLED");
+  const result = await sendEmail({ to: order.buyerEmail, subject, html: bodyHtml });
+
+  await logEmailAttempt(order.event.organizationId, order.id, "email_cancelled", result);
+}

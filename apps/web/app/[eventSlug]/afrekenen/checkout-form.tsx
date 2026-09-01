@@ -83,9 +83,21 @@ export function CheckoutForm({
             </CardContent>
           </Card>
 
-          <Button type="submit" size="lg" className="bg-accent text-accent-foreground hover:bg-accent/80">
+          {/* bg-primary/text-primary-foreground i.p.v. de eerdere accent-kleuren: --accent
+              wordt per event overschreven (bv. dit event zet 'm op een licht zilver) maar
+              --accent-foreground niet mee, wat hier op donkere thema's een nauwelijks
+              leesbare lichte-op-lichte combinatie opleverde. primary/primary-foreground is
+              wél altijd als bij elkaar passend paar ontworpen (zie de toelichting in
+              layout.tsx over donkere thema's). */}
+          <Button type="submit" size="lg">
             Afrekenen met iDeal
           </Button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/payment-badges/ideal-wero.jpg"
+            alt="Betalen kan via iDEAL of Wero"
+            className="mx-auto h-9 w-auto rounded-md"
+          />
         </form>
       </div>
     </main>

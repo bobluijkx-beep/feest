@@ -56,7 +56,7 @@ function describeResult(result: CheckinResult): Feedback {
     case "ok":
       return {
         kind: "ok",
-        message: "Toegang verleend",
+        message: "Toegang verleend — ticket kan weg",
         detail: result.ticket ? `${result.ticket.buyerName} — ${result.ticket.ticketTypeName}` : undefined,
         extraItems: result.ticket?.extraItems,
       };
@@ -83,7 +83,12 @@ export function ScannerClient() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayContainerRef = useRef<HTMLElement | null>(null);
   const lastTokenRef = useRef<{ token: string; at: number } | null>(null);
-  const sessionSeenRef = useRef<Set<string>>(new Set());
+  // Bewaart de eindconclusie per ticket voor deze sessie (ok/al ingecheckt/geannuleerd)
+  // — niet alleen dát het gezien is. Zolang een ticket na een geslaagde check-in nog in
+  // beeld blijft (de deurbemanning heeft het nog niet weggehaald), wordt zo dezelfde
+  // uitkomst opnieuw getoond in plaats van de server opnieuw te bevragen, die dan
+  // onvermijdelijk "Al ingecheckt" terug zou geven over een net gelukte scan.
+  const sessionResultsRef = useRef<Map<string, Feedback>>(new Map());
   const busyRef = useRef(false);
   const resetRingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -91,8 +96,33 @@ export function ScannerClient() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
 
+  // Zet het resultaat op het scherm + de ring, en laat de ring na een paar seconden vanzelf
+  // teruggaan naar geel. Gedeeld door zowel een vers serverresultaat als een herhaalde
+  // detectie van een al verwerkt ticket (zie hieronder) — in beide gevallen dezelfde
+  // zichtbare bevestiging.
+  function showResult(described: Feedback) {
+    setFeedback(described);
+    if (resetRingTimeoutRef.current) clearTimeout(resetRingTimeoutRef.current);
+    if (described) {
+      setRingColor(overlayContainerRef.current, RING_COLORS[described.kind]);
+      resetRingTimeoutRef.current = setTimeout(() => {
+        setRingColor(overlayContainerRef.current, RING_IDLE_COLOR);
+      }, 2000);
+    }
+  }
+
   async function handleDecoded(qrToken: string) {
     if (busyRef.current) return;
+
+    const cached = sessionResultsRef.current.get(qrToken);
+    if (cached) {
+      // Geen nieuwe scan — hetzelfde ticket staat vermoedelijk nog gewoon in beeld. Toon
+      // opnieuw dezelfde, al bekende uitkomst i.p.v. de server te bevragen (en zo de ring
+      // "actief" te houden zolang het ticket niet is weggehaald).
+      showResult(cached);
+      return;
+    }
+
     const now = Date.now();
     if (lastTokenRef.current?.token === qrToken && now - lastTokenRef.current.at < 3000) return;
     lastTokenRef.current = { token: qrToken, at: now };
@@ -102,38 +132,24 @@ export function ScannerClient() {
     setRingColor(overlayContainerRef.current, RING_COLORS.processing);
 
     try {
-      // Lokale sessie-cache geeft direct een "al gescand"-signaal, nog vóór het
-      // serverantwoord binnen is — de server blijft bij het uiteindelijke resultaat
-      // altijd leidend (zie describeResult hieronder).
-      const wasSeenLocally = sessionSeenRef.current.has(qrToken);
-      if (wasSeenLocally) {
-        setFeedback({ kind: "warn", message: "Al gescand (deze sessie)…" });
-      }
-
       const device = navigator.userAgent.slice(0, 80);
       const result = await submitScan(qrToken, device);
+      const described = describeResult(result);
 
-      if (result.status === "ok" || result.status === "already_checked_in") {
-        sessionSeenRef.current.add(qrToken);
+      // Alleen duurzame uitkomsten cachen: die veranderen niet meer terwijl het ticket in
+      // beeld blijft. "queued"/"invalid"/"no_access" blijven vers opgevraagd (offline-
+      // status of toegang kan tussentijds veranderen).
+      if (result.status === "ok" || result.status === "already_checked_in" || result.status === "cancelled") {
+        sessionResultsRef.current.set(qrToken, described);
       }
       if (result.status === "queued") {
         setPendingCount(await getQueueCount());
       }
 
-      const described = describeResult(result);
-      setFeedback(described);
+      showResult(described);
       if (described?.kind === "ok") playTone(880, 150);
       else if (described?.kind === "warn") playTone(440, 200);
       else playTone(200, 300);
-
-      // Ring toont de uitkomst duidelijk zichtbaar (geel -> groen/amber/rood) — en gaat
-      // daarna vanzelf terug naar geel zodat die klaarstaat voor de volgende scan.
-      if (described) {
-        setRingColor(overlayContainerRef.current, RING_COLORS[described.kind]);
-        resetRingTimeoutRef.current = setTimeout(() => {
-          setRingColor(overlayContainerRef.current, RING_IDLE_COLOR);
-        }, 2000);
-      }
     } finally {
       busyRef.current = false;
     }

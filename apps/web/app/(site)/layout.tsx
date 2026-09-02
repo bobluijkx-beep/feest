@@ -5,6 +5,14 @@ import { HOME_EVENT_SLUG } from "@/lib/site-config";
 import { CartProvider } from "../[eventSlug]/cart-context";
 import { StorefrontHeader } from "../[eventSlug]/storefront-header";
 
+// Voorkomt dat Next.js deze route-groep tijdens `next build` probeert statisch te
+// prerenderen: getPublicEvent hieronder doet een echte databasequery, en Turborepo geeft
+// DATABASE_URL/DIRECT_URL (bewust) niet door aan de build-stap (alleen aan runtime) — een
+// statische prerender-poging faalt daar dus op. De event-pagina's ([eventSlug]/*) hebben
+// dit probleem niet: die zijn door hun dynamische route-segment sowieso al altijd
+// server-rendered on demand, nooit statisch.
+export const dynamic = "force-dynamic";
+
 /** Layout voor de "(site)"-routegroep: de niet-event-gebonden pagina's (/, /contact,
  * /afmelden). Een routegroep-map (haakjes) telt niet mee in de URL. Deze pagina's horen
  * bij geen eigen event, maar HOME_EVENT_SLUG (lib/site-config.ts) fungeert in de praktijk

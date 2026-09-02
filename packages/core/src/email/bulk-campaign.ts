@@ -7,7 +7,7 @@ import type { AppUser } from "../auth/session";
 import { sendEmail } from "./resend";
 import { renderWithLayout } from "./layout";
 import { getEmailLayoutHtml } from "./get-layout";
-import { signUnsubscribeToken } from "./unsubscribe";
+import { buildUnsubscribeLinkHtml } from "./unsubscribe";
 import { buildSegmentRecipients, type CampaignSegment } from "./segment";
 
 const BATCH_SIZE = 20;
@@ -97,9 +97,7 @@ export async function createBulkCampaign(params: {
 }
 
 function unsubscribeFooter(email: string): string {
-  const token = signUnsubscribeToken(email);
-  const baseUrl = process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
-  return `<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? <a href="${baseUrl}/afmelden?token=${token}">Afmelden</a>.</p>`;
+  return `<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? ${buildUnsubscribeLinkHtml(email)}.</p>`;
 }
 
 /** Verwerkt tot BATCH_SIZE PENDING-recipients van een campagne en plant zichzelf opnieuw

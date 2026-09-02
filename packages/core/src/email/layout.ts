@@ -89,10 +89,10 @@ export function renderWithLayout(params: {
   vars: Record<string, string>;
 }): RenderableTemplate {
   const { layoutHtml, content, vars } = params;
-  // event_logo_html/event_hero_html standaard leeg: een aanroeper die geen event-branding
-  // meegeeft (bv. wrapEmailHtml, of een toekomstig niet-event-gebonden e-mailtype) mag
-  // nooit de kale placeholder-tekst laten doorlekken in de verzonden e-mail.
-  const mergedVars = { event_logo_html: "", event_hero_html: "", ...vars };
+  // event_logo_html/event_hero_html/afmeldlink standaard leeg: een aanroeper die ze niet
+  // meegeeft (bv. wrapEmailHtml, of een toekomstig e-mailtype zonder bekende ontvanger)
+  // mag nooit de kale placeholder-tekst laten doorlekken in de verzonden e-mail.
+  const mergedVars = { event_logo_html: "", event_hero_html: "", afmeldlink: "", ...vars };
   const renderedContent = renderTemplate(content, mergedVars);
   const withPreheader = preheader(renderedContent.subject) + renderedContent.bodyHtml;
   const page = renderTemplate(

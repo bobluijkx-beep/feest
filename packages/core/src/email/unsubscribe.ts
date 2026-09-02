@@ -19,6 +19,18 @@ export function signUnsubscribeToken(email: string): string {
   return `${Buffer.from(email, "utf8").toString("base64url")}.${sign(email)}`;
 }
 
+/** Kant-en-klare `{{afmeldlink}}`-placeholder (zie placeholders.ts) — een aanklikbare
+ * "Afmelden"-link naar /afmelden met een getekend token voor dit specifieke e-mailadres.
+ * Beschikbaar in alle order-/campagne-e-mails (order-confirmation.ts, segment.ts) zodat
+ * een bestuurslid 'm zelf in een template of de gedeelde EmailLayout kan plaatsen, i.p.v.
+ * dat afmelden alleen via de vaste, automatisch aangeplakte voettekst van een bulkmailing
+ * kan (bulk-campaign.ts's unsubscribeFooter, die deze functie ook hergebruikt). */
+export function buildUnsubscribeLinkHtml(email: string): string {
+  const token = signUnsubscribeToken(email);
+  const baseUrl = process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
+  return `<a href="${baseUrl}/afmelden?token=${token}">Afmelden</a>`;
+}
+
 export function verifyUnsubscribeToken(token: string): { email: string } | null {
   const separatorIndex = token.lastIndexOf(".");
   if (separatorIndex === -1) return null;

@@ -5,6 +5,8 @@ import { sendEmail } from "./resend";
 import { type RenderableTemplate } from "./template-engine";
 import { renderWithLayout } from "./layout";
 import { eventBrandingVars } from "./event-branding";
+import { getCustomPlaceholderVars } from "./custom-placeholders";
+import { buildUnsubscribeLinkHtml } from "./unsubscribe";
 import { getEmailLayoutHtml } from "./get-layout";
 import { defaultEmailTemplates } from "./default-templates";
 import { generateTicketPdf } from "../tickets/pdf";
@@ -43,18 +45,20 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
       : "";
   const merchandiseSection = lines.length > 0 ? `<p>Ook besteld: ${lines.join(", ")}.</p>` : "";
 
-  const [layoutHtml, brandingVars] = await Promise.all([
+  const [layoutHtml, brandingVars, customVars] = await Promise.all([
     getEmailLayoutHtml({
       organizationId: order.event.organizationId,
       layoutId: templateRow?.layoutId,
     }),
     eventBrandingVars(order.event.theme),
+    getCustomPlaceholderVars(order.event.organizationId),
   ]);
 
   return renderWithLayout({
     layoutHtml,
     content: template,
     vars: {
+      ...customVars,
       ...brandingVars,
       voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
       event_naam: order.event.name,
@@ -64,6 +68,7 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
       locatie: order.event.venue ?? "",
       tickets_sectie: ticketsSection,
       merchandise: merchandiseSection,
+      afmeldlink: buildUnsubscribeLinkHtml(order.buyerEmail),
     },
   });
 }

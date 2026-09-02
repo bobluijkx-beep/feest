@@ -6,6 +6,7 @@ import { type RenderableTemplate } from "./template-engine";
 import { renderWithLayout } from "./layout";
 import { eventBrandingVars } from "./event-branding";
 import { getCustomPlaceholderVars } from "./custom-placeholders";
+import { getSystemPlaceholderTemplates, renderSystemPlaceholder } from "./system-placeholder-overrides";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
 import { getEmailLayoutHtml } from "./get-layout";
 import { defaultEmailTemplates } from "./default-templates";
@@ -39,20 +40,25 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
   const template = templateRow ?? defaultEmailTemplates[type];
 
   const lines = merchandiseLines(order);
-  const ticketsSection =
-    order.tickets.length > 0
-      ? "<p>Je tickets (met QR-code) vind je als bijlage bij deze e-mail. Neem ze mee op je telefoon of geprint naar het evenement.</p>"
-      : "";
-  const merchandiseSection = lines.length > 0 ? `<p>Ook besteld: ${lines.join(", ")}.</p>` : "";
 
-  const [layoutHtml, brandingVars, customVars] = await Promise.all([
+  const [layoutHtml, brandingVars, customVars, systemTemplates] = await Promise.all([
     getEmailLayoutHtml({
       organizationId: order.event.organizationId,
       layoutId: templateRow?.layoutId,
     }),
     eventBrandingVars(order.event.theme),
     getCustomPlaceholderVars(order.event.organizationId),
+    getSystemPlaceholderTemplates(order.event.organizationId),
   ]);
+
+  // locatie/tickets_sectie/merchandise: de bewoording komt uit systemTemplates (door het
+  // bestuur aan te passen, zie system-placeholder-overrides.ts), maar òf en mét welke
+  // waarde ze getoond worden blijft hier bepaald — data-afhankelijke logica die niet in de
+  // vrije tekst thuishoort.
+  const ticketsSection = order.tickets.length > 0 ? systemTemplates.tickets_sectie : "";
+  const merchandiseSection =
+    lines.length > 0 ? renderSystemPlaceholder(systemTemplates.merchandise, lines.join(", ")) : "";
+  const locatie = renderSystemPlaceholder(systemTemplates.locatie, order.event.venue ?? "");
 
   return renderWithLayout({
     layoutHtml,
@@ -65,7 +71,7 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
       aantal_tickets: String(order.tickets.length),
       ticketcode: order.tickets.map((t) => t.qrToken).join(", "),
       datum: order.event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "long", timeZone: "Europe/Amsterdam" }),
-      locatie: order.event.venue ?? "",
+      locatie,
       tickets_sectie: ticketsSection,
       merchandise: merchandiseSection,
       afmeldlink: buildUnsubscribeLinkHtml(order.buyerEmail),

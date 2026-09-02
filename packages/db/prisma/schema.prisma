@@ -68,17 +68,18 @@ enum EmailCampaignRecipientStatus {
 }
 
 model Organization {
-  id                 String              @id @default(cuid())
-  name               String
-  slug               String              @unique
-  events             Event[]
-  users              User[]
-  settings           Setting[]
-  auditLogs          AuditLog[]
-  emailCampaigns     EmailCampaign[]
-  emailLayouts       EmailLayout[]
-  customPlaceholders CustomPlaceholder[]
-  createdAt          DateTime            @default(now())
+  id                         String                      @id @default(cuid())
+  name                       String
+  slug                       String                      @unique
+  events                     Event[]
+  users                      User[]
+  settings                   Setting[]
+  auditLogs                  AuditLog[]
+  emailCampaigns             EmailCampaign[]
+  emailLayouts               EmailLayout[]
+  customPlaceholders         CustomPlaceholder[]
+  systemPlaceholderOverrides SystemPlaceholderOverride[]
+  createdAt                  DateTime                    @default(now())
 
   @@map("organizations")
 }
@@ -322,6 +323,26 @@ model CustomPlaceholder {
 
   @@unique([organizationId, key])
   @@map("custom_placeholders")
+}
+
+// Door het bestuur aan te passen tekst voor een klein, vast setje SYSTEEM-placeholders
+// die van zichzelf al (deels) vaste bewoording hadden (locatie/tickets_sectie/
+// merchandise, zie packages/core/src/email/system-placeholder-overrides.ts) — anders dan
+// CustomPlaceholder hierboven blijven deze wel per bestelling berekend (bv. de daadwerke-
+// lijke locatienaam, of de vermelding alleen tonen als er ook echt tickets/merchandise
+// zijn); alleen de omringende bewoording is hier aanpasbaar, via een `{{waarde}}`-token in
+// `template` dat bij het verzenden vervangen wordt door de berekende waarde. Geen rij voor
+// een key = de meegeleverde standaardtekst wordt gebruikt.
+model SystemPlaceholderOverride {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  template       String
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, key])
+  @@map("system_placeholder_overrides")
 }
 
 model EmailCampaignRecipient {

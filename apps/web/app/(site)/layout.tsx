@@ -1,23 +1,36 @@
-import { Starfield } from "@lions/ui";
-import { SiteHeader } from "./site-header";
+import { cn, Starfield } from "@lions/ui";
+import { getPublicEvent } from "@/lib/get-event";
+import { getEventThemeStyle } from "@/lib/event-theme-style";
+import { HOME_EVENT_SLUG } from "@/lib/site-config";
+import { CartProvider } from "../[eventSlug]/cart-context";
+import { StorefrontHeader } from "../[eventSlug]/storefront-header";
 
 /** Layout voor de "(site)"-routegroep: de niet-event-gebonden pagina's (/, /contact,
- * /afmelden). Een routegroep-map (haakjes) telt niet mee in de URL — dit is dus puur om
- * deze paar pagina's een eigen, gedeelde kopbalk te geven zonder de event-pagina's
- * ([eventSlug]/layout.tsx, met hun eigen thema/StorefrontHeader) te raken.
- *
- * Altijd het donkere thema (.dark, packages/ui/src/theme.css) — deze pagina's horen bij
- * geen specifiek event en hebben dus geen eigen Event.theme om op terug te vallen; het
- * lichte standaardthema oogde daardoor "los" van de rest van de (op dit moment: donkere)
- * site. Net als bij een donker event-thema ([eventSlug]/layout.tsx) hoort de sterrenhemel
- * erbij. */
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+ * /afmelden). Een routegroep-map (haakjes) telt niet mee in de URL. Deze pagina's horen
+ * bij geen eigen event, maar HOME_EVENT_SLUG (lib/site-config.ts) fungeert in de praktijk
+ * als "de" homepage van de site — dus krijgen deze pagina's exact dezelfde huisstijl +
+ * kopbalk als die event-pagina ([eventSlug]/layout.tsx), i.p.v. een eigen, afwijkende
+ * look. CartProvider met dezelfde eventSlug zorgt dat de winkelwagen-teller in de kopbalk
+ * ook hier klopt (zelfde localStorage-sleutel als op /feest/*). */
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  const homeEvent = await getPublicEvent(HOME_EVENT_SLUG);
+
+  // Zou het homepage-event ooit niet bestaan/gepubliceerd zijn, dan nog steeds een
+  // werkende (alleen kaler) pagina tonen i.p.v. een 404 op /contact of /afmelden.
+  if (!homeEvent) {
+    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+  }
+
+  const { style, isDark, logoUrl } = getEventThemeStyle(homeEvent.theme);
+
   return (
-    <div className="dark min-h-screen bg-background text-foreground">
-      <Starfield />
+    <div className={cn("min-h-screen bg-background text-foreground", isDark && "dark")} style={style}>
+      {isDark && <Starfield />}
       <div className="relative z-0">
-        <SiteHeader />
-        {children}
+        <CartProvider eventSlug={HOME_EVENT_SLUG}>
+          <StorefrontHeader eventSlug={HOME_EVENT_SLUG} eventName={homeEvent.name} logoUrl={logoUrl} />
+          {children}
+        </CartProvider>
       </div>
     </div>
   );

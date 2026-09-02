@@ -45,7 +45,7 @@ function readJpegDimensions(buf: Buffer): ImageDimensions | null {
  * Outlook desktop: die client rendert een <img> op basis van de HTML width/height-
  * ATTRIBUTEN (niet de CSS), dus een losse `style="height:56px"` zonder passend
  * `width`-attribuut levert daar een samengedrukte afbeelding op (zie
- * email/layout.ts's eventBrandingVars). Best-effort: geeft `null` bij een netwerkfout of
+ * email/event-branding.ts's eventBrandingVars). Best-effort: geeft `null` bij een netwerkfout of
  * een formaat dat niet PNG/JPEG is (zelfde beperking als tickets/pdf.ts's embedImage). */
 export async function getImageDimensions(url: string): Promise<ImageDimensions | null> {
   try {

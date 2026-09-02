@@ -1,16 +1,9 @@
 import { notFound } from "next/navigation";
 import { cn, Starfield } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
+import { getEventThemeStyle } from "@/lib/event-theme-style";
 import { CartProvider } from "./cart-context";
 import { StorefrontHeader } from "./storefront-header";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function str(value: unknown): string | undefined {
-  return typeof value === "string" && value ? value : undefined;
-}
 
 export default async function EventLayout({
   children,
@@ -26,16 +19,7 @@ export default async function EventLayout({
   // Per-event huisstijl (ingesteld via /events) overschrijft de gedeelde design-tokens
   // (zelfde variabelen als packages/ui/src/theme.css) — geldt nu op alle pagina's van het
   // event (producten/winkelwagen/afrekenen/bedankt), niet meer alleen de landingspagina.
-  const themeRaw = isRecord(event.theme) ? event.theme : {};
-  const themeOverrides: Record<string, string> = {};
-  const primaryColor = str(themeRaw.primaryColor);
-  const backgroundColor = str(themeRaw.backgroundColor);
-  const accentColor = str(themeRaw.accentColor);
-  const logoUrl = str(themeRaw.logoUrl);
-  const isDark = themeRaw.dark === "true";
-  if (primaryColor) themeOverrides["--primary"] = primaryColor;
-  if (backgroundColor) themeOverrides["--background"] = backgroundColor;
-  if (accentColor) themeOverrides["--accent"] = accentColor;
+  const { style, isDark, logoUrl } = getEventThemeStyle(event.theme);
 
   // Bij "donker thema" hergebruiken we bewust de bestaande .dark-klasse uit
   // packages/ui/src/theme.css i.p.v. losse tokens te overschrijven — die klasse geeft al
@@ -44,10 +28,7 @@ export default async function EventLayout({
   // een donkere pagina te staan. primary/accent hierboven overschrijven daarna alsnog de
   // tint (bv. richting zilver) zonder de rest van de balans te breken.
   return (
-    <div
-      className={cn("min-h-screen bg-background text-foreground", isDark && "dark")}
-      style={themeOverrides as React.CSSProperties}
-    >
+    <div className={cn("min-h-screen bg-background text-foreground", isDark && "dark")} style={style}>
       {/* Alleen bij donker thema — een sterrenhemel past niet bij een lichte huisstijl
           (bv. de oliebollenverkoop). position: fixed, z-0: blijft op zijn plek terwijl de
           pagina scrolt, "achter" de content. */}

@@ -22,6 +22,9 @@ export async function sendEmail(params: {
   subject: string;
   html: string;
   attachments?: EmailAttachment[];
+  /** Bv. voor het contactformulier (apps/web/app/contact): laat het clubadres direct op
+   * de bezoeker reageren i.p.v. op het (vaak no-reply) verzendadres. */
+  replyTo?: string;
 }): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
@@ -39,6 +42,7 @@ export async function sendEmail(params: {
         subject: params.subject,
         html: params.html,
         attachments: params.attachments,
+        reply_to: params.replyTo,
       }),
     });
     if (!res.ok) {

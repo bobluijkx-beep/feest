@@ -39,6 +39,9 @@ export function StorefrontHeader({
           <Link href={`/${eventSlug}/winkelwagen`} className="hover:text-primary">
             Winkelwagen{totalCount > 0 ? ` (${totalCount})` : ""}
           </Link>
+          <Link href="/contact" className="hidden hover:text-primary sm:inline">
+            Contact
+          </Link>
         </nav>
       </div>
     </header>

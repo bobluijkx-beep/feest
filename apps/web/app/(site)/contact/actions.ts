@@ -15,7 +15,10 @@ function escapeHtml(input: string): string {
 /** Verstuurt een ingevuld contactformulier naar het clubadres (RESEND_FROM_EMAIL — hetzelfde
  * adres dat nu al als afzender van alle andere mail gebruikt wordt), met de bezoeker als
  * reply-to zodat het bestuur er direct op kan reageren. Geen database-opslag: dit is puur
- * een doorgeefluik, net als de rest van de mailflow (sendEmail in packages/core). */
+ * een doorgeefluik, net als de rest van de mailflow (sendEmail in packages/core).
+ *
+ * Na een geslaagde verzending gaat de bezoeker terug naar de startpagina (niet /contact
+ * zelf) — de bevestiging verschijnt daar als pop-up (contact-success-dialog.tsx). */
 export async function submitContactForm(formData: FormData): Promise<void> {
   const naam = String(formData.get("naam") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
@@ -23,7 +26,7 @@ export async function submitContactForm(formData: FormData): Promise<void> {
   // Honeypot: onzichtbaar voor mensen (zie page.tsx), bots die elk veld invullen tuinen
   // er vaak in. Doe alsof het gelukt is — geen signaal teruggeven dat dit gedetecteerd is.
   const honeypot = String(formData.get("website") ?? "").trim();
-  if (honeypot) redirect("/contact?verzonden=1");
+  if (honeypot) redirect("/?verzonden=1");
 
   if (!naam || !email || !bericht) {
     redirect("/contact?fout=ontbrekend");
@@ -54,5 +57,5 @@ export async function submitContactForm(formData: FormData): Promise<void> {
     redirect("/contact?fout=onbekend");
   }
 
-  redirect("/contact?verzonden=1");
+  redirect("/?verzonden=1");
 }

@@ -3,7 +3,8 @@ import type { EmailTemplateType } from "@lions/db";
 import { prisma } from "../db";
 import { sendEmail } from "./resend";
 import { type RenderableTemplate } from "./template-engine";
-import { renderWithLayout, eventBrandingVars } from "./layout";
+import { renderWithLayout } from "./layout";
+import { eventBrandingVars } from "./event-branding";
 import { getEmailLayoutHtml } from "./get-layout";
 import { defaultEmailTemplates } from "./default-templates";
 import { generateTicketPdf } from "../tickets/pdf";
@@ -42,16 +43,19 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
       : "";
   const merchandiseSection = lines.length > 0 ? `<p>Ook besteld: ${lines.join(", ")}.</p>` : "";
 
-  const layoutHtml = await getEmailLayoutHtml({
-    organizationId: order.event.organizationId,
-    layoutId: templateRow?.layoutId,
-  });
+  const [layoutHtml, brandingVars] = await Promise.all([
+    getEmailLayoutHtml({
+      organizationId: order.event.organizationId,
+      layoutId: templateRow?.layoutId,
+    }),
+    eventBrandingVars(order.event.theme),
+  ]);
 
   return renderWithLayout({
     layoutHtml,
     content: template,
     vars: {
-      ...eventBrandingVars(order.event.theme),
+      ...brandingVars,
       voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
       event_naam: order.event.name,
       aantal_tickets: String(order.tickets.length),

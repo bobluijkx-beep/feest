@@ -1,5 +1,4 @@
 import { renderTemplate, type RenderableTemplate } from "./template-engine";
-import { readEventThemeAssets } from "../utils/event-theme";
 
 /** Gedeelde e-mail-laag: omlijst de per-type/per-campagne inhoud (order-confirmation.ts/
  * bulk-campaign.ts leveren alleen de binnenkant, zie default-templates.ts) met een
@@ -25,23 +24,6 @@ function preheader(text: string): string {
  * e-mailinhoud ingevoegd. Los geëxporteerd zodat de admin-editor 'm kan valideren/
  * aanbieden als invoegbare placeholder, net als {{voornaam}} e.d. */
 export const LAYOUT_CONTENT_PLACEHOLDER = "{{content}}";
-
-/** Bouwt de {{event_logo_html}}/{{event_hero_html}}-placeholders uit een Event.theme —
- * kant-en-klare <img>-markup (of lege string als er niets is ingesteld), zodat de lay-out
- * zelf geen URL-logica hoeft te kennen en een ontbrekende afbeelding nooit een kapot
- * <img src=""> oplevert. Zo krijgt de envelop dezelfde clublogo/sfeerfoto als de
- * bijbehorende event-pagina op de publieke site (apps/web/app/[eventSlug]/layout.tsx). */
-export function eventBrandingVars(theme: unknown): Record<string, string> {
-  const { logoUrl, heroImageUrl } = readEventThemeAssets(theme);
-  return {
-    event_logo_html: logoUrl
-      ? `<img src="${logoUrl}" alt="" width="160" style="display:block;width:auto;height:56px;max-width:160px;margin:0 auto 12px auto;" />`
-      : "",
-    event_hero_html: heroImageUrl
-      ? `<img src="${heroImageUrl}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;" />`
-      : "",
-  };
-}
 
 /** De meegeleverde standaard-lay-out (zwarte kopbalk met clubnaam, witte inhoudskaart,
  * grijze voettekst) — het startpunt voor een nieuwe EmailLayout-rij, en de allerlaatste

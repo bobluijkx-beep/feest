@@ -1,7 +1,7 @@
 import "server-only";
 import type { ProductKind } from "@lions/db";
 import { prisma } from "../db";
-import { eventBrandingVars } from "./layout";
+import { eventBrandingVars } from "./event-branding";
 
 export interface CampaignSegment {
   eventId: string;
@@ -32,7 +32,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
     prisma.event.findUniqueOrThrow({ where: { id: segment.eventId }, select: { name: true, theme: true } }),
   ]);
 
-  const brandingVars = eventBrandingVars(event.theme);
+  const brandingVars = await eventBrandingVars(event.theme);
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
   const byEmail = new Map<string, SegmentRecipient>();
 

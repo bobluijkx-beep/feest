@@ -22,6 +22,7 @@ export * from "./email/get-layout";
 export * from "./email/placeholders";
 export * from "./email/default-templates";
 export * from "./email/order-confirmation";
+export * from "./email/event-branding";
 export * from "./email/segment";
 export * from "./email/unsubscribe";
 export * from "./email/bulk-campaign";

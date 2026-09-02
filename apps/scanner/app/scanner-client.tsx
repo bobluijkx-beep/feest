@@ -12,6 +12,28 @@ type Feedback = {
   extraItems?: { productName: string; quantity: number }[];
 } | null;
 
+// qr-scanner tekent zelf twee overlay-SVG's rond de camerabeeld (de vier hoekjes rond het
+// scangebied + een strakke omtrek zodra er een code herkend wordt), allebei standaard in
+// zijn eigen geel (#e9b213) — inline op het element gezet, dus alleen via .style
+// overschrijfbaar, geen CSS-klasse. RING_COLORS hertekent die kleur naar de status die de
+// gebruiker al als tekst/geluid krijgt, zodat "klaar" ook zíchtbaar is i.p.v. dat het geel
+// blijft staan terwijl er intern al lang een resultaat binnen is.
+const RING_IDLE_COLOR = "#e9b213";
+const RING_COLORS: Record<"processing" | "ok" | "warn" | "error", string> = {
+  processing: "#9ca3af",
+  ok: "#16a34a",
+  warn: "#f59e0b",
+  error: "#ef4444",
+};
+
+function setRingColor(container: HTMLElement | null, color: string) {
+  if (!container) return;
+  for (const selector of [".scan-region-highlight-svg", ".code-outline-highlight"]) {
+    const el = container.querySelector<SVGElement>(selector);
+    if (el) el.style.stroke = color;
+  }
+}
+
 function playTone(frequency: number, durationMs: number) {
   try {
     const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -59,9 +81,11 @@ function describeResult(result: CheckinResult): Feedback {
 
 export function ScannerClient() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const overlayContainerRef = useRef<HTMLElement | null>(null);
   const lastTokenRef = useRef<{ token: string; at: number } | null>(null);
   const sessionSeenRef = useRef<Set<string>>(new Set());
   const busyRef = useRef(false);
+  const resetRingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [pendingCount, setPendingCount] = useState(0);
@@ -73,6 +97,9 @@ export function ScannerClient() {
     if (lastTokenRef.current?.token === qrToken && now - lastTokenRef.current.at < 3000) return;
     lastTokenRef.current = { token: qrToken, at: now };
     busyRef.current = true;
+
+    if (resetRingTimeoutRef.current) clearTimeout(resetRingTimeoutRef.current);
+    setRingColor(overlayContainerRef.current, RING_COLORS.processing);
 
     try {
       // Lokale sessie-cache geeft direct een "al gescand"-signaal, nog vóór het
@@ -98,6 +125,15 @@ export function ScannerClient() {
       if (described?.kind === "ok") playTone(880, 150);
       else if (described?.kind === "warn") playTone(440, 200);
       else playTone(200, 300);
+
+      // Ring toont de uitkomst duidelijk zichtbaar (geel -> groen/amber/rood) — en gaat
+      // daarna vanzelf terug naar geel zodat die klaarstaat voor de volgende scan.
+      if (described) {
+        setRingColor(overlayContainerRef.current, RING_COLORS[described.kind]);
+        resetRingTimeoutRef.current = setTimeout(() => {
+          setRingColor(overlayContainerRef.current, RING_IDLE_COLOR);
+        }, 2000);
+      }
     } finally {
       busyRef.current = false;
     }
@@ -110,10 +146,14 @@ export function ScannerClient() {
       highlightScanRegion: true,
       highlightCodeOutline: true,
     });
+    // qr-scanner voegt de overlay-elementen synchroon in de constructor toe, direct na
+    // het <video>-element — vandaar meteen na aanmaken opslaan, niet pas na start().
+    overlayContainerRef.current = videoRef.current.parentElement;
 
     scanner.start().catch((err) => setFeedback({ kind: "error", message: "Camera niet beschikbaar", detail: String(err) }));
 
     return () => {
+      if (resetRingTimeoutRef.current) clearTimeout(resetRingTimeoutRef.current);
       scanner.stop();
       scanner.destroy();
     };

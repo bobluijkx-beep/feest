@@ -19,6 +19,12 @@ interface CartContextValue {
   clear: () => void;
   totalCount: number;
   totalCents: number;
+  /** Of de localStorage-cart al is ingelezen. Nodig voor bv. ClearCartOnMount
+   * (bedankt/clear-cart.tsx): op een echte pagina-herlaad (Mollie's redirect terug naar
+   * de site) mount deze provider tegelijk met de pagina die meteen wil legen — zonder
+   * deze vlag zou clear() vóór de hydratie-effect kunnen lopen en meteen daarna weer
+   * overschreven worden door de net-ingelezen (oude, volle) cart uit localStorage. */
+  hydrated: boolean;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -78,7 +84,9 @@ export function CartProvider({ eventSlug, children }: { eventSlug: string; child
   const totalCents = items.reduce((sum, i) => sum + i.quantity * i.priceCents, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, updateQuantity, removeItem, clear, totalCount, totalCents }}>
+    <CartContext.Provider
+      value={{ items, addItem, updateQuantity, removeItem, clear, totalCount, totalCents, hydrated }}
+    >
       {children}
     </CartContext.Provider>
   );

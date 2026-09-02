@@ -87,7 +87,10 @@ export async function generateTicketPdf(params: {
 
   if (params.merchandiseLines && params.merchandiseLines.length > 0) {
     y -= 6;
-    drawLine("Ook besteld:", { size: 11, bold: true });
+    // "eenmalig" is bewust expliciet: bij meerdere tickets in één bestelling staat deze
+    // sectie alleen op dit (het eerste) ticket, juist om te voorkomen dat de
+    // deurbemanning 'm per ticket nog eens meegeeft.
+    drawLine("Ook besteld (eenmalig, bij dit ticket):", { size: 11, bold: true });
     for (const line of params.merchandiseLines) {
       drawLine(line, { size: 11 });
     }

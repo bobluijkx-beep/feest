@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import { Input, Label, Select } from "@lions/ui";
+import { HtmlEditor } from "../content/emails/html-editor";
 
 export function EventFormFields({
   defaults,
@@ -37,6 +41,8 @@ export function EventFormFields({
     dark: false,
   };
 
+  const [description, setDescription] = useState(d.description);
+
   return (
     <div className="flex flex-wrap gap-3">
       <div className="flex flex-col gap-1">
@@ -57,7 +63,8 @@ export function EventFormFields({
       </div>
       <div className="flex w-full flex-col gap-1">
         <Label htmlFor="description">Omschrijving</Label>
-        <Input id="description" type="text" name="description" defaultValue={d.description} />
+        <HtmlEditor value={description} onChange={setDescription} rows={4} />
+        <input type="hidden" name="description" value={description} />
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="venue">Locatie</Label>

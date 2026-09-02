@@ -41,7 +41,13 @@ export default async function EventPage({
       <HeroFrame eyebrow={dateEyebrow} backgroundImageUrl={heroImageUrl} logoUrl={logoUrl}>
         <h1 className="font-display text-4xl">{event.name}</h1>
         {event.description && (
-          <p className="mt-3 text-base font-semibold text-foreground sm:text-lg">{event.description}</p>
+          // Omschrijving komt uit de admin-HtmlEditor (events/event-form-fields.tsx) en mag
+          // dus opmaak bevatten (vet/kop/link) — een <div> i.p.v. <p> omdat een <h2> uit de
+          // "Kop"-knop anders in ongeldige HTML terecht zou komen (kop genest in een <p>).
+          <div
+            className="mt-3 text-base font-semibold text-foreground [&_a]:underline [&_a]:underline-offset-2 sm:text-lg"
+            dangerouslySetInnerHTML={{ __html: event.description }}
+          />
         )}
         <p className="mt-2 text-sm text-foreground/80">
           {event.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full", timeZone: "Europe/Amsterdam" })}

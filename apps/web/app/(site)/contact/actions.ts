@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { sendEmail } from "@lions/core";
+import { HOME_EVENT_SLUG } from "@/lib/site-config";
 
 function escapeHtml(input: string): string {
   return input
@@ -17,8 +18,10 @@ function escapeHtml(input: string): string {
  * reply-to zodat het bestuur er direct op kan reageren. Geen database-opslag: dit is puur
  * een doorgeefluik, net als de rest van de mailflow (sendEmail in packages/core).
  *
- * Na een geslaagde verzending gaat de bezoeker terug naar de startpagina (niet /contact
- * zelf) — de bevestiging verschijnt daar als pop-up (contact-success-dialog.tsx). */
+ * Na een geslaagde verzending gaat de bezoeker terug naar de "startpagina" — in de
+ * praktijk het event dat nu als zodanig fungeert (HOME_EVENT_SLUG, lib/site-config.ts),
+ * niet de losstaande, niet-event-gebonden "/" — de bevestiging verschijnt daar als pop-up
+ * (contact-success-dialog.tsx, gebruikt in [eventSlug]/page.tsx). */
 export async function submitContactForm(formData: FormData): Promise<void> {
   const naam = String(formData.get("naam") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
@@ -26,7 +29,7 @@ export async function submitContactForm(formData: FormData): Promise<void> {
   // Honeypot: onzichtbaar voor mensen (zie page.tsx), bots die elk veld invullen tuinen
   // er vaak in. Doe alsof het gelukt is — geen signaal teruggeven dat dit gedetecteerd is.
   const honeypot = String(formData.get("website") ?? "").trim();
-  if (honeypot) redirect("/?verzonden=1");
+  if (honeypot) redirect(`/${HOME_EVENT_SLUG}?verzonden=1`);
 
   if (!naam || !email || !bericht) {
     redirect("/contact?fout=ontbrekend");
@@ -57,5 +60,5 @@ export async function submitContactForm(formData: FormData): Promise<void> {
     redirect("/contact?fout=onbekend");
   }
 
-  redirect("/?verzonden=1");
+  redirect(`/${HOME_EVENT_SLUG}?verzonden=1`);
 }

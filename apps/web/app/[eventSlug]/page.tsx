@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@lions/core";
 import { PageBlocksList, HeroFrame, buttonVariants } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
+import { ContactSuccessDialog } from "./contact-success-dialog";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -64,6 +66,14 @@ export default async function EventPage({
       <div className="mt-6">
         <PageBlocksList blocks={pageBlocks} />
       </div>
+
+      {/* Bevestigingspop-up na het contactformulier (apps/web/app/(site)/contact) — dat
+          stuurt door naar HOME_EVENT_SLUG (lib/site-config.ts), het event dat nu als
+          "startpagina" van de site fungeert. useSearchParams (in de dialoog) heeft een
+          Suspense-grens nodig, anders faalt het prerenderen van deze pagina. */}
+      <Suspense fallback={null}>
+        <ContactSuccessDialog />
+      </Suspense>
     </main>
   );
 }

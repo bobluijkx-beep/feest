@@ -1,6 +1,3 @@
-import { Suspense } from "react";
-import { ContactSuccessDialog } from "./contact-success-dialog";
-
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-16 text-center md:max-w-4xl lg:max-w-6xl">
@@ -8,11 +5,6 @@ export default function HomePage() {
       <p className="mt-3 text-sm text-muted-foreground">
         Ga naar de link van een specifiek evenement om tickets of feestartikelen te bestellen.
       </p>
-      {/* useSearchParams (in ContactSuccessDialog) heeft een Suspense-grens nodig, anders
-          faalt het prerenderen van deze pagina. */}
-      <Suspense fallback={null}>
-        <ContactSuccessDialog />
-      </Suspense>
     </main>
   );
 }

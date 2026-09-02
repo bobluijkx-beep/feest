@@ -81,6 +81,18 @@ async function logEmailAttempt(
   });
 }
 
+/** sendEmail() gooit zelf nooit — een mislukte verzending (Resend niet geconfigureerd,
+ * API-fout, …) kwam voorheen alleen in de audit log terecht, terwijl de aanroeper (zowel
+ * de webhook als de handmatige "e-mail opnieuw versturen"-knop in de admin, actions.ts)
+ * gewoon normaal doorliep en dus ten onrechte "gelukt" leek. Vandaar hier alsnog een
+ * throw, ná het loggen: de webhook-route (apps/web/app/api/mollie/webhook) vangt 'm al op
+ * en geeft Mollie een 500 (idempotent, dus een eventuele retry is onschadelijk — de
+ * order zelf staat dan al op PAID), en de admin-actie laat de fout nu wél zien i.p.v.
+ * stilzwijgend "verzonden" te melden. */
+function assertSent(result: Awaited<ReturnType<typeof sendEmail>>): void {
+  if (!result.ok) throw new Error(result.error);
+}
+
 /** Stuurt de orderbevestiging voor een betaalde order. Bevat ticket-PDF's (+ ICS-
  * agenda-item) alleen als de order ook echt kind=TICKET-regels bevat — een pure
  * merchandise-order (bv. een oliebollenverkoop) krijgt gewoon een orderbevestiging zonder
@@ -115,7 +127,11 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
           buyerName: order.buyerName,
           ticketTypeName: productNameById.get(ticket.productId) ?? "Ticket",
           qrToken: ticket.qrToken,
-          merchandiseLines: lines,
+          // Alleen op het eerste ticket vermelden: bij meerdere toegangskaarten in één
+          // bestelling stond dit voorheen op élk ticket, met als risico dat de
+          // deurbemanning een artikel dat maar één keer besteld is meerdere keren
+          // meegeeft (één keer per ticket i.p.v. één keer per bestelling).
+          merchandiseLines: index === 0 ? lines : undefined,
           logoUrl,
           heroImageUrl,
         });
@@ -139,6 +155,7 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
   const result = await sendEmail({ to: order.buyerEmail, subject, html: bodyHtml, attachments });
 
   await logEmailAttempt(order.event.organizationId, order.id, "email_confirmation", result);
+  assertSent(result);
 }
 
 /** Stuurt een korte melding wanneer een order een terminale faalstatus bereikt
@@ -153,6 +170,7 @@ export async function sendPaymentFailedEmail(orderId: string): Promise<void> {
   const result = await sendEmail({ to: order.buyerEmail, subject, html: bodyHtml });
 
   await logEmailAttempt(order.event.organizationId, order.id, "email_payment_failed", result);
+  assertSent(result);
 }
 
 /** Stuurt de annuleringsmelding — een losse, handmatige actie in de admin (los van
@@ -170,4 +188,5 @@ export async function sendCancelledEmail(orderId: string): Promise<void> {
   const result = await sendEmail({ to: order.buyerEmail, subject, html: bodyHtml });
 
   await logEmailAttempt(order.event.organizationId, order.id, "email_cancelled", result);
+  assertSent(result);
 }

@@ -80,6 +80,19 @@ export function CheckoutForm({
                 <Label htmlFor="buyerEmail">E-mailadres</Label>
                 <Input id="buyerEmail" name="buyerEmail" type="email" required />
               </div>
+              <div className="flex items-start gap-2">
+                <input
+                  id="marketingOptIn"
+                  name="marketingOptIn"
+                  type="checkbox"
+                  defaultChecked
+                  className="mt-1 size-4 shrink-0 rounded border-input"
+                />
+                <Label htmlFor="marketingOptIn" className="text-sm font-normal text-muted-foreground">
+                  Ja, ik wil op de hoogte blijven van nieuws, acties en evenementen van Lionsclub Voorschoten via
+                  e-mail. Je kunt je op elk moment weer afmelden.
+                </Label>
+              </div>
             </CardContent>
           </Card>
 

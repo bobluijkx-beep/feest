@@ -68,16 +68,17 @@ enum EmailCampaignRecipientStatus {
 }
 
 model Organization {
-  id             String          @id @default(cuid())
-  name           String
-  slug           String          @unique
-  events         Event[]
-  users          User[]
-  settings       Setting[]
-  auditLogs      AuditLog[]
-  emailCampaigns EmailCampaign[]
-  emailLayouts   EmailLayout[]
-  createdAt      DateTime        @default(now())
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  events             Event[]
+  users              User[]
+  settings           Setting[]
+  auditLogs          AuditLog[]
+  emailCampaigns     EmailCampaign[]
+  emailLayouts       EmailLayout[]
+  customPlaceholders CustomPlaceholder[]
+  createdAt          DateTime            @default(now())
 
   @@map("organizations")
 }
@@ -301,6 +302,26 @@ model EmailLayout {
 
   @@index([organizationId])
   @@map("email_layouts")
+}
+
+// Door het bestuur zelf te onderhouden {{placeholder}}'s (bv. {{clubadres}},
+// {{telefoonnummer}}) — org-breed, vaste waarde (mag HTML bevatten, zelfde HtmlEditor als
+// templates/lay-outs). Anders dan de systeem-placeholders (voornaam, event_naam, …, zie
+// packages/core/src/email/placeholders.ts) die per verzending berekend worden, is dit een
+// simpele sleutel/waarde-lijst zonder eigen rekenlogica — key wordt zonder de accolades
+// opgeslagen ("clubadres", niet "{{clubadres}}").
+model CustomPlaceholder {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  valueHtml      String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, key])
+  @@map("custom_placeholders")
 }
 
 model EmailCampaignRecipient {

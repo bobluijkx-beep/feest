@@ -35,6 +35,7 @@ export function EmailTemplateForm({
   bodyHtml: initialBodyHtml,
   layoutId: initialLayoutId,
   layouts,
+  customPlaceholderKeys = [],
 }: {
   eventId: string;
   type: string;
@@ -42,6 +43,7 @@ export function EmailTemplateForm({
   bodyHtml: string;
   layoutId: string;
   layouts: LayoutOption[];
+  customPlaceholderKeys?: string[];
 }) {
   const [state, formAction, pending] = useActionState(saveEmailTemplate, initialState);
   const [subject, setSubject] = useState(initialSubject);
@@ -84,7 +86,12 @@ export function EmailTemplateForm({
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="bodyHtml">Inhoud (HTML)</Label>
-          <HtmlEditor value={bodyHtml} onChange={setBodyHtml} placeholders={[...ORDER_TEMPLATE_PLACEHOLDERS]} rows={10} />
+          <HtmlEditor
+            value={bodyHtml}
+            onChange={setBodyHtml}
+            placeholders={[...ORDER_TEMPLATE_PLACEHOLDERS, ...customPlaceholderKeys]}
+            rows={10}
+          />
           <input type="hidden" name="bodyHtml" value={bodyHtml} />
         </div>
         <p className="text-xs text-muted-foreground">

@@ -30,10 +30,12 @@ export function CampaignComposeForm({
   segment,
   recipientCount,
   layouts,
+  customPlaceholderKeys = [],
 }: {
   segment: CampaignSegment;
   recipientCount: number;
   layouts: LayoutOption[];
+  customPlaceholderKeys?: string[];
 }) {
   const [state, formAction, pending] = useActionState(createCampaign, initialState);
   const [subject, setSubject] = useState("");
@@ -95,11 +97,17 @@ export function CampaignComposeForm({
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="bodyHtml">Inhoud (HTML)</Label>
-          <HtmlEditor value={bodyHtml} onChange={setBodyHtml} placeholders={[...CAMPAIGN_PLACEHOLDERS]} rows={10} />
+          <HtmlEditor
+            value={bodyHtml}
+            onChange={setBodyHtml}
+            placeholders={[...CAMPAIGN_PLACEHOLDERS, ...customPlaceholderKeys]}
+            rows={10}
+          />
           <input type="hidden" name="bodyHtml" value={bodyHtml} />
         </div>
         <p className="text-xs text-muted-foreground">
-          Onder elke mail wordt automatisch een afmeldlink toegevoegd — die hoef je niet zelf op te nemen.
+          Onder elke mail wordt automatisch een afmeldlink toegevoegd, dus dat hoef je hier niet zelf te doen. Wil je
+          de link liever ergens anders in de tekst, gebruik dan zelf de {"{{afmeldlink}}"}-placeholder.
         </p>
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={pending || recipientCount === 0}>

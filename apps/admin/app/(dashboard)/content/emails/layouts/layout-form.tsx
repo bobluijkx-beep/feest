@@ -27,11 +27,15 @@ export function LayoutForm({
   name: initialName,
   bodyHtml: initialBodyHtml,
   isDefault: initialIsDefault,
+  customPlaceholderKeys = [],
 }: {
   id?: string;
   name: string;
   bodyHtml: string;
   isDefault: boolean;
+  /** Sleutels van de org-eigen placeholders (content/emails/placeholders), zodat de
+   * "Placeholder invoegen"-knop ze ook aanbiedt naast de vaste systeemlijst. */
+  customPlaceholderKeys?: string[];
 }) {
   const [state, formAction, pending] = useActionState(saveEmailLayout, initialState);
   const [name, setName] = useState(initialName);
@@ -66,7 +70,12 @@ export function LayoutForm({
         <input type="hidden" name="isDefault" value={isDefault ? "true" : "false"} />
         <div className="flex flex-col gap-1">
           <Label htmlFor="bodyHtml">HTML</Label>
-          <HtmlEditor value={bodyHtml} onChange={setBodyHtml} placeholders={LAYOUT_PLACEHOLDERS} rows={18} />
+          <HtmlEditor
+            value={bodyHtml}
+            onChange={setBodyHtml}
+            placeholders={[...LAYOUT_PLACEHOLDERS, ...customPlaceholderKeys]}
+            rows={18}
+          />
           <input type="hidden" name="bodyHtml" value={bodyHtml} />
         </div>
         <p className="text-xs text-muted-foreground">

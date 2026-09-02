@@ -30,11 +30,17 @@ export default async function EmailTemplateEditPage({
   });
   const initial = existing ?? defaultEmailTemplates[templateType];
 
-  const layouts = await prisma.emailLayout.findMany({
-    where: { organizationId: actor.organizationId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, bodyHtml: true, isDefault: true },
-  });
+  const [layouts, customPlaceholders] = await Promise.all([
+    prisma.emailLayout.findMany({
+      where: { organizationId: actor.organizationId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, bodyHtml: true, isDefault: true },
+    }),
+    prisma.customPlaceholder.findMany({
+      where: { organizationId: actor.organizationId },
+      select: { key: true },
+    }),
+  ]);
 
   return (
     <Card>
@@ -49,6 +55,7 @@ export default async function EmailTemplateEditPage({
           bodyHtml={initial.bodyHtml}
           layoutId={existing?.layoutId ?? ""}
           layouts={layouts}
+          customPlaceholderKeys={customPlaceholders.map((p) => p.key)}
         />
       </CardContent>
     </Card>

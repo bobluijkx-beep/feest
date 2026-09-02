@@ -35,11 +35,17 @@ export default async function NewCampaignPage({
 
   const recipientCount = eventSelected ? (await buildSegmentRecipients(segment)).length : 0;
 
-  const layouts = await prisma.emailLayout.findMany({
-    where: { organizationId: actor.organizationId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, bodyHtml: true, isDefault: true },
-  });
+  const [layouts, customPlaceholders] = await Promise.all([
+    prisma.emailLayout.findMany({
+      where: { organizationId: actor.organizationId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, bodyHtml: true, isDefault: true },
+    }),
+    prisma.customPlaceholder.findMany({
+      where: { organizationId: actor.organizationId },
+      select: { key: true },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -102,7 +108,12 @@ export default async function NewCampaignPage({
             <CardTitle>Mailing opstellen ({recipientCount} ontvangers)</CardTitle>
           </CardHeader>
           <CardContent>
-            <CampaignComposeForm segment={segment} recipientCount={recipientCount} layouts={layouts} />
+            <CampaignComposeForm
+              segment={segment}
+              recipientCount={recipientCount}
+              layouts={layouts}
+              customPlaceholderKeys={customPlaceholders.map((p) => p.key)}
+            />
           </CardContent>
         </Card>
       ) : (

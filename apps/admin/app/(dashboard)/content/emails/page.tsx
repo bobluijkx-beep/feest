@@ -33,9 +33,14 @@ export default async function EmailTemplatesPage({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <EventTabs events={events} selectedId={event.id} basePath="/content/emails" />
-        <Link href="/content/emails/layouts" className={buttonVariants({ variant: "outline", size: "sm" })}>
-          Lay-outs beheren
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/content/emails/placeholders" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Placeholders beheren
+          </Link>
+          <Link href="/content/emails/layouts" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Lay-outs beheren
+          </Link>
+        </div>
       </div>
       <Card>
         <CardContent className="flex flex-col divide-y divide-border p-0">

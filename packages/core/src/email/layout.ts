@@ -1,4 +1,5 @@
 import { renderTemplate, type RenderableTemplate } from "./template-engine";
+import { readEventThemeAssets } from "../utils/event-theme";
 
 /** Gedeelde e-mail-laag: omlijst de per-type/per-campagne inhoud (order-confirmation.ts/
  * bulk-campaign.ts leveren alleen de binnenkant, zie default-templates.ts) met een
@@ -25,6 +26,23 @@ function preheader(text: string): string {
  * aanbieden als invoegbare placeholder, net als {{voornaam}} e.d. */
 export const LAYOUT_CONTENT_PLACEHOLDER = "{{content}}";
 
+/** Bouwt de {{event_logo_html}}/{{event_hero_html}}-placeholders uit een Event.theme —
+ * kant-en-klare <img>-markup (of lege string als er niets is ingesteld), zodat de lay-out
+ * zelf geen URL-logica hoeft te kennen en een ontbrekende afbeelding nooit een kapot
+ * <img src=""> oplevert. Zo krijgt de envelop dezelfde clublogo/sfeerfoto als de
+ * bijbehorende event-pagina op de publieke site (apps/web/app/[eventSlug]/layout.tsx). */
+export function eventBrandingVars(theme: unknown): Record<string, string> {
+  const { logoUrl, heroImageUrl } = readEventThemeAssets(theme);
+  return {
+    event_logo_html: logoUrl
+      ? `<img src="${logoUrl}" alt="" width="160" style="display:block;width:auto;height:56px;max-width:160px;margin:0 auto 12px auto;" />`
+      : "",
+    event_hero_html: heroImageUrl
+      ? `<img src="${heroImageUrl}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;" />`
+      : "",
+  };
+}
+
 /** De meegeleverde standaard-lay-out (zwarte kopbalk met clubnaam, witte inhoudskaart,
  * grijze voettekst) — het startpunt voor een nieuwe EmailLayout-rij, en de allerlaatste
  * terugvaloptie (getEmailLayoutHtml in get-layout.ts) als een organisatie nog geen enkele
@@ -43,11 +61,15 @@ export const DEFAULT_LAYOUT_HTML = `<!doctype html>
         <td align="center" style="padding:32px 16px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;border-radius:12px;overflow:hidden;">
             <tr>
-              <td style="background-color:#0a0a0a;padding:28px 32px;text-align:center;">
-                <span style="font-family:${WEB_SAFE_DISPLAY_FONT};font-size:20px;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">
-                  Lionsclub Voorschoten
-                </span>
-                <div style="margin-top:10px;height:2px;width:64px;background-color:#c7cad0;margin-left:auto;margin-right:auto;"></div>
+              <td style="background-color:#0a0a0a;padding:0;text-align:center;">
+                {{event_hero_html}}
+                <div style="padding:28px 32px;">
+                  {{event_logo_html}}
+                  <span style="font-family:${WEB_SAFE_DISPLAY_FONT};font-size:20px;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">
+                    Lionsclub Voorschoten
+                  </span>
+                  <div style="margin-top:10px;height:2px;width:64px;background-color:#c7cad0;margin-left:auto;margin-right:auto;"></div>
+                </div>
               </td>
             </tr>
             <tr>
@@ -85,11 +107,15 @@ export function renderWithLayout(params: {
   vars: Record<string, string>;
 }): RenderableTemplate {
   const { layoutHtml, content, vars } = params;
-  const renderedContent = renderTemplate(content, vars);
+  // event_logo_html/event_hero_html standaard leeg: een aanroeper die geen event-branding
+  // meegeeft (bv. wrapEmailHtml, of een toekomstig niet-event-gebonden e-mailtype) mag
+  // nooit de kale placeholder-tekst laten doorlekken in de verzonden e-mail.
+  const mergedVars = { event_logo_html: "", event_hero_html: "", ...vars };
+  const renderedContent = renderTemplate(content, mergedVars);
   const withPreheader = preheader(renderedContent.subject) + renderedContent.bodyHtml;
   const page = renderTemplate(
     { subject: renderedContent.subject, bodyHtml: layoutHtml },
-    { ...vars, content: withPreheader },
+    { ...mergedVars, content: withPreheader },
   );
   return page;
 }

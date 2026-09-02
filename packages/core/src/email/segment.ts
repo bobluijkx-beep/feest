@@ -1,6 +1,7 @@
 import "server-only";
 import type { ProductKind } from "@lions/db";
 import { prisma } from "../db";
+import { eventBrandingVars } from "./layout";
 
 export interface CampaignSegment {
   eventId: string;
@@ -28,9 +29,10 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
       orderBy: { createdAt: "asc" },
     }),
     prisma.emailOptOut.findMany({ select: { email: true } }),
-    prisma.event.findUniqueOrThrow({ where: { id: segment.eventId }, select: { name: true } }),
+    prisma.event.findUniqueOrThrow({ where: { id: segment.eventId }, select: { name: true, theme: true } }),
   ]);
 
+  const brandingVars = eventBrandingVars(event.theme);
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
   const byEmail = new Map<string, SegmentRecipient>();
 
@@ -53,6 +55,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
     byEmail.set(order.buyerEmail.toLowerCase(), {
       email: order.buyerEmail,
       personalization: {
+        ...brandingVars,
         voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
         event_naam: event.name,
         aantal_tickets: String(order.tickets.length),

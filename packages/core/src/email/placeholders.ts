@@ -18,8 +18,16 @@ export const ORDER_TEMPLATE_PLACEHOLDERS = [
 export const CAMPAIGN_PLACEHOLDERS = ["voornaam", "event_naam", "aantal_tickets"] as const;
 
 /** Beschikbaar in een EmailLayout — de unie van bovenstaande, plus de verplichte
- * `content`-placeholder waar de eigenlijke e-mailinhoud wordt ingevoegd. Een lay-out kan
+ * `content`-placeholder waar de eigenlijke e-mailinhoud wordt ingevoegd, en de twee
+ * event-branding-placeholders (kant-en-klare <img>-markup, leeg als het event geen
+ * logo/sfeerfoto heeft ingesteld — zie layout.ts's eventBrandingVars). Een lay-out kan
  * voor zowel templates als mailings gekozen worden, dus biedt de editor alles aan; welke
  * er in de praktijk iets invullen hangt af van waar de lay-out uiteindelijk voor gebruikt
- * wordt (renderWithLayout in layout.ts laat een ongebruikte placeholder gewoon staan). */
-export const LAYOUT_PLACEHOLDERS = ["content", ...new Set([...ORDER_TEMPLATE_PLACEHOLDERS, ...CAMPAIGN_PLACEHOLDERS])];
+ * wordt (renderWithLayout in layout.ts laat een ongebruikte placeholder nooit onvervangen
+ * staan — event_logo_html/event_hero_html hebben altijd een leeg-string-terugval). */
+export const LAYOUT_PLACEHOLDERS = [
+  "content",
+  "event_logo_html",
+  "event_hero_html",
+  ...new Set([...ORDER_TEMPLATE_PLACEHOLDERS, ...CAMPAIGN_PLACEHOLDERS]),
+];

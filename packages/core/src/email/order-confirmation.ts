@@ -3,18 +3,19 @@ import type { EmailTemplateType } from "@lions/db";
 import { prisma } from "../db";
 import { sendEmail } from "./resend";
 import { type RenderableTemplate } from "./template-engine";
-import { renderWithLayout } from "./layout";
+import { renderWithLayout, eventBrandingVars } from "./layout";
 import { getEmailLayoutHtml } from "./get-layout";
 import { defaultEmailTemplates } from "./default-templates";
 import { generateTicketPdf } from "../tickets/pdf";
 import { generateIcsInvite } from "../tickets/ics";
+import { readEventThemeAssets } from "../utils/event-theme";
 
 type OrderWithRelations = {
   id: string;
   buyerName: string;
   buyerEmail: string;
   eventId: string;
-  event: { organizationId: string; name: string; venue: string | null; startsAt: Date };
+  event: { organizationId: string; name: string; venue: string | null; startsAt: Date; theme: unknown };
   tickets: { qrToken: string }[];
   items: { productId: string; quantity: number; product: { name: string; kind: string } }[];
 };
@@ -50,6 +51,7 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
     layoutHtml,
     content: template,
     vars: {
+      ...eventBrandingVars(order.event.theme),
       voornaam: order.buyerName.split(" ")[0] ?? order.buyerName,
       event_naam: order.event.name,
       aantal_tickets: String(order.tickets.length),
@@ -99,6 +101,7 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
   const lines = merchandiseLines(order);
 
   const productNameById = new Map(order.items.map((item) => [item.productId, item.product.name]));
+  const { logoUrl, heroImageUrl } = readEventThemeAssets(order.event.theme);
 
   const attachments: { filename: string; content: string }[] = [];
 
@@ -113,6 +116,8 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
           ticketTypeName: productNameById.get(ticket.productId) ?? "Ticket",
           qrToken: ticket.qrToken,
           merchandiseLines: lines,
+          logoUrl,
+          heroImageUrl,
         });
         return {
           filename: `ticket-${index + 1}.pdf`,

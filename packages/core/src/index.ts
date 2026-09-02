@@ -35,3 +35,4 @@ export * from "./checkout/set-order-status";
 export * from "./checkout/delete-test-order";
 export * from "./audit/log";
 export * from "./utils/datetime";
+export * from "./utils/event-theme";

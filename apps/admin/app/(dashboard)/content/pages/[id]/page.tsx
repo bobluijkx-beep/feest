@@ -12,8 +12,9 @@ export default async function EditPageBlockPage({ params }: { params: Promise<{ 
   const block = await prisma.pageBlock.findUnique({ where: { id } });
   if (!block) notFound();
 
-  const availableTickets =
-    block.type === "availability" ? await getAvailableTicketCount(block.eventId) : undefined;
+  // {{aantal}} werkt inmiddels in elk bloktype, dus altijd ophalen voor een kloppend
+  // voorbeeld (zie de gelijknamige toelichting in new/page.tsx).
+  const availableTickets = await getAvailableTicketCount(block.eventId);
 
   return (
     <Card>

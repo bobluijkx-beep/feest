@@ -19,11 +19,27 @@ function str(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+/** Vervangt {{aantal}} door het live aantal beschikbare tickets, in élk tekstveld van élk
+ * bloktype (niet alleen "availability") — zo kan een bestuurslid "Nog {{aantal}}
+ * toegangskaarten!" net zo goed in een hero-subtitel of FAQ-antwoord zetten. Simpele
+ * split/join per stringveld, geen volledige {{placeholder}}-engine nodig voor één token
+ * (zelfde afweging als system-placeholder-overrides met zijn {{waarde}}). Zonder een
+ * bekend aantal (availableTickets undefined) blijft de tekst ongewijzigd staan. */
+function withAvailableTickets(content: Record<string, unknown>, availableTickets: number | undefined) {
+  if (availableTickets === undefined) return content;
+  const count = String(Math.max(availableTickets, 0));
+  const resolved: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(content)) {
+    resolved[key] = typeof value === "string" ? value.split("{{aantal}}").join(count) : value;
+  }
+  return resolved;
+}
+
 /** Rendert één blok. Onbekend/kapot `content` wordt overgeslagen (met een console.warn),
  * niet een crashende pagina — contentfouten van bestuursleden mogen de kassa nooit
  * platleggen. `availableTickets` is het enige stukje live data dat een blok nodig kan
- * hebben (type "availability") — expliciet meegegeven door de aanroeper (die wél DB-
- * toegang heeft) in plaats van dat dit component zelf gaat fetchen. */
+ * hebben ({{aantal}}, zie withAvailableTickets) — expliciet meegegeven door de aanroeper
+ * (die wél DB-toegang heeft) in plaats van dat dit component zelf gaat fetchen. */
 export function PageBlockView({
   type,
   content,
@@ -37,16 +53,17 @@ export function PageBlockView({
     console.warn(`PageBlock van type "${type}" heeft geen geldige content, wordt overgeslagen.`);
     return null;
   }
+  const c = withAvailableTickets(content, availableTickets);
 
   switch (type) {
     case "hero": {
-      const title = str(content.title);
+      const title = str(c.title);
       if (!title) return null;
-      const subtitle = str(content.subtitle);
-      const imageUrl = str(content.imageUrl);
-      const eyebrow = str(content.eyebrow);
-      const ctaLabel = str(content.ctaLabel);
-      const ctaHref = str(content.ctaHref);
+      const subtitle = str(c.subtitle);
+      const imageUrl = str(c.imageUrl);
+      const eyebrow = str(c.eyebrow);
+      const ctaLabel = str(c.ctaLabel);
+      const ctaHref = str(c.ctaHref);
       return (
         <section className="py-4">
           <HeroFrame eyebrow={eyebrow}>
@@ -55,7 +72,15 @@ export function PageBlockView({
               <img src={imageUrl} alt="" className="mx-auto mb-4 max-w-full rounded-xl" />
             )}
             <h2 className="font-display text-3xl">{title}</h2>
-            {subtitle && <p className="mt-2 text-base font-semibold text-foreground sm:text-lg">{subtitle}</p>}
+            {subtitle && (
+              // subtitle komt uit de HtmlEditor (mag vet/kop/link bevatten, zie
+              // event-omschrijving voor dezelfde afweging) — een <div> i.p.v. <p> om
+              // eventuele geneste kop-HTML geldig te houden.
+              <div
+                className="mt-2 text-base font-semibold text-foreground [&_a]:underline [&_a]:underline-offset-2 sm:text-lg"
+                dangerouslySetInnerHTML={{ __html: subtitle }}
+              />
+            )}
             {ctaLabel && ctaHref && (
               <a href={ctaHref} className={buttonVariants({ size: "lg", className: "mt-4" })}>
                 {ctaLabel}
@@ -67,8 +92,8 @@ export function PageBlockView({
     }
 
     case "programme": {
-      const title = str(content.title);
-      const body = str(content.body);
+      const title = str(c.title);
+      const body = str(c.body);
       if (!title && !body) return null;
       return (
         <section className="py-4">
@@ -83,10 +108,10 @@ export function PageBlockView({
     }
 
     case "sponsor": {
-      const name = str(content.name);
+      const name = str(c.name);
       if (!name) return null;
-      const logoUrl = str(content.logoUrl);
-      const link = str(content.link);
+      const logoUrl = str(c.logoUrl);
+      const link = str(c.link);
       const inner = (
         <>
           {logoUrl && (
@@ -110,8 +135,8 @@ export function PageBlockView({
     }
 
     case "faq_item": {
-      const question = str(content.question);
-      const answer = str(content.answer);
+      const question = str(c.question);
+      const answer = str(c.answer);
       if (!question || !answer) return null;
       return (
         <div className="mb-4">
@@ -122,18 +147,14 @@ export function PageBlockView({
     }
 
     case "availability": {
-      const template = str(content.template);
+      const template = str(c.template);
       if (!template || availableTickets === undefined) return null;
-      // {{aantal}} is bewust géén algemene {{placeholder}}-substitutie (zoals e-mails die
-      // hebben, template-engine.ts) — dit blok kent maar één variabele, dus een simpele
-      // split/join is genoeg en voorkomt escaping-gedoe met de rest van de HTML.
-      const text = template.split("{{aantal}}").join(String(Math.max(availableTickets, 0)));
-      return <p className="text-center text-sm font-semibold sm:text-base" dangerouslySetInnerHTML={{ __html: text }} />;
+      return <p className="text-center text-sm font-semibold sm:text-base" dangerouslySetInnerHTML={{ __html: template }} />;
     }
 
     case "cta": {
-      const label = str(content.label);
-      const href = str(content.href);
+      const label = str(c.label);
+      const href = str(c.href);
       if (!label || !href) return null;
       return (
         <p className="text-center">

@@ -48,7 +48,10 @@ export default async function NewPageBlockPage({
     );
   }
 
-  const availableTickets = type === "availability" ? await getAvailableTicketCount(event.id) : undefined;
+  // {{aantal}} werkt inmiddels in elk bloktype (niet alleen "availability", zie
+  // withAvailableTickets in page-block-view.tsx) — dus altijd ophalen voor een kloppend
+  // voorbeeld, ongeacht welk bloktype hier bewerkt wordt.
+  const availableTickets = await getAvailableTicketCount(event.id);
 
   return (
     <Card>

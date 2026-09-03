@@ -63,7 +63,12 @@ export function HtmlEditor({
   function handleLink() {
     const url = window.prompt("Naar welke URL moet de link verwijzen?", "https://");
     if (!url) return;
-    insertAtCursor(`<a href="${url}">%s</a>`, true);
+    // Nieuw venster is optioneel per link (bv. voor e-mails maakt het weinig uit, maar op
+    // de website scheelt het of iemand de pagina verlaat) — target="_blank" altijd samen
+    // met rel="noopener noreferrer" om de bekende beveiligingslek (window.opener) te dichten.
+    const openInNewWindow = window.confirm("Moet de link in een nieuw venster/tabblad openen?");
+    const attrs = openInNewWindow ? ` target="_blank" rel="noopener noreferrer"` : "";
+    insertAtCursor(`<a href="${url}"${attrs}>%s</a>`, true);
   }
 
   return (

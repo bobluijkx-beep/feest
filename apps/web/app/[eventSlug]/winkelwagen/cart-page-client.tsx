@@ -55,7 +55,12 @@ export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: strin
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-sm text-muted-foreground">€{(item.priceCents / 100).toFixed(2)}</p>
                 </div>
-                <QuantityInput value={item.quantity} onChange={(q) => updateQuantity(item.productId, q)} min={0} />
+                {/* Een donatie heeft altijd quantity 1 tegen een zelfgekozen bedrag — een
+                    stapper zou dat bedrag alleen maar vermenigvuldigen, verwarrender dan
+                    nuttig. Bedrag wijzigen kan via de donatiemodule op /producten. */}
+                {item.kind !== "DONATION" && (
+                  <QuantityInput value={item.quantity} onChange={(q) => updateQuantity(item.productId, q)} min={0} />
+                )}
                 <Button variant="ghost" size="sm" onClick={() => removeItem(item.productId)}>
                   Verwijderen
                 </Button>

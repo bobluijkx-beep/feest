@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@lions/core";
 import { getPublicEvent } from "@/lib/get-event";
 import { ProductGrid } from "./product-grid";
+import { DonationModule } from "./donation-module";
 
 export default async function ProductsPage({ params }: { params: Promise<{ eventSlug: string }> }) {
   const { eventSlug } = await params;
@@ -15,6 +16,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
 
   const ticketProducts = products.filter((p) => p.kind === "TICKET");
   const merchProducts = products.filter((p) => p.kind === "MERCHANDISE");
+  const donationProducts = products.filter((p) => p.kind === "DONATION");
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 md:max-w-4xl lg:max-w-6xl">
@@ -39,6 +41,19 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
           <ProductGrid products={merchProducts} eventSlug={eventSlug} />
         </div>
       )}
+
+      {donationProducts.map((product) => (
+        <div key={product.id} className="mt-6">
+          <h2 className="mb-3 font-heading text-base font-medium">{product.name}</h2>
+          <DonationModule
+            productId={product.id}
+            name={product.name}
+            imageUrl={product.imageUrl}
+            descriptionHtml={product.description}
+            presetsCents={product.donationPresetsCents}
+          />
+        </div>
+      ))}
     </main>
   );
 }

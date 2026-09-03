@@ -52,6 +52,7 @@ enum EmailTemplateType {
 enum ProductKind {
   TICKET
   MERCHANDISE
+  DONATION
 }
 
 enum EmailCampaignStatus {
@@ -121,23 +122,28 @@ model Event {
 // vermelding op het ticket-PDF/de bevestigingsmail. Zie docs/architectuurvoorstel.md
 // ("Fase 5 — één Product-model").
 model Product {
-  id            String      @id @default(cuid())
-  eventId       String
-  event         Event       @relation(fields: [eventId], references: [id])
-  kind          ProductKind @default(MERCHANDISE)
-  name          String
-  description   String?
-  imageUrl      String?
-  priceCents    Int
-  currency      String      @default("EUR")
-  totalStock    Int
-  reservedStock Int         @default(0)
-  soldStock     Int         @default(0)
-  isActive      Boolean     @default(true)
-  orderItems    OrderItem[]
-  tickets       Ticket[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                   String      @id @default(cuid())
+  eventId              String
+  event                Event       @relation(fields: [eventId], references: [id])
+  kind                 ProductKind @default(MERCHANDISE)
+  name                 String
+  description          String?
+  imageUrl             String?
+  priceCents           Int
+  currency             String      @default("EUR")
+  totalStock           Int
+  reservedStock        Int         @default(0)
+  soldStock            Int         @default(0)
+  isActive             Boolean     @default(true)
+  // Alleen relevant voor kind=DONATION: de 3 voorgestelde bedragen (in centen) die als
+  // knoppen op de site verschijnen naast het vrij-in-te-vullen "ander bedrag"-veld. Voor
+  // TICKET/MERCHANDISE altijd leeg. Zie packages/core/src/checkout/donation.ts voor de
+  // (server-side gevalideerde) minimumgrens van een vrij bedrag.
+  donationPresetsCents Int[]       @default([])
+  orderItems           OrderItem[]
+  tickets              Ticket[]
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   @@index([eventId])
   @@map("products")

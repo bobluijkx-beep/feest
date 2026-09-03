@@ -14,7 +14,10 @@ export default async function ProductDetailPage({
   if (!event) notFound();
 
   const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product || product.eventId !== event.id || !product.isActive) notFound();
+  // Een donatieproduct heeft geen vaste prijs en dus geen zinvolle detailpagina met deze
+  // sjabloon (AddToCartButton kent geen "ander bedrag"-veld) — die leeft alleen als
+  // DonationModule op /producten zelf, nooit op deze route.
+  if (!product || product.eventId !== event.id || !product.isActive || product.kind === "DONATION") notFound();
 
   const available = product.totalStock - product.reservedStock - product.soldStock;
 

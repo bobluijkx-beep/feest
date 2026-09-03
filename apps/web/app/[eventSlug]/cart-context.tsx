@@ -14,6 +14,11 @@ export interface CartItem {
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">, quantity: number) => void;
+  /** Vervangt (i.p.v. optelt bij) een bestaande regel voor dit productId — nodig voor de
+   * donatiemodule (donation-module.tsx): addItem's merge-gedrag zou bij een tweede keuze
+   * (bv. eerst €10, dan €25) alleen de quantity optellen en de oude priceCents laten
+   * staan, wat voor een donatie het gekozen bedrag stilletjes fout zou laten staan. */
+  setItem: (item: Omit<CartItem, "quantity">, quantity: number) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   clear: () => void;
@@ -64,6 +69,13 @@ export function CartProvider({ eventSlug, children }: { eventSlug: string; child
     });
   }
 
+  function setItem(item: Omit<CartItem, "quantity">, quantity: number) {
+    setItems((prev) => {
+      const others = prev.filter((i) => i.productId !== item.productId);
+      return quantity <= 0 ? others : [...others, { ...item, quantity }];
+    });
+  }
+
   function updateQuantity(productId: string, quantity: number) {
     setItems((prev) =>
       quantity <= 0
@@ -85,7 +97,7 @@ export function CartProvider({ eventSlug, children }: { eventSlug: string; child
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, updateQuantity, removeItem, clear, totalCount, totalCents, hydrated }}
+      value={{ items, addItem, setItem, updateQuantity, removeItem, clear, totalCount, totalCents, hydrated }}
     >
       {children}
     </CartContext.Provider>

@@ -29,6 +29,7 @@ export * from "./email/segment";
 export * from "./email/unsubscribe";
 export * from "./email/bulk-campaign";
 export * from "./checkout/errors";
+export * from "./checkout/donation";
 export * from "./checkout/create-order";
 export * from "./checkout/webhook";
 export * from "./checkout/expire-stale-orders";

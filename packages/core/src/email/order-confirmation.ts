@@ -21,13 +21,17 @@ type OrderWithRelations = {
   eventId: string;
   event: { organizationId: string; name: string; venue: string | null; startsAt: Date; theme: unknown };
   tickets: { qrToken: string }[];
-  items: { productId: string; quantity: number; product: { name: string; kind: string } }[];
+  items: { productId: string; quantity: number; unitPriceCents: number; product: { name: string; kind: string } }[];
 };
 
 function merchandiseLines(order: OrderWithRelations): string[] {
   return order.items
-    .filter((item) => item.product.kind === "MERCHANDISE")
-    .map((item) => `${item.quantity}x ${item.product.name}`);
+    .filter((item) => item.product.kind === "MERCHANDISE" || item.product.kind === "DONATION")
+    .map((item) =>
+      item.product.kind === "DONATION"
+        ? `${item.product.name} — €${((item.unitPriceCents * item.quantity) / 100).toFixed(2)}`
+        : `${item.quantity}x ${item.product.name}`,
+    );
 }
 
 /** Rendert een order-mail vólledig verzendklaar: de per-type inhoud (DB-rij of

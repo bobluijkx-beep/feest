@@ -4,3 +4,10 @@ export class InsufficientStockError extends Error {
     this.name = "InsufficientStockError";
   }
 }
+
+export class InvalidDonationAmountError extends Error {
+  constructor(public productId: string) {
+    super("Ongeldig donatiebedrag (moet minimaal €2,50 zijn).");
+    this.name = "InvalidDonationAmountError";
+  }
+}

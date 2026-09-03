@@ -14,7 +14,15 @@ export async function startCheckout(formData: FormData): Promise<void> {
 
   const items = [...formData.entries()]
     .filter(([key]) => key.startsWith("qty_"))
-    .map(([key, value]) => ({ productId: key.slice("qty_".length), quantity: Number(value) }))
+    .map(([key, value]) => {
+      const productId = key.slice("qty_".length);
+      // amount_<id>: alleen aanwezig voor een donatieregel (checkout-form.tsx) — het door
+      // de bezoeker gekozen bedrag. createOrder() valideert dit hoe dan ook opnieuw tegen
+      // de minimumgrens voordat het ooit als prijs gebruikt wordt.
+      const amountRaw = formData.get(`amount_${productId}`);
+      const customAmountCents = amountRaw !== null ? Number(amountRaw) : undefined;
+      return { productId, quantity: Number(value), customAmountCents };
+    })
     .filter((item) => item.quantity > 0);
 
   if (!eventId || !buyerName || !buyerEmail || items.length === 0) {

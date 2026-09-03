@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { Button, Card, CardContent, Input, Label, buttonVariants } from "@lions/ui";
 import { useCart } from "../cart-context";
@@ -36,7 +37,12 @@ export function CheckoutForm({
           <input type="hidden" name="eventId" value={eventId} />
           <input type="hidden" name="eventSlug" value={eventSlug} />
           {items.map((item) => (
-            <input key={item.productId} type="hidden" name={`qty_${item.productId}`} value={item.quantity} />
+            <Fragment key={item.productId}>
+              <input type="hidden" name={`qty_${item.productId}`} value={item.quantity} />
+              {item.kind === "DONATION" && (
+                <input type="hidden" name={`amount_${item.productId}`} value={item.priceCents} />
+              )}
+            </Fragment>
           ))}
 
           <Card>
@@ -44,9 +50,10 @@ export function CheckoutForm({
               <h2 className="font-heading text-base font-medium">Overzicht</h2>
               {items.map((item) => (
                 <div key={item.productId} className="flex items-center justify-between text-sm">
-                  <span>
-                    {item.quantity}x {item.name}
-                  </span>
+                  {/* Een donatie heeft geen zinvolle "aantal x"-weergave — het is altijd
+                      quantity 1 tegen een zelfgekozen bedrag, geen aantal keer eenzelfde
+                      vaste prijs. */}
+                  <span>{item.kind === "DONATION" ? item.name : `${item.quantity}x ${item.name}`}</span>
                   <span>€{((item.priceCents * item.quantity) / 100).toFixed(2)}</span>
                 </div>
               ))}

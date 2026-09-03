@@ -8,7 +8,12 @@ import { uploadEmailImage } from "./actions";
  * execCommand is te fragiel/verouderd, en het resultaat moet toch geldige, verzendbare
  * HTML blijven) — in plaats daarvan een gewone brontekst-textarea met een werkbalk die
  * HTML op de cursorpositie invoegt (vet/cursief/link/kop/afbeelding/placeholder), plus de
- * al bestaande live iframe-voorbeeld ernaast om te zien wat je typt. */
+ * al bestaande live iframe-voorbeeld ernaast om te zien wat je typt.
+ *
+ * Wat je hier typt IS al de HTML — er zit geen verborgen laag onder. Een kale Enter in de
+ * tekst wordt in HTML alleen als whitespace gezien (browsers breken er geen regel op af),
+ * dus Enter voegt hier expliciet <br> toe i.p.v. alleen een newline-teken; de "Regel
+ * afbreken"-knop doet hetzelfde voor wie 'm liever met de muis invoegt. */
 export function HtmlEditor({
   value,
   onChange,
@@ -60,6 +65,14 @@ export function HtmlEditor({
     });
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // isComposing: niet ingrijpen tijdens IME-tekstinvoer (bv. Japans/Chinees), waar Enter
+    // de samengestelde tekst bevestigt in plaats van een nieuwe regel te betekenen.
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    insertAtCursor("<br>\n", false);
+  }
+
   function handleLink() {
     const url = window.prompt("Naar welke URL moet de link verwijzen?", "https://");
     if (!url) return;
@@ -94,6 +107,9 @@ export function HtmlEditor({
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={() => insertAtCursor("<h2>%s</h2>", true)}>
           Kop
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => insertAtCursor("<br>\n", false)}>
+          Regel afbreken
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={handleLink}>
           Link
@@ -135,6 +151,7 @@ export function HtmlEditor({
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
         rows={rows}
         className="w-full rounded-b-lg border border-input bg-transparent px-2.5 py-1.5 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       />

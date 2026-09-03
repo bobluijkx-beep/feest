@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { PageBlockView, Button, Input, Label, Select } from "@lions/ui";
+import { HtmlEditor } from "../emails/html-editor";
 
 type Fields = Record<string, string>;
 
 interface FieldDef {
   name: string;
   label: string;
-  kind?: "text" | "textarea" | "select";
+  kind?: "text" | "textarea" | "html" | "select";
   options?: { value: string; label: string }[];
 }
 
@@ -38,6 +39,13 @@ const FIELD_DEFS: Record<string, FieldDef[]> = {
     { name: "label", label: "Knoptekst" },
     { name: "href", label: "Link" },
   ],
+  availability: [
+    {
+      name: "template",
+      label: "Tekst (gebruik de placeholder {{aantal}} voor het nog beschikbare aantal toegangskaarten)",
+      kind: "html",
+    },
+  ],
 };
 
 export function BlockForm({
@@ -46,12 +54,16 @@ export function BlockForm({
   initial,
   submitLabel,
   hiddenFields,
+  previewAvailableTickets,
 }: {
   type: string;
   action: (formData: FormData) => void | Promise<void>;
   initial: { order: number; isPublished: boolean; content: Record<string, string> };
   submitLabel: string;
   hiddenFields?: Record<string, string>;
+  /** Echt, live opgehaald aantal (new/page.tsx, [id]/page.tsx) — alleen relevant voor het
+   * "availability"-blok, zodat "Voorbeeld tonen" hier niet met een verzonnen getal werkt. */
+  previewAvailableTickets?: number;
 }) {
   const fields = FIELD_DEFS[type] ?? [];
   const [values, setValues] = useState<Fields>(() => {
@@ -79,6 +91,16 @@ export function BlockForm({
               rows={4}
               className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
+          ) : f.kind === "html" ? (
+            <>
+              <HtmlEditor
+                value={values[f.name]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))}
+                placeholders={["aantal"]}
+                rows={3}
+              />
+              <input type="hidden" name={f.name} value={values[f.name]} />
+            </>
           ) : f.kind === "select" ? (
             <Select
               id={f.name}
@@ -130,7 +152,7 @@ export function BlockForm({
 
       {showPreview && (
         <div className="rounded-lg border border-border p-4">
-          <PageBlockView type={type} content={values} />
+          <PageBlockView type={type} content={values} availableTickets={previewAvailableTickets} />
         </div>
       )}
     </form>

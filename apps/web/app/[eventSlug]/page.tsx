@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { prisma } from "@lions/core";
+import { prisma, getAvailableTicketCount } from "@lions/core";
 import { PageBlocksList, HeroFrame, buttonVariants } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { ContactSuccessDialog } from "./contact-success-dialog";
@@ -23,10 +23,13 @@ export default async function EventPage({
   const event = await getPublicEvent(eventSlug);
   if (!event) notFound();
 
-  const pageBlocks = await prisma.pageBlock.findMany({
-    where: { eventId: event.id, isPublished: true },
-    orderBy: { order: "asc" },
-  });
+  const [pageBlocks, availableTickets] = await Promise.all([
+    prisma.pageBlock.findMany({
+      where: { eventId: event.id, isPublished: true },
+      orderBy: { order: "asc" },
+    }),
+    getAvailableTicketCount(event.id),
+  ]);
 
   const dateEyebrow = event.startsAt
     .toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: "Europe/Amsterdam" })
@@ -70,7 +73,7 @@ export default async function EventPage({
       )}
 
       <div className="mt-6">
-        <PageBlocksList blocks={pageBlocks} />
+        <PageBlocksList blocks={pageBlocks} availableTickets={availableTickets} />
       </div>
 
       {/* Bevestigingspop-up na het contactformulier (apps/web/app/(site)/contact) — dat

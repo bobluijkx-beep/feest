@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@lions/core";
+import { prisma, getAvailableTicketCount } from "@lions/core";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
 import { BlockForm } from "../block-form";
@@ -11,6 +11,9 @@ export default async function EditPageBlockPage({ params }: { params: Promise<{ 
 
   const block = await prisma.pageBlock.findUnique({ where: { id } });
   if (!block) notFound();
+
+  const availableTickets =
+    block.type === "availability" ? await getAvailableTicketCount(block.eventId) : undefined;
 
   return (
     <Card>
@@ -28,6 +31,7 @@ export default async function EditPageBlockPage({ params }: { params: Promise<{ 
           }}
           submitLabel="Opslaan"
           hiddenFields={{ id: block.id }}
+          previewAvailableTickets={availableTickets}
         />
         <form action={deletePageBlock}>
           <input type="hidden" name="id" value={block.id} />

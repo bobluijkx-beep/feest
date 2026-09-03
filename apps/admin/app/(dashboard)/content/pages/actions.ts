@@ -32,6 +32,8 @@ function contentFromFormData(type: string, formData: FormData): Record<string, s
       return { question: field(formData, "question"), answer: field(formData, "answer") };
     case "cta":
       return { label: field(formData, "label"), href: field(formData, "href") };
+    case "availability":
+      return { template: field(formData, "template") };
     default:
       return {};
   }

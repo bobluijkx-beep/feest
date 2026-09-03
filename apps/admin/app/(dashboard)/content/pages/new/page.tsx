@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent, buttonVariants } from "@lions/ui";
+import { getAvailableTicketCount } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { BlockForm } from "../block-form";
@@ -12,6 +13,7 @@ const BLOCK_TYPES = [
   { type: "sponsor", label: "Sponsor" },
   { type: "faq_item", label: "FAQ-item" },
   { type: "cta", label: "Call-to-action" },
+  { type: "availability", label: "Beschikbare tickets" },
 ];
 
 export default async function NewPageBlockPage({
@@ -46,6 +48,8 @@ export default async function NewPageBlockPage({
     );
   }
 
+  const availableTickets = type === "availability" ? await getAvailableTicketCount(event.id) : undefined;
+
   return (
     <Card>
       <CardHeader>
@@ -58,6 +62,7 @@ export default async function NewPageBlockPage({
           initial={{ order: 0, isPublished: false, content: {} }}
           submitLabel="Aanmaken"
           hiddenFields={{ eventId: event.id }}
+          previewAvailableTickets={availableTickets}
         />
       </CardContent>
     </Card>

@@ -21,8 +21,18 @@ function str(value: unknown): string | undefined {
 
 /** Rendert één blok. Onbekend/kapot `content` wordt overgeslagen (met een console.warn),
  * niet een crashende pagina — contentfouten van bestuursleden mogen de kassa nooit
- * platleggen. */
-export function PageBlockView({ type, content }: { type: string; content: unknown }) {
+ * platleggen. `availableTickets` is het enige stukje live data dat een blok nodig kan
+ * hebben (type "availability") — expliciet meegegeven door de aanroeper (die wél DB-
+ * toegang heeft) in plaats van dat dit component zelf gaat fetchen. */
+export function PageBlockView({
+  type,
+  content,
+  availableTickets,
+}: {
+  type: string;
+  content: unknown;
+  availableTickets?: number;
+}) {
   if (!isRecord(content)) {
     console.warn(`PageBlock van type "${type}" heeft geen geldige content, wordt overgeslagen.`);
     return null;
@@ -111,6 +121,16 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
       );
     }
 
+    case "availability": {
+      const template = str(content.template);
+      if (!template || availableTickets === undefined) return null;
+      // {{aantal}} is bewust géén algemene {{placeholder}}-substitutie (zoals e-mails die
+      // hebben, template-engine.ts) — dit blok kent maar één variabele, dus een simpele
+      // split/join is genoeg en voorkomt escaping-gedoe met de rest van de HTML.
+      const text = template.split("{{aantal}}").join(String(Math.max(availableTickets, 0)));
+      return <p className="text-center text-sm font-semibold sm:text-base" dangerouslySetInnerHTML={{ __html: text }} />;
+    }
+
     case "cta": {
       const label = str(content.label);
       const href = str(content.href);
@@ -130,11 +150,17 @@ export function PageBlockView({ type, content }: { type: string; content: unknow
   }
 }
 
-export function PageBlocksList({ blocks }: { blocks: PageBlockData[] }) {
+export function PageBlocksList({
+  blocks,
+  availableTickets,
+}: {
+  blocks: PageBlockData[];
+  availableTickets?: number;
+}) {
   return (
     <>
       {blocks.map((block) => (
-        <PageBlockView key={block.id} type={block.type} content={block.content} />
+        <PageBlockView key={block.id} type={block.type} content={block.content} availableTickets={availableTickets} />
       ))}
     </>
   );

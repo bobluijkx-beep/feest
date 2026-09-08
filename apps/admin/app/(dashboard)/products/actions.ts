@@ -164,6 +164,9 @@ export async function updateProduct(
   return { success: true };
 }
 
+/** Permanent verwijderen kan uitsluitend vanuit de "Inactief"-afdeling: een product moet
+ * eerst op inactief gezet zijn — zelfde patroon en zelfde reden als bij bestellingen
+ * (orders/actions.ts): een echte serverside-check, niet alleen een UI-restrictie. */
 export async function deleteProduct(
   _prevState: ProductActionState,
   formData: FormData,
@@ -173,9 +176,15 @@ export async function deleteProduct(
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Ontbrekend id." };
 
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) return { error: "Product niet gevonden." };
+  if (existing.isActive) {
+    return { error: "Alleen inactieve producten kunnen verwijderd worden. Zet het product eerst op inactief." };
+  }
+
   const orderItemCount = await prisma.orderItem.count({ where: { productId: id } });
   if (orderItemCount > 0) {
-    return { error: "Dit product is al gebruikt in bestellingen — deactiveer het in plaats van verwijderen." };
+    return { error: "Dit product is al gebruikt in bestellingen en kan niet verwijderd worden." };
   }
 
   await prisma.product.delete({ where: { id } });
@@ -189,5 +198,70 @@ export async function deleteProduct(
   });
 
   revalidatePath("/products");
+  revalidatePath("/products/inactief");
   return { success: true };
+}
+
+export interface BulkActionResult {
+  error?: string;
+}
+
+/** Bulk-variant van de "Actief"-toggle in het bewerkformulier — rechtstreeks aangeroepen
+ * vanuit de selectievakjes-werkbalk (zie apps/admin/lib/use-bulk-selection.ts), dus met
+ * een array van id's i.p.v. FormData. */
+export async function bulkSetProductsActive(productIds: string[], isActive: boolean): Promise<BulkActionResult> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  if (productIds.length === 0) return {};
+
+  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+  await prisma.product.updateMany({ where: { id: { in: productIds } }, data: { isActive } });
+
+  for (const product of products) {
+    await logAudit({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      action: isActive ? "product_activated" : "product_deactivated",
+      entityType: "product",
+      entityId: product.id,
+      metadata: { name: product.name, bulk: true },
+    });
+  }
+
+  revalidatePath("/products");
+  revalidatePath("/products/inactief");
+  return {};
+}
+
+/** Bulk-variant van deleteProduct — zelfde harde regels per product (alleen inactief, niet
+ * gebruikt in bestellingen), maar loopt door zonder bij de eerste fout te stoppen. */
+export async function bulkDeleteProducts(productIds: string[]): Promise<BulkActionResult> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  if (productIds.length === 0) return {};
+
+  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+  const errors: string[] = [];
+  for (const product of products) {
+    if (product.isActive) {
+      errors.push(`${product.name}: alleen inactieve producten kunnen verwijderd worden.`);
+      continue;
+    }
+    const orderItemCount = await prisma.orderItem.count({ where: { productId: product.id } });
+    if (orderItemCount > 0) {
+      errors.push(`${product.name}: al gebruikt in bestellingen.`);
+      continue;
+    }
+    await prisma.product.delete({ where: { id: product.id } });
+    await logAudit({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      action: "product_deleted",
+      entityType: "product",
+      entityId: product.id,
+      metadata: { name: product.name, bulk: true },
+    });
+  }
+
+  revalidatePath("/products");
+  revalidatePath("/products/inactief");
+  return errors.length > 0 ? { error: errors.slice(0, 3).join(" ") } : {};
 }

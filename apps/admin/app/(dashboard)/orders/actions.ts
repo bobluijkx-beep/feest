@@ -116,6 +116,77 @@ export async function setOrderVisible(
   return { success: true };
 }
 
+export interface BulkActionResult {
+  error?: string;
+}
+
+/** Bulk-variant van setOrderVisible: rechtstreeks vanuit een client component aangeroepen
+ * (niet via useActionState/FormData, want die krijgt hier een array van id's mee) door de
+ * selectievakjes-werkbalk op /orders en /orders/inactief. Loopt gewoon over de bestaande,
+ * al geteste setOrderVisibility per order i.p.v. een aparte bulk-SQL-query — bij dit
+ * schaalniveau (max 100 rijen per pagina) weegt hergebruik van de geteste single-item-
+ * logica zwaarder dan de iets hogere queryload. */
+export async function bulkSetOrdersVisible(orderIds: string[], isVisible: boolean): Promise<BulkActionResult> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  if (orderIds.length === 0) return {};
+
+  const orders = await prisma.order.findMany({ where: { id: { in: orderIds } } });
+  let failed = 0;
+  for (const order of orders) {
+    const result = await setOrderVisibility(order.id, isVisible);
+    if (result.ok) {
+      await logAudit({
+        organizationId: actor.organizationId,
+        actorUserId: actor.id,
+        action: isVisible ? "order_reactivated" : "order_deactivated",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { buyerEmail: order.buyerEmail, bulk: true },
+      });
+    } else {
+      failed++;
+    }
+  }
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
+  return failed > 0 ? { error: `${failed} van ${orders.length} bestellingen konden niet bijgewerkt worden.` } : {};
+}
+
+/** Bulk-variant van deleteOrder — zelfde harde regel als de losse actie: alleen inactieve
+ * bestellingen mogen weg, serverside gecontroleerd (niet alleen omdat de knop toevallig
+ * alleen op /orders/inactief staat). */
+export async function bulkDeleteOrders(orderIds: string[]): Promise<BulkActionResult> {
+  const actor = await requireStaffRole(["ADMIN"]);
+  if (orderIds.length === 0) return {};
+
+  const orders = await prisma.order.findMany({ where: { id: { in: orderIds } } });
+  const errors: string[] = [];
+  for (const order of orders) {
+    if (order.isVisible) {
+      errors.push(`${order.buyerName}: alleen inactieve bestellingen kunnen verwijderd worden.`);
+      continue;
+    }
+    const result = await deleteTestOrder(order.id);
+    if (result.ok) {
+      await logAudit({
+        organizationId: actor.organizationId,
+        actorUserId: actor.id,
+        action: "test_order_deleted",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { buyerEmail: order.buyerEmail, previousStatus: order.status, totalCents: order.totalCents, bulk: true },
+      });
+    } else {
+      errors.push(`${order.buyerName}: ${result.error}`);
+    }
+  }
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
+  return errors.length > 0 ? { error: errors.slice(0, 3).join(" ") } : {};
+}
+
 const SETTABLE_STATUSES: OrderStatus[] = ["PENDING", "PAID", "EXPIRED", "FAILED", "CANCELLED", "REFUNDED"];
 
 /** Handmatige statuscorrectie — bv. een betaling die buiten Mollie om alsnog is

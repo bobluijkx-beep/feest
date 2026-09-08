@@ -107,6 +107,10 @@ export async function toggleStaffActive(formData: FormData): Promise<void> {
   const userId = String(formData.get("userId") ?? "");
   const isActive = formData.get("isActive") === "true";
   if (!userId) return;
+  // Nooit het eigen account deactiveren — dezelfde bescherming als bulkSetUsersActive,
+  // anders sluit je jezelf per ongeluk buiten (deze knop staat sowieso al disabled in de
+  // UI voor je eigen rij, maar dit is de echte serverside-grens).
+  if (isActive && userId === actor.id) return;
 
   await prisma.user.update({ where: { id: userId }, data: { isActive: !isActive } });
   await logAudit({
@@ -117,4 +121,87 @@ export async function toggleStaffActive(formData: FormData): Promise<void> {
     entityId: userId,
   });
   revalidatePath("/users");
+  revalidatePath("/users/inactief");
+}
+
+export interface BulkActionResult {
+  error?: string;
+}
+
+/** Bulk-variant van toggleStaffActive — rechtstreeks aangeroepen vanuit de
+ * selectievakjes-werkbalk (zie apps/admin/lib/use-bulk-selection.ts) met een array van
+ * id's i.p.v. FormData. Nooit het eigen account deactiveren, anders sluit je jezelf
+ * per ongeluk buiten. */
+export async function bulkSetUsersActive(userIds: string[], isActive: boolean): Promise<BulkActionResult> {
+  const actor = await requireStaffRole(["ADMIN"]);
+  if (userIds.length === 0) return {};
+  if (!isActive && userIds.includes(actor.id)) {
+    return { error: "Je kunt je eigen account niet deactiveren." };
+  }
+
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } } });
+  await prisma.user.updateMany({ where: { id: { in: userIds } }, data: { isActive } });
+
+  for (const user of users) {
+    await logAudit({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      action: isActive ? "user_activated" : "user_deactivated",
+      entityType: "user",
+      entityId: user.id,
+      metadata: { email: user.email, bulk: true },
+    });
+  }
+
+  revalidatePath("/users");
+  revalidatePath("/users/inactief");
+  return {};
+}
+
+/** Permanent verwijderen kan uitsluitend gedeactiveerde gebruikers treffen (zelfde patroon
+ * als bestellingen/producten) en nooit het eigen account. Ruimt naast de eigen rij ook de
+ * Supabase Auth-gebruiker op — getCurrentUser (session.ts) wijst een sessie zonder
+ * passende @lions/db-rij sowieso al af, maar zonder dit zou er een weeskoppeling met een
+ * los, nog inlogbaar Auth-account blijven bestaan. EventAccess staat op ON DELETE
+ * RESTRICT en moet daarom eerst expliciet weg. Gebruikt zowel door de losse
+ * "Verwijderen"-knop per rij (met één id) als de bulkactie in de werkbalk. */
+export async function bulkDeleteUsers(userIds: string[]): Promise<BulkActionResult> {
+  const actor = await requireStaffRole(["ADMIN"]);
+  if (userIds.length === 0) return {};
+
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } } });
+  const supabaseAdmin = createAdminSupabaseClient();
+  const errors: string[] = [];
+
+  for (const user of users) {
+    if (user.id === actor.id) {
+      errors.push(`${user.email}: kan het eigen account niet verwijderen.`);
+      continue;
+    }
+    if (user.isActive) {
+      errors.push(`${user.email}: alleen gedeactiveerde gebruikers kunnen verwijderd worden.`);
+      continue;
+    }
+
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.supabaseAuthId);
+    if (authError) console.error("Kon Supabase Auth-gebruiker niet verwijderen", user.id, authError);
+
+    await prisma.$transaction([
+      prisma.eventAccess.deleteMany({ where: { userId: user.id } }),
+      prisma.user.delete({ where: { id: user.id } }),
+    ]);
+
+    await logAudit({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      action: "user_deleted",
+      entityType: "user",
+      entityId: user.id,
+      metadata: { email: user.email, bulk: true },
+    });
+  }
+
+  revalidatePath("/users");
+  revalidatePath("/users/inactief");
+  return errors.length > 0 ? { error: errors.slice(0, 3).join(" ") } : {};
 }

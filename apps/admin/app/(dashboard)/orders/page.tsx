@@ -1,20 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@lions/core";
-import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
-import { RefundButton } from "./refund-button";
 import { EventFilter } from "./event-filter";
-import { OrderDetailDialog } from "./order-detail-dialog";
-import { CheckInSummary } from "./checkin-summary";
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  PAID: "default",
-  PENDING: "secondary",
-  FAILED: "destructive",
-  CANCELLED: "destructive",
-  EXPIRED: "destructive",
-  REFUNDED: "outline",
-};
+import { OrdersTable } from "./orders-table";
 
 export default async function OrdersPage({
   searchParams,
@@ -47,55 +35,7 @@ export default async function OrdersPage({
           Inactieve bestellingen bekijken{inactiveCount > 0 ? ` (${inactiveCount})` : ""}
         </Link>
       </div>
-      <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Koper</TableHead>
-          <TableHead>Event</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Tickets</TableHead>
-          <TableHead>Ingecheckt</TableHead>
-          <TableHead className="text-right">Totaal</TableHead>
-          <TableHead>Besteld op</TableHead>
-          <TableHead>Acties</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {orders.map((order) => (
-          <TableRow key={order.id}>
-            <TableCell>
-              <div>{order.buyerName}</div>
-              <div className="text-xs text-muted-foreground">{order.buyerEmail}</div>
-            </TableCell>
-            <TableCell>{order.event.name}</TableCell>
-            <TableCell>
-              <Badge variant={STATUS_VARIANT[order.status] ?? "outline"}>{order.status}</Badge>
-            </TableCell>
-            <TableCell className="text-right">
-              {order.tickets.length || order.items.reduce((sum, item) => sum + item.quantity, 0)}
-            </TableCell>
-            <TableCell>
-              <CheckInSummary tickets={order.tickets} />
-            </TableCell>
-            <TableCell className="text-right">€{(order.totalCents / 100).toFixed(2)}</TableCell>
-            <TableCell>{order.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</TableCell>
-            <TableCell>
-              <div className="flex flex-col items-start gap-1">
-                <OrderDetailDialog orderId={order.id} />
-                {order.status === "PAID" && <RefundButton orderId={order.id} />}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-        {orders.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={8} className="text-center text-muted-foreground">
-              Nog geen bestellingen.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-      </Table>
+      <OrdersTable orders={orders} mode="active" canDelete={false} />
     </div>
   );
 }

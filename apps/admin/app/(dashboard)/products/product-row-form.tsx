@@ -23,7 +23,18 @@ interface Product {
   eventName: string;
 }
 
-export function ProductRowForm({ product }: { product: Product }) {
+export function ProductRowForm({
+  product,
+  selected,
+  onToggleSelect,
+}: {
+  product: Product;
+  /** Alleen meegegeven door ProductsList (products-list.tsx), dat de selectievakjes-
+   * werkbalk erboven rendert — zonder deze props (component blijft zo ook los bruikbaar)
+   * verschijnt er geen vakje. */
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const [updateState, updateAction, updatePending] = useActionState(updateProduct, initialState);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteProduct, initialState);
   const [kind, setKind] = useState(product.kind);
@@ -35,6 +46,15 @@ export function ProductRowForm({ product }: { product: Product }) {
   return (
     <Card>
       <CardHeader>
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            checked={selected ?? false}
+            onChange={onToggleSelect}
+            className="mr-2 size-4 rounded border-input"
+            aria-label={`Selecteer ${product.name}`}
+          />
+        )}
         <CardTitle>{product.name}</CardTitle>
         <CardAction>
           <Badge variant="outline">{product.eventName}</Badge>
@@ -151,17 +171,21 @@ export function ProductRowForm({ product }: { product: Product }) {
         </form>
         {updateState.error && <p className="text-sm text-destructive">{updateState.error}</p>}
 
-        <form
-          action={deleteAction}
-          onSubmit={(e) => {
-            if (!window.confirm(`Product "${product.name}" verwijderen?`)) e.preventDefault();
-          }}
-        >
-          <input type="hidden" name="id" value={product.id} />
-          <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
-            {deletePending ? "Bezig…" : "Verwijderen"}
-          </Button>
-        </form>
+        {/* Verwijderen kan alleen als het product al op inactief staat (zelfde regel als
+            bestellingen) — dus alleen relevant op de "Inactief"-afdeling. */}
+        {!product.isActive && (
+          <form
+            action={deleteAction}
+            onSubmit={(e) => {
+              if (!window.confirm(`Product "${product.name}" definitief verwijderen?`)) e.preventDefault();
+            }}
+          >
+            <input type="hidden" name="id" value={product.id} />
+            <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
+              {deletePending ? "Bezig…" : "Verwijderen"}
+            </Button>
+          </form>
+        )}
         {deleteState.error && <p className="text-sm text-destructive">{deleteState.error}</p>}
       </CardContent>
     </Card>

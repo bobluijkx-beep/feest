@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { prisma } from "@lions/core";
 import { Card, CardHeader, CardTitle, CardContent } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
-import { ProductRowForm } from "./product-row-form";
+import { ProductsList } from "./products-list";
 import { CreateProductForm } from "./create-product-form";
 
 export default async function ProductsPage() {
@@ -17,21 +18,31 @@ export default async function ProductsPage() {
   }
 
   const eventNameById = new Map(events.map((event) => [event.id, event.name]));
+  const eventIds = events.map((event) => event.id);
 
-  const products = await prisma.product.findMany({
-    where: { eventId: { in: events.map((event) => event.id) } },
-    orderBy: [{ eventId: "asc" }, { createdAt: "asc" }],
-  });
+  const [products, inactiveCount] = await Promise.all([
+    prisma.product.findMany({
+      where: { eventId: { in: eventIds }, isActive: true },
+      orderBy: [{ eventId: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.product.count({ where: { eventId: { in: eventIds }, isActive: false } }),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
-      {products.map((product) => (
-        <ProductRowForm
-          key={product.id}
-          product={{ ...product, eventName: eventNameById.get(product.eventId) ?? "?" }}
-        />
-      ))}
-      {products.length === 0 && <p className="text-sm text-muted-foreground">Nog geen producten.</p>}
+      <div className="flex items-center justify-end">
+        <Link
+          href="/products/inactief"
+          className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Inactieve producten bekijken{inactiveCount > 0 ? ` (${inactiveCount})` : ""}
+        </Link>
+      </div>
+
+      <ProductsList
+        products={products.map((product) => ({ ...product, eventName: eventNameById.get(product.eventId) ?? "?" }))}
+        mode="active"
+      />
 
       <Card>
         <CardHeader>

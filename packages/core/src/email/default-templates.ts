@@ -13,6 +13,7 @@ export const defaultEmailTemplates: Record<EmailTemplateType, RenderableTemplate
       {{tickets_sectie}}
       {{merchandise}}
       <p>Tot dan!<br/>Lionsclub Voorschoten</p>
+      <p style="margin-top:24px;font-size:12px;color:#8a8a8d;">Wil je geen e-mails meer van ons ontvangen? {{afmeldlink}}.</p>
     `.trim(),
   },
   PAYMENT_FAILED: {
@@ -25,6 +26,7 @@ export const defaultEmailTemplates: Record<EmailTemplateType, RenderableTemplate
       <p>Wil je het nog eens proberen? Ga terug naar de website en start een nieuwe
       bestelling.</p>
       <p>Lionsclub Voorschoten</p>
+      <p style="margin-top:24px;font-size:12px;color:#8a8a8d;">Wil je geen e-mails meer van ons ontvangen? {{afmeldlink}}.</p>
     `.trim(),
   },
   PAYMENT_REMINDER: {
@@ -34,6 +36,7 @@ export const defaultEmailTemplates: Record<EmailTemplateType, RenderableTemplate
       <p>Je bent bijna klaar! Je bestelling voor <strong>{{event_naam}}</strong> staat nog
       klaar, maar de betaling is nog niet afgerond.</p>
       <p>Lionsclub Voorschoten</p>
+      <p style="margin-top:24px;font-size:12px;color:#8a8a8d;">Wil je geen e-mails meer van ons ontvangen? {{afmeldlink}}.</p>
     `.trim(),
   },
   CANCELLED: {
@@ -42,6 +45,7 @@ export const defaultEmailTemplates: Record<EmailTemplateType, RenderableTemplate
       <p>Beste {{voornaam}},</p>
       <p>Je bestelling voor <strong>{{event_naam}}</strong> is geannuleerd.</p>
       <p>Lionsclub Voorschoten</p>
+      <p style="margin-top:24px;font-size:12px;color:#8a8a8d;">Wil je geen e-mails meer van ons ontvangen? {{afmeldlink}}.</p>
     `.trim(),
   },
 };

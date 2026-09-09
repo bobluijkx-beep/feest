@@ -1,10 +1,10 @@
+import { redirect } from "next/navigation";
+import { HOME_EVENT_SLUG } from "@/lib/site-config";
+
+// "/" (dus ook het kale domein, lionsfeest.nl) had tot nu toe een losse, statische
+// "ga naar een eventlink"-pagina — maar in de praktijk fungeert HOME_EVENT_SLUG
+// (lib/site-config.ts) al overal elders als dé startpagina (contactformulier stuurt er
+// bv. al naartoe). Simpelst en consistent: "/" stuurt gewoon meteen door.
 export default function HomePage() {
-  return (
-    <main className="mx-auto max-w-2xl px-4 py-16 text-center md:max-w-4xl lg:max-w-6xl">
-      <h1 className="font-display text-3xl text-primary">Lionsclub Voorschoten</h1>
-      <p className="mt-3 text-sm text-muted-foreground">
-        Ga naar de link van een specifiek evenement om tickets of feestartikelen te bestellen.
-      </p>
-    </main>
-  );
+  redirect(`/${HOME_EVENT_SLUG}`);
 }

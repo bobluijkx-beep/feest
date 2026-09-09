@@ -9,12 +9,17 @@ import { OrdersTable } from "../orders-table";
 export default async function InactiveOrdersPage() {
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
 
-  const orders = await prisma.order.findMany({
-    where: { isVisible: false },
-    orderBy: { updatedAt: "desc" },
-    include: { items: true, tickets: { include: { checkIns: true } }, event: true },
-    take: 100,
-  });
+  const [ordersRaw, optOuts] = await Promise.all([
+    prisma.order.findMany({
+      where: { isVisible: false },
+      orderBy: { updatedAt: "desc" },
+      include: { items: true, tickets: { include: { checkIns: true } }, event: true },
+      take: 100,
+    }),
+    prisma.emailOptOut.findMany({ select: { email: true } }),
+  ]);
+  const optedOutEmails = new Set(optOuts.map((o) => o.email.toLowerCase()));
+  const orders = ordersRaw.map((order) => ({ ...order, emailOptedOut: optedOutEmails.has(order.buyerEmail.toLowerCase()) }));
 
   return (
     <div className="flex flex-col gap-4">

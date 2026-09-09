@@ -290,6 +290,7 @@ export interface OrderDetail {
   molliePaymentId: string | null;
   buyerName: string;
   buyerEmail: string;
+  emailOptedOut: boolean;
   createdAt: string;
   updatedAt: string;
   event: { id: string; name: string; venue: string | null; startsAt: string };
@@ -321,12 +322,18 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
   });
   if (!order) return null;
 
-  const otherOrdersRaw = await prisma.order.findMany({
-    where: { buyerEmail: order.buyerEmail, id: { not: orderId } },
-    include: { event: true, items: { include: { product: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  const [otherOrdersRaw, optOut] = await Promise.all([
+    prisma.order.findMany({
+      where: { buyerEmail: order.buyerEmail, id: { not: orderId } },
+      include: { event: true, items: { include: { product: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    // mode: "insensitive" i.p.v. de lowercase-Set-aanpak van de lijstpagina's/segment.ts:
+    // hier gaat het om precies één e-mailadres, dus is een directe case-insensitive query
+    // simpeler dan eerst de hele EmailOptOut-tabel op te halen.
+    prisma.emailOptOut.findFirst({ where: { email: { equals: order.buyerEmail, mode: "insensitive" } } }),
+  ]);
 
   return {
     id: order.id,
@@ -337,6 +344,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     molliePaymentId: order.molliePaymentId,
     buyerName: order.buyerName,
     buyerEmail: order.buyerEmail,
+    emailOptedOut: optOut !== null,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     event: {

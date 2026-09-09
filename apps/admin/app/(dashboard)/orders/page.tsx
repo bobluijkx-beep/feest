@@ -12,7 +12,7 @@ export default async function OrdersPage({
   const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
   const { eventId } = await searchParams;
 
-  const [orders, events, inactiveCount] = await Promise.all([
+  const [ordersRaw, events, inactiveCount, optOuts] = await Promise.all([
     prisma.order.findMany({
       where: { isVisible: true, ...(eventId ? { eventId } : {}) },
       orderBy: { createdAt: "desc" },
@@ -25,7 +25,13 @@ export default async function OrdersPage({
       select: { id: true, name: true },
     }),
     prisma.order.count({ where: { isVisible: false } }),
+    prisma.emailOptOut.findMany({ select: { email: true } }),
   ]);
+  // Zelfde lowercase-Set-aanpak als buildSegmentRecipients (packages/core/src/email/
+  // segment.ts), zodat een afwijkende hoofdlettering tussen EmailOptOut en Order.buyerEmail
+  // (twee losse invoermomenten) de match niet mist.
+  const optedOutEmails = new Set(optOuts.map((o) => o.email.toLowerCase()));
+  const orders = ordersRaw.map((order) => ({ ...order, emailOptedOut: optedOutEmails.has(order.buyerEmail.toLowerCase()) }));
 
   return (
     <div className="flex flex-col gap-4">

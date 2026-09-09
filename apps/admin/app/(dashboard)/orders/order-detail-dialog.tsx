@@ -20,6 +20,7 @@ import {
   type OrderDetail,
   type OrderActionState,
 } from "./actions";
+import { EmailOptOutDot } from "@/lib/email-optout-dot";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PAID: "default",
@@ -157,7 +158,13 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
             <div>
               <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Koper</h3>
               <p className="text-sm">{detail.buyerName}</p>
-              <p className="text-sm text-muted-foreground">{detail.buyerEmail}</p>
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <EmailOptOutDot optedOut={detail.emailOptedOut} />
+                {detail.buyerEmail}
+                <span className="text-xs">
+                  ({detail.emailOptedOut ? "afgemeld voor mailings" : "ontvangt mailings"})
+                </span>
+              </p>
             </div>
 
             <div>

@@ -3,6 +3,7 @@
 import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@lions/ui";
 import { useBulkSelection } from "@/lib/use-bulk-selection";
 import { BulkActionsBar } from "@/lib/bulk-actions-bar";
+import { EmailOptOutDot } from "@/lib/email-optout-dot";
 import { bulkSetOrdersVisible, bulkDeleteOrders } from "./actions";
 import { OrderDetailDialog } from "./order-detail-dialog";
 import { CheckInSummary } from "./checkin-summary";
@@ -23,6 +24,7 @@ export interface OrderRow {
   id: string;
   buyerName: string;
   buyerEmail: string;
+  emailOptedOut: boolean;
   status: string;
   totalCents: number;
   createdAt: Date;
@@ -123,7 +125,10 @@ export function OrdersTable({
               </TableCell>
               <TableCell>
                 <div>{order.buyerName}</div>
-                <div className="text-xs text-muted-foreground">{order.buyerEmail}</div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <EmailOptOutDot optedOut={order.emailOptedOut} />
+                  {order.buyerEmail}
+                </div>
               </TableCell>
               <TableCell>{order.event.name}</TableCell>
               <TableCell>

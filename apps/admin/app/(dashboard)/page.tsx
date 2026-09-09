@@ -18,16 +18,32 @@ async function SalesDashboard({ actor, eventIdParam }: { actor: AppUser; eventId
     return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
   }
 
+  // isVisible: true op elke order-gebaseerde query: "op inactief zetten" (Order.isVisible)
+  // verbergt een bestelling uit deze cijfers, ook al blijft de onderliggende voorraad
+  // (Product.reservedStock/soldStock, en dus Resterende capaciteit hieronder) bewust
+  // ongemoeid — dat is een apart, expliciet besloten gedrag (zie setOrderVisibility,
+  // packages/core/checkout/set-order-visibility.ts): inactief is puur zichtbaarheid, geen
+  // annulering. Zet je dus alle bestellingen van een event op inactief zonder ze te
+  // verwijderen, dan vallen deze tegels terug naar nul/leeg — de capaciteitstegel niet,
+  // want die weerspiegelt voorraad, niet zichtbaarheid.
   const [paidAgg, failedCount, ticketProducts, merchProducts, soldTicketCount, checkedInCount, merchAgg] =
     await Promise.all([
-      prisma.order.aggregate({ where: { eventId: event.id, status: "PAID" }, _count: true, _sum: { totalCents: true } }),
-      prisma.order.count({ where: { eventId: event.id, status: { in: ["FAILED", "CANCELLED", "EXPIRED"] } } }),
+      prisma.order.aggregate({
+        where: { eventId: event.id, status: "PAID", isVisible: true },
+        _count: true,
+        _sum: { totalCents: true },
+      }),
+      prisma.order.count({
+        where: { eventId: event.id, status: { in: ["FAILED", "CANCELLED", "EXPIRED"] }, isVisible: true },
+      }),
       prisma.product.findMany({ where: { eventId: event.id, kind: "TICKET" } }),
       prisma.product.findMany({ where: { eventId: event.id, kind: "MERCHANDISE" } }),
-      prisma.ticket.count({ where: { order: { eventId: event.id }, status: { not: "CANCELLED" } } }),
-      prisma.ticket.count({ where: { order: { eventId: event.id }, status: "CHECKED_IN" } }),
+      prisma.ticket.count({
+        where: { order: { eventId: event.id, isVisible: true }, status: { not: "CANCELLED" } },
+      }),
+      prisma.ticket.count({ where: { order: { eventId: event.id, isVisible: true }, status: "CHECKED_IN" } }),
       prisma.orderItem.aggregate({
-        where: { order: { eventId: event.id, status: "PAID" }, product: { kind: "MERCHANDISE" } },
+        where: { order: { eventId: event.id, status: "PAID", isVisible: true }, product: { kind: "MERCHANDISE" } },
         _sum: { quantity: true },
       }),
     ]);

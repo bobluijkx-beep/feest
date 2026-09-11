@@ -5,6 +5,7 @@ import { prisma, getAvailableTicketCount } from "@lions/core";
 import { PageBlocksList, HeroFrame, buttonVariants } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { ContactSuccessDialog } from "./contact-success-dialog";
+import { UnsubscribeSuccessDialog } from "./unsubscribe-success-dialog";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -76,12 +77,14 @@ export default async function EventPage({
         <PageBlocksList blocks={pageBlocks} availableTickets={availableTickets} />
       </div>
 
-      {/* Bevestigingspop-up na het contactformulier (apps/web/app/(site)/contact) — dat
-          stuurt door naar HOME_EVENT_SLUG (lib/site-config.ts), het event dat nu als
-          "startpagina" van de site fungeert. useSearchParams (in de dialoog) heeft een
-          Suspense-grens nodig, anders faalt het prerenderen van deze pagina. */}
+      {/* Bevestigingspop-ups na het contactformulier resp. een afmelding
+          (apps/web/app/(site)/contact, (site)/afmelden) — beide sturen door naar
+          HOME_EVENT_SLUG (lib/site-config.ts), het event dat nu als "startpagina" van de
+          site fungeert. useSearchParams (in de dialogen) heeft een Suspense-grens nodig,
+          anders faalt het prerenderen van deze pagina. */}
       <Suspense fallback={null}>
         <ContactSuccessDialog />
+        <UnsubscribeSuccessDialog />
       </Suspense>
     </main>
   );

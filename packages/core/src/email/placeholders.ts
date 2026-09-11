@@ -12,6 +12,7 @@ export const ORDER_TEMPLATE_PLACEHOLDERS = [
   "locatie",
   "tickets_sectie",
   "merchandise",
+  "songverzoek",
   "afmeldlink",
 ] as const;
 

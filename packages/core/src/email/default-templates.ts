@@ -12,6 +12,7 @@ export const defaultEmailTemplates: Record<EmailTemplateType, RenderableTemplate
       {{locatie}}.</p>
       {{tickets_sectie}}
       {{merchandise}}
+      {{songverzoek}}
       <p>Tot dan!<br/>Lionsclub Voorschoten</p>
       <p style="margin-top:24px;font-size:12px;color:#8a8a8d;">Wil je geen e-mails meer van ons ontvangen? {{afmeldlink}}.</p>
     `.trim(),

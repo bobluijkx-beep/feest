@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "../db";
 
 export interface SystemPlaceholderDef {
-  key: "locatie" | "tickets_sectie" | "merchandise";
+  key: "locatie" | "tickets_sectie" | "merchandise" | "songverzoek";
   label: string;
   /** Of het template het {{waarde}}-token gebruikt om de berekende waarde in te voegen
    * (locatie/merchandise) — tickets_sectie heeft geen losse waarde, is puur aan/uit. */
@@ -11,7 +11,7 @@ export interface SystemPlaceholderDef {
   helpText: string;
 }
 
-/** De enige drie systeem-placeholders (packages/core/src/email/placeholders.ts) waarvan
+/** De enige vier systeem-placeholders (packages/core/src/email/placeholders.ts) waarvan
  * de bewoording zelf aanpasbaar is, in plaats van dat alleen de onderliggende waarde
  * (koper/order) verandert — zie de admin-sectie /content/emails/placeholders. */
 export const SYSTEM_PLACEHOLDER_DEFS: SystemPlaceholderDef[] = [
@@ -38,6 +38,14 @@ export const SYSTEM_PLACEHOLDER_DEFS: SystemPlaceholderDef[] = [
     defaultTemplate: "<p>Ook besteld: {{waarde}}.</p>",
     helpText:
       "{{waarde}} wordt vervangen door de lijst bestelde feestartikelen, elk op een eigen regel (bv. \"2x Muntje\" en \"1x Waaier\" onder elkaar) — net als op het ticket-PDF. Wordt alleen getoond als de bestelling ook echt feestartikelen bevat.",
+  },
+  {
+    key: "songverzoek",
+    label: "Muziekverzoek-uitnodiging ({{songverzoek}})",
+    hasValue: true,
+    defaultTemplate: '<p>Wil je een nummer horen op het feest? <a href="{{waarde}}">Vraag hier max. 2 nummers aan</a>.</p>',
+    helpText:
+      "{{waarde}} wordt vervangen door de unieke verzoeklink van deze koper. Wordt alleen getoond bij een geslaagde bestelling met tickets.",
   },
 ];
 

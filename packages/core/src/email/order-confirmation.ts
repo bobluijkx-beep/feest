@@ -8,6 +8,7 @@ import { eventBrandingVars } from "./event-branding";
 import { getCustomPlaceholderVars } from "./custom-placeholders";
 import { getSystemPlaceholderTemplates, renderSystemPlaceholder } from "./system-placeholder-overrides";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
+import { buildSongRequestUrl } from "../song-requests/token";
 import { getEmailLayoutHtml } from "./get-layout";
 import { defaultEmailTemplates } from "./default-templates";
 import { generateTicketPdf } from "../tickets/pdf";
@@ -65,6 +66,12 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
   const merchandiseSection =
     lines.length > 0 ? renderSystemPlaceholder(systemTemplates.merchandise, lines.join("<br>")) : "";
   const locatie = renderSystemPlaceholder(systemTemplates.locatie, order.event.venue ?? "");
+  // Alleen bij een echte orderbevestiging met tickets — een muziekverzoek voor een feest
+  // waar je (nog) geen toegang voor hebt (mislukte/geannuleerde betaling) slaat nergens op.
+  const songRequestSection =
+    type === "ORDER_CONFIRMATION" && order.tickets.length > 0
+      ? renderSystemPlaceholder(systemTemplates.songverzoek, buildSongRequestUrl(order.id))
+      : "";
 
   return renderWithLayout({
     layoutHtml,
@@ -80,6 +87,7 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
       locatie,
       tickets_sectie: ticketsSection,
       merchandise: merchandiseSection,
+      songverzoek: songRequestSection,
       afmeldlink: buildUnsubscribeLinkHtml(order.buyerEmail),
     },
   });

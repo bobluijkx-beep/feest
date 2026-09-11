@@ -9,6 +9,7 @@ import {
   FileText,
   Users,
   History,
+  Music,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@lions/db";
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/orders", label: "Bestellingen", icon: Receipt, roles: ["ADMIN", "FINANCE"] },
   { href: "/events", label: "Evenementen", icon: CalendarDays, roles: ["ADMIN"] },
   { href: "/products", label: "Producten", icon: Package, roles: ["ADMIN", "FINANCE"] },
+  { href: "/song-requests", label: "Muziekverzoeken", icon: Music, roles: ["ADMIN", "EDITOR"] },
   { href: "/settings", label: "Instellingen", icon: Settings, roles: ["ADMIN", "FINANCE"] },
   { href: "/content/emails", label: "E-mailtemplates", icon: Mail, roles: ["ADMIN", "EDITOR"] },
   { href: "/content/pages", label: "Paginabeheer", icon: FileText, roles: ["ADMIN", "EDITOR"] },

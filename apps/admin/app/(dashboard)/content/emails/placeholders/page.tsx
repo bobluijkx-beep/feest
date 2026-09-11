@@ -25,7 +25,7 @@ export default async function CustomPlaceholdersPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-0">
           <p className="mb-2 text-sm text-muted-foreground">
-            Deze drie systeem-placeholders (packages/core) tonen automatisch de juiste gegevens per bestelling —
+            Deze systeem-placeholders (packages/core) tonen automatisch de juiste gegevens per bestelling —
             hieronder pas je alleen de omringende tekst aan, niet welke bestellingen deze te zien krijgen.
           </p>
           {SYSTEM_PLACEHOLDER_DEFS.map((def) => (

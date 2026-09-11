@@ -110,6 +110,7 @@ model Event {
   emailCampaigns EmailCampaign[]
   pageBlocks     PageBlock[]
   userAccess     EventAccess[]
+  songRequests   SongRequest[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -163,6 +164,7 @@ model Order {
   isVisible          Boolean     @default(true)
   items              OrderItem[]
   tickets            Ticket[]
+  songRequests       SongRequest[]
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -170,6 +172,27 @@ model Order {
   @@index([status, stockHoldExpiresAt])
   @@index([isVisible])
   @@map("orders")
+}
+
+// Muziekverzoeken voor de avond zelf: elke koper met tickets krijgt in de
+// orderbevestiging een unieke link (packages/core/src/song-requests) waarmee ze max. 2
+// nummers kunnen aanvragen (verzoeken/actions.ts). requesterName wordt gedenormaliseerd
+// vanaf Order.buyerName opgeslagen, zodat de ranglijst in de admin (song-requests/page.tsx)
+// niet voor elke rij terug hoeft te joinen naar Order.
+model SongRequest {
+  id            String   @id @default(cuid())
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id])
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  requesterName String
+  artist        String
+  title         String
+  createdAt     DateTime @default(now())
+
+  @@index([eventId])
+  @@index([orderId])
+  @@map("song_requests")
 }
 
 model OrderItem {

@@ -1,32 +1,32 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma, processMolliePaymentWebhook } from "@lions/core";
 import { Card, CardContent } from "@lions/ui";
-import { ClearCartOnMount } from "./clear-cart";
 
-const STATUS_COPY: Record<string, { title: string; message: string }> = {
-  PENDING: {
-    title: "Betaling wordt verwerkt…",
-    message: "We wachten op bevestiging van je bank. Deze pagina wordt automatisch bijgewerkt.",
-  },
-  PAID: {
-    title: "Bedankt voor je bestelling!",
-    message: "Je tickets zijn onderweg naar je e-mailadres.",
-  },
-  PAID_NO_TICKETS: {
-    title: "Bedankt voor je bestelling!",
-    message: "Je ontvangt zo een bevestiging per e-mail.",
-  },
-  FAILED: { title: "Betaling mislukt", message: "Er ging iets mis met je betaling. Probeer het opnieuw." },
-  CANCELLED: { title: "Betaling geannuleerd", message: "Je hebt de betaling geannuleerd." },
-  EXPIRED: { title: "Betaling verlopen", message: "De betaaltermijn is verlopen. Probeer het opnieuw." },
-  REFUNDED: { title: "Bestelling terugbetaald", message: "Deze bestelling is terugbetaald." },
+const PENDING_COPY = {
+  title: "Betaling wordt verwerkt…",
+  message: "We wachten op bevestiging van je bank. Deze pagina wordt automatisch bijgewerkt.",
+};
+
+// Sleutels van STATUS_COPY in ../order-confirmation-dialog.tsx — bij een terminale status
+// (alles behalve PENDING) sturen we hierheen door i.p.v. deze Card te tonen, zodat de
+// bevestiging als pop-up op de eventpagina zelf verschijnt (zelfde patroon als het
+// contactformulier en een afmelding).
+const TERMINAL_STATUS_KEY: Record<string, string> = {
+  PAID: "paid",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+  EXPIRED: "expired",
+  REFUNDED: "refunded",
 };
 
 export default async function ThankYouPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ eventSlug: string }>;
   searchParams: Promise<{ order?: string }>;
 }) {
+  const { eventSlug } = await params;
   const { order: orderId } = await searchParams;
   if (!orderId) notFound();
 
@@ -49,19 +49,22 @@ export default async function ThankYouPage({
   }
 
   const status = order?.status ?? "PENDING";
-  // Een product-only order (bv. oliebollen) heeft geen tickets — "je tickets zijn
-  // onderweg" zou dan misleidend zijn.
-  const copyKey = status === "PAID" && order?._count.tickets === 0 ? "PAID_NO_TICKETS" : status;
-  const copy = STATUS_COPY[copyKey] ?? STATUS_COPY.PENDING;
+
+  if (status !== "PENDING") {
+    // Een product-only order (bv. oliebollen) heeft geen tickets — "je tickets zijn
+    // onderweg" zou dan misleidend zijn, vandaar de aparte "paid_no_tickets"-sleutel.
+    const statusKey =
+      status === "PAID" && order?._count.tickets === 0 ? "paid_no_tickets" : (TERMINAL_STATUS_KEY[status] ?? "paid");
+    redirect(`/${eventSlug}?bestelling=${statusKey}`);
+  }
 
   return (
     <main className="flex items-center justify-center px-4 py-12">
-      {status === "PENDING" && <meta httpEquiv="refresh" content="3" />}
-      {status !== "PENDING" && <ClearCartOnMount />}
+      <meta httpEquiv="refresh" content="3" />
       <Card className="w-full max-w-md">
         <CardContent className="flex flex-col gap-2 text-center">
-          <h1 className="text-xl font-semibold text-primary">{copy.title}</h1>
-          <p className="text-sm text-muted-foreground">{copy.message}</p>
+          <h1 className="text-xl font-semibold text-primary">{PENDING_COPY.title}</h1>
+          <p className="text-sm text-muted-foreground">{PENDING_COPY.message}</p>
         </CardContent>
       </Card>
     </main>

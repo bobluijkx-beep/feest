@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getWebBaseUrl } from "../utils/base-url";
 
 function getSecret(): string {
   const secret = process.env.TICKET_QR_SECRET;
@@ -45,6 +46,5 @@ export function verifySongRequestToken(token: string): { orderId: string } | nul
  * ({{songverzoek}}-plekhouder, order-confirmation.ts) en desgewenst elders. */
 export function buildSongRequestUrl(orderId: string): string {
   const token = signSongRequestToken(orderId);
-  const baseUrl = process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
-  return `${baseUrl}/verzoeken?token=${token}`;
+  return `${getWebBaseUrl()}/verzoeken?token=${token}`;
 }

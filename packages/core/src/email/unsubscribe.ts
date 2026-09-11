@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getWebBaseUrl } from "../utils/base-url";
 
 function getSecret(): string {
   const secret = process.env.TICKET_QR_SECRET;
@@ -27,8 +28,7 @@ export function signUnsubscribeToken(email: string): string {
  * kan (bulk-campaign.ts's unsubscribeFooter, die deze functie ook hergebruikt). */
 export function buildUnsubscribeLinkHtml(email: string): string {
   const token = signUnsubscribeToken(email);
-  const baseUrl = process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
-  return `<a href="${baseUrl}/afmelden?token=${token}">Afmelden</a>`;
+  return `<a href="${getWebBaseUrl()}/afmelden?token=${token}">Afmelden</a>`;
 }
 
 export function verifyUnsubscribeToken(token: string): { email: string } | null {

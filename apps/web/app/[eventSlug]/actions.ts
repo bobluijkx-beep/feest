@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createOrder, InsufficientStockError, prisma } from "@lions/core";
+import { createOrder, InsufficientStockError, prisma, getWebBaseUrl } from "@lions/core";
 
 export async function startCheckout(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
@@ -38,7 +38,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
     await prisma.emailOptOut.upsert({ where: { email: buyerEmail }, create: { email: buyerEmail }, update: {} });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
+  const baseUrl = getWebBaseUrl();
   let checkoutUrl: string | null = null;
 
   try {

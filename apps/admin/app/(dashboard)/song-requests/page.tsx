@@ -1,8 +1,10 @@
-import { getRankedSongRequests } from "@lions/core";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@lions/ui";
+import Link from "next/link";
+import { getRankedSongRequests, buildDjSetlistUrl } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EventTabs } from "@/lib/event-tabs";
+import { SongRequestsTable } from "./song-requests-table";
+import { DjLink } from "./dj-link";
 
 export default async function SongRequestsPage({
   searchParams,
@@ -17,42 +19,27 @@ export default async function SongRequestsPage({
     return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
   }
 
-  const ranking = await getRankedSongRequests(event.id);
+  const [ranking, inactiveRanking] = await Promise.all([
+    getRankedSongRequests(event.id, true),
+    getRankedSongRequests(event.id, false),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
       <EventTabs events={events} selectedId={event.id} basePath="/song-requests" />
-      <p className="text-sm text-muted-foreground">Event: {event.name}</p>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">Event: {event.name}</p>
+        <Link
+          href={`/song-requests/inactief?eventId=${event.id}`}
+          className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Inactieve verzoeken bekijken{inactiveRanking.length > 0 ? ` (${inactiveRanking.length})` : ""}
+        </Link>
+      </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">#</TableHead>
-            <TableHead>Artiest</TableHead>
-            <TableHead>Nummer</TableHead>
-            <TableHead className="text-right">Aantal</TableHead>
-            <TableHead>Aangevraagd door</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ranking.map((row, index) => (
-            <TableRow key={`${row.artist}|${row.title}`}>
-              <TableCell className="text-muted-foreground">{index + 1}</TableCell>
-              <TableCell className="font-medium">{row.artist}</TableCell>
-              <TableCell>{row.title}</TableCell>
-              <TableCell className="text-right tabular-nums">{row.count}</TableCell>
-              <TableCell className="text-muted-foreground">{row.requesterNames.join(", ")}</TableCell>
-            </TableRow>
-          ))}
-          {ranking.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
-                Nog geen muziekverzoeken.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <DjLink url={buildDjSetlistUrl(event.id)} />
+
+      <SongRequestsTable ranking={ranking} mode="active" canDelete={false} />
     </div>
   );
 }

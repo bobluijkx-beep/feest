@@ -36,10 +36,16 @@ export async function submitSongRequests(
 }
 
 export interface RankedSongRequest {
+  /** Stabiele sleutel voor dit groep-rij (genormaliseerde artiest+titel) — te gebruiken als
+   * React-key en als selectie-id in de admin-tabel (use-bulk-selection.ts). */
+  groupKey: string;
   artist: string;
   title: string;
   count: number;
   requesterNames: string[];
+  /** Onderliggende SongRequest-rij-id's van deze groep — een bulkactie (op inactief zetten/
+   * verwijderen) werkt hierop, niet op de groep zelf (die bestaat alleen in deze query). */
+  requestIds: string[];
 }
 
 /** Ongevoelig voor hoofdletters/dubbele spaties, zodat "Queen" en "queen " als hetzelfde
@@ -50,12 +56,13 @@ function normalize(value: string): string {
 
 /** Groepeert alle verzoeken van een event op artiest+titel (zie normalize), geteld en
  * gesorteerd van meest naar minst aangevraagd — de ranglijst voor de admin
- * (apps/admin/app/(dashboard)/song-requests). */
-export async function getRankedSongRequests(eventId: string): Promise<RankedSongRequest[]> {
+ * (apps/admin/app/(dashboard)/song-requests) en de DJ-pagina (apps/web/app/(site)/dj).
+ * `visible` kiest tussen de actieve ranglijst (default) en de afdeling Inactief. */
+export async function getRankedSongRequests(eventId: string, visible = true): Promise<RankedSongRequest[]> {
   const rows = await prisma.songRequest.findMany({
-    where: { eventId },
+    where: { eventId, isVisible: visible },
     orderBy: { createdAt: "asc" },
-    select: { artist: true, title: true, requesterName: true },
+    select: { id: true, artist: true, title: true, requesterName: true },
   });
 
   const groups = new Map<string, RankedSongRequest>();
@@ -65,10 +72,34 @@ export async function getRankedSongRequests(eventId: string): Promise<RankedSong
     if (existing) {
       existing.count += 1;
       existing.requesterNames.push(row.requesterName);
+      existing.requestIds.push(row.id);
     } else {
-      groups.set(key, { artist: row.artist, title: row.title, count: 1, requesterNames: [row.requesterName] });
+      groups.set(key, {
+        groupKey: key,
+        artist: row.artist,
+        title: row.title,
+        count: 1,
+        requesterNames: [row.requesterName],
+        requestIds: [row.id],
+      });
     }
   }
 
   return Array.from(groups.values()).sort((a, b) => b.count - a.count);
+}
+
+/** Zet een groep verzoeken (alle onderliggende rij-id's van een ranglijst-regel,
+ * RankedSongRequest.requestIds) samen op in-/actief — bv. omdat het nummer al gedraaid is op
+ * het feest. Werkt op individuele SongRequest-rijen, niet op de groep als geheel (die is
+ * puur een query-tijd-groepering, geen eigen tabel). */
+export async function bulkSetSongRequestsVisible(ids: string[], isVisible: boolean): Promise<void> {
+  if (ids.length === 0) return;
+  await prisma.songRequest.updateMany({ where: { id: { in: ids } }, data: { isVisible } });
+}
+
+/** Verwijdert een groep verzoeken definitief — alleen bedoeld voor al op inactief gezette
+ * rijen (serverside afgedwongen door de aanroeper, net als bulkDeleteOrders). */
+export async function bulkDeleteSongRequests(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await prisma.songRequest.deleteMany({ where: { id: { in: ids } } });
 }

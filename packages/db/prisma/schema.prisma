@@ -188,6 +188,11 @@ model SongRequest {
   requesterName String
   artist        String
   title         String
+  // Op inactief gezet vanuit de admin (bv. al gedraaid op het feest) — verdwijnt dan uit de
+  // ranglijst (ook de DJ-pagina) en de afdeling Inactief, van waaruit het definitief
+  // verwijderd kan worden. Zelfde "inactief i.p.v. direct verwijderen"-patroon als
+  // Order.isVisible/Product.isVisible.
+  isVisible     Boolean  @default(true)
   createdAt     DateTime @default(now())
 
   @@index([eventId])

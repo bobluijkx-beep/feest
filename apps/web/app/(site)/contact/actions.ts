@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { sendEmail } from "@lions/core";
+import { prisma, sendEmail, getContactFormRecipients } from "@lions/core";
 import { HOME_EVENT_SLUG } from "@/lib/site-config";
 
 function escapeHtml(input: string): string {
@@ -14,9 +14,11 @@ function escapeHtml(input: string): string {
 }
 
 /** Verstuurt een ingevuld contactformulier naar het clubadres (RESEND_FROM_EMAIL — hetzelfde
- * adres dat nu al als afzender van alle andere mail gebruikt wordt), met de bezoeker als
- * reply-to zodat het bestuur er direct op kan reageren. Geen database-opslag: dit is puur
- * een doorgeefluik, net als de rest van de mailflow (sendEmail in packages/core).
+ * adres dat nu al als afzender van alle andere mail gebruikt wordt) plus eventuele extra
+ * ontvangers die het bestuur zelf heeft ingesteld (/settings, getContactFormRecipients),
+ * met de bezoeker als reply-to zodat het bestuur er direct op kan reageren. Geen
+ * database-opslag van het bericht zelf: dit is puur een doorgeefluik, net als de rest van
+ * de mailflow (sendEmail in packages/core).
  *
  * Na een geslaagde verzending gaat de bezoeker terug naar de "startpagina" — in de
  * praktijk het event dat nu als zodanig fungeert (HOME_EVENT_SLUG, lib/site-config.ts),
@@ -35,11 +37,21 @@ export async function submitContactForm(formData: FormData): Promise<void> {
     redirect("/contact?fout=ontbrekend");
   }
 
-  const to = process.env.RESEND_FROM_EMAIL;
-  if (!to) {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!from) {
     console.error("Contactformulier: RESEND_FROM_EMAIL ontbreekt, kan niet versturen.");
     redirect("/contact?fout=onbekend");
   }
+
+  // Het contactformulier hangt niet onder een specifiek event (geen [eventSlug] in de
+  // route), maar organizationId is nodig om de zelf-ingestelde extra ontvangers op te
+  // halen — HOME_EVENT_SLUG fungeert hier, net als elders, als "het huidige hoofdevent".
+  const homeEvent = await prisma.event.findUnique({
+    where: { slug: HOME_EVENT_SLUG },
+    select: { organizationId: true },
+  });
+  const extraRecipients = homeEvent ? await getContactFormRecipients(homeEvent.organizationId) : [];
+  const to = [from, ...extraRecipients.filter((addr) => addr !== from)];
 
   const html = `
     <p><strong>Naam:</strong> ${escapeHtml(naam)}</p>

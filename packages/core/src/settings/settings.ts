@@ -69,3 +69,20 @@ export async function hasMollieApiKey(organizationId: string, mode: MollieMode):
   const stored = await getSetting(organizationId, settingKeyForMode(mode));
   return stored !== null;
 }
+
+const CONTACT_FORM_RECIPIENTS_SETTING = "contact_form_recipients";
+
+/** Extra ontvangers (naast RESEND_FROM_EMAIL) voor het contactformulier, door het bestuur
+ * zelf te beheren via /settings — geen geheime waarde, dus isSecret blijft op false. */
+export async function getContactFormRecipients(organizationId: string): Promise<string[]> {
+  const stored = await getSetting(organizationId, CONTACT_FORM_RECIPIENTS_SETTING);
+  if (!stored) return [];
+  return stored
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
+export async function setContactFormRecipients(organizationId: string, emails: string[]): Promise<void> {
+  await setSetting(organizationId, CONTACT_FORM_RECIPIENTS_SETTING, emails.join(","));
+}

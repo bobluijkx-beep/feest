@@ -18,7 +18,7 @@ export type SendEmailResult =
  * de aanroeper (order-confirmation.ts/bulk-campaign.ts, via renderWithLayout), omdat
  * alleen die weet welke lay-out bij dit specifieke type/deze campagne hoort. */
 export async function sendEmail(params: {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   attachments?: EmailAttachment[];

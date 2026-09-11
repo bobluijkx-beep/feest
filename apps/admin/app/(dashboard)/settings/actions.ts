@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { setMollieMode, setMollieApiKey, logAudit, type MollieMode } from "@lions/core";
+import { setMollieMode, setMollieApiKey, setContactFormRecipients, logAudit, type MollieMode } from "@lions/core";
 import { requireStaffRole } from "@/lib/require-role";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface SettingsFormState {
   error?: string;
@@ -42,6 +44,37 @@ export async function updateMollieSettings(
     entityType: "settings",
     entityId: actor.organizationId,
     metadata: { mode, testKeyChanged: Boolean(testKey), liveKeyChanged: Boolean(liveKey) },
+  });
+
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function updateContactFormRecipients(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+
+  const emails = String(formData.get("recipients") ?? "")
+    .split(/[\n,]/)
+    .map((email) => email.trim())
+    .filter(Boolean);
+
+  const invalid = emails.find((email) => !EMAIL_PATTERN.test(email));
+  if (invalid) {
+    return { error: `Ongeldig e-mailadres: ${invalid}` };
+  }
+
+  await setContactFormRecipients(actor.organizationId, emails);
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "contact_form_recipients_updated",
+    entityType: "settings",
+    entityId: actor.organizationId,
+    metadata: { count: emails.length },
   });
 
   revalidatePath("/settings");

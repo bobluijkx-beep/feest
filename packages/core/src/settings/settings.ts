@@ -86,3 +86,21 @@ export async function getContactFormRecipients(organizationId: string): Promise<
 export async function setContactFormRecipients(organizationId: string, emails: string[]): Promise<void> {
   await setSetting(organizationId, CONTACT_FORM_RECIPIENTS_SETTING, emails.join(","));
 }
+
+const CART_REMINDER_SETTING = "cart_only_tickets_reminder";
+
+export const DEFAULT_CART_REMINDER_TEXT =
+  "Je hebt alleen tickets in je winkelwagen — vergeet je de feestartikelen niet? Denk aan een petje of waaier voor erbij.";
+
+/** Tekst van de melding op de winkelwagenpagina wanneer de koper alleen tickets heeft en
+ * het event ook feestartikelen verkoopt (cart-page-client.tsx) — door het bestuur zelf te
+ * beheren via /settings, met de oorspronkelijke hardgecodeerde tekst als standaardwaarde
+ * zolang er nog niets is opgeslagen. */
+export async function getCartReminderText(organizationId: string): Promise<string> {
+  const stored = await getSetting(organizationId, CART_REMINDER_SETTING);
+  return stored ?? DEFAULT_CART_REMINDER_TEXT;
+}
+
+export async function setCartReminderText(organizationId: string, text: string): Promise<void> {
+  await setSetting(organizationId, CART_REMINDER_SETTING, text);
+}

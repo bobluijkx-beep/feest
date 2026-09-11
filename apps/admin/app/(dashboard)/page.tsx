@@ -26,7 +26,7 @@ async function SalesDashboard({ actor, eventIdParam }: { actor: AppUser; eventId
   // annulering. Zet je dus alle bestellingen van een event op inactief zonder ze te
   // verwijderen, dan vallen deze tegels terug naar nul/leeg — de capaciteitstegel niet,
   // want die weerspiegelt voorraad, niet zichtbaarheid.
-  const [paidAgg, failedCount, ticketProducts, merchProducts, soldTicketCount, checkedInCount, merchAgg] =
+  const [paidAgg, failedCount, ticketProducts, merchProducts, donationProducts, soldTicketCount, checkedInCount, extraOrderItems] =
     await Promise.all([
       prisma.order.aggregate({
         where: { eventId: event.id, status: "PAID", isVisible: true },
@@ -38,13 +38,20 @@ async function SalesDashboard({ actor, eventIdParam }: { actor: AppUser; eventId
       }),
       prisma.product.findMany({ where: { eventId: event.id, kind: "TICKET" } }),
       prisma.product.findMany({ where: { eventId: event.id, kind: "MERCHANDISE" } }),
+      prisma.product.findMany({ where: { eventId: event.id, kind: "DONATION" } }),
       prisma.ticket.count({
         where: { order: { eventId: event.id, isVisible: true }, status: { not: "CANCELLED" } },
       }),
       prisma.ticket.count({ where: { order: { eventId: event.id, isVisible: true }, status: "CHECKED_IN" } }),
-      prisma.orderItem.aggregate({
-        where: { order: { eventId: event.id, status: "PAID", isVisible: true }, product: { kind: "MERCHANDISE" } },
-        _sum: { quantity: true },
+      // Aantal en omzet apart voor feestartikelen/donaties: geen kant-en-klare aggregate
+      // hiervoor (omzet per regel = quantity * unitPriceCents, dat kan Prisma's aggregate()
+      // niet berekenen), dus zelf optellen over de losse regels.
+      prisma.orderItem.findMany({
+        where: {
+          order: { eventId: event.id, status: "PAID", isVisible: true },
+          product: { kind: { in: ["MERCHANDISE", "DONATION"] } },
+        },
+        select: { quantity: true, unitPriceCents: true, product: { select: { kind: true } } },
       }),
     ]);
 
@@ -54,10 +61,25 @@ async function SalesDashboard({ actor, eventIdParam }: { actor: AppUser; eventId
   const remainingCapacity = ticketProducts.reduce((sum, t) => sum + (t.totalStock - t.reservedStock - t.soldStock), 0);
   const conversionDenominator = paidOrderCount + failedCount;
   const conversionRate = conversionDenominator > 0 ? Math.round((paidOrderCount / conversionDenominator) * 100) : null;
-  const soldProductCount = merchAgg._sum.quantity ?? 0;
+
+  let merchCount = 0;
+  let merchRevenueCents = 0;
+  let donationCount = 0;
+  let donationRevenueCents = 0;
+  for (const item of extraOrderItems) {
+    const lineCents = item.quantity * item.unitPriceCents;
+    if (item.product.kind === "MERCHANDISE") {
+      merchCount += item.quantity;
+      merchRevenueCents += lineCents;
+    } else {
+      donationCount += item.quantity;
+      donationRevenueCents += lineCents;
+    }
+  }
 
   const hasTicketProducts = ticketProducts.length > 0;
   const hasMerchProducts = merchProducts.length > 0;
+  const hasDonationProducts = donationProducts.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,7 +94,14 @@ async function SalesDashboard({ actor, eventIdParam }: { actor: AppUser; eventId
         <StatTile label="Conversie" value={conversionRate === null ? "—" : `${conversionRate}%`} />
         <StatTile label="Mislukte betalingen" value={String(failedCount)} />
         {hasTicketProducts && <StatTile label="Ingecheckt" value={String(checkedInCount)} />}
-        {hasMerchProducts && <StatTile label="Verkochte producten" value={String(soldProductCount)} />}
+        {hasMerchProducts && <StatTile label="Verkochte feestartikelen" value={String(merchCount)} />}
+        {hasMerchProducts && (
+          <StatTile label="Omzet feestartikelen" value={`€${(merchRevenueCents / 100).toFixed(2)}`} />
+        )}
+        {hasDonationProducts && <StatTile label="Aantal donaties" value={String(donationCount)} />}
+        {hasDonationProducts && (
+          <StatTile label="Omzet donaties" value={`€${(donationRevenueCents / 100).toFixed(2)}`} />
+        )}
       </div>
     </div>
   );

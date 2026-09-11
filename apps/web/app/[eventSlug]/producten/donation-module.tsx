@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Button, Card, CardContent, Input, Label } from "@lions/ui";
+import { Button, Card, CardContent, Input, Label, buttonVariants } from "@lions/ui";
 import { useCart } from "../cart-context";
 
 // Moet gelijk blijven aan MIN_DONATION_CENTS in packages/core/src/checkout/donation.ts —
@@ -22,12 +23,14 @@ export function DonationModule({
   imageUrl,
   descriptionHtml,
   presetsCents,
+  eventSlug,
 }: {
   productId: string;
   name: string;
   imageUrl: string | null;
   descriptionHtml: string | null;
   presetsCents: number[];
+  eventSlug: string;
 }) {
   const { items, setItem, removeItem } = useCart();
   const inCart = items.find((i) => i.productId === productId);
@@ -125,7 +128,14 @@ export function DonationModule({
               </Button>
             </>
           )}
-          {added && <span className="text-sm text-primary">Toegevoegd!</span>}
+          {added && (
+            <>
+              <span className="text-sm text-primary">Toegevoegd!</span>
+              <Link href={`/${eventSlug}/winkelwagen`} className={buttonVariants()}>
+                Naar de winkelwagen
+              </Link>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

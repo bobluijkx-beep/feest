@@ -51,6 +51,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
             imageUrl={product.imageUrl}
             descriptionHtml={product.description}
             presetsCents={product.donationPresetsCents}
+            eventSlug={eventSlug}
           />
         </div>
       ))}

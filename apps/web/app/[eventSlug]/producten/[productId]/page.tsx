@@ -51,6 +51,7 @@ export default async function ProductDetailPage({
               kind: product.kind,
             }}
             available={available}
+            eventSlug={eventSlug}
           />
         )}
       </div>

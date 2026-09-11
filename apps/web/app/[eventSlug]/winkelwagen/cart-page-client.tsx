@@ -5,7 +5,15 @@ import { Button, Card, CardContent, buttonVariants } from "@lions/ui";
 import { useCart } from "../cart-context";
 import { QuantityInput } from "../quantity-input";
 
-export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: string; hasMerchandise: boolean }) {
+export function CartPageClient({
+  eventSlug,
+  hasMerchandise,
+  reminderText,
+}: {
+  eventSlug: string;
+  hasMerchandise: boolean;
+  reminderText: string;
+}) {
   const { items, updateQuantity, removeItem, totalCents } = useCart();
 
   if (items.length === 0) {
@@ -30,15 +38,20 @@ export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: strin
         <h1 className="font-display text-2xl">Winkelwagen</h1>
 
         {onlyTickets && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
-            <span>
-              Je hebt alleen tickets in je winkelwagen — vergeet je de feestartikelen niet? Denk aan een petje of
-              waaier voor erbij.
-            </span>
-            <Link href={`/${eventSlug}/producten#feestartikelen`} className={buttonVariants({ size: "sm", variant: "outline" })}>
-              Bekijk feestartikelen
-            </Link>
-          </div>
+          // donation-card-light (globals.css): zelfde geforceerde zwart-op-wit + rand/gloed
+          // als het donatieblok (producten/donation-module.tsx), zodat deze melding er
+          // net zo duidelijk uitspringt tegen het (vaak donkere) thema van het event.
+          <Card className="donation-card-light mt-4 border-2 border-primary shadow-[0_0_32px_-8px_var(--primary)]">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <span>{reminderText}</span>
+              <Link
+                href={`/${eventSlug}/producten#feestartikelen`}
+                className={buttonVariants({ size: "sm", variant: "outline" })}
+              >
+                Bekijk feestartikelen
+              </Link>
+            </CardContent>
+          </Card>
         )}
 
         <div className="mt-6 flex flex-col gap-3">
@@ -74,7 +87,13 @@ export function CartPageClient({ eventSlug, hasMerchandise }: { eventSlug: strin
           <span>€{(totalCents / 100).toFixed(2)}</span>
         </div>
 
-        <Link href={`/${eventSlug}/afrekenen`} className={buttonVariants({ size: "lg", className: "mt-6 w-full" })}>
+        <Link
+          href={`/${eventSlug}/producten`}
+          className={buttonVariants({ variant: "outline", size: "lg", className: "mt-6 w-full" })}
+        >
+          Verder winkelen
+        </Link>
+        <Link href={`/${eventSlug}/afrekenen`} className={buttonVariants({ size: "lg", className: "mt-3 w-full" })}>
           Verder naar afrekenen
         </Link>
       </div>

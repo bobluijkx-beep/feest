@@ -116,6 +116,39 @@ export async function setOrderVisible(
   return { success: true };
 }
 
+/** Verwijdert een e-mailadres uit EmailOptOut ("weer aanmelden voor mailings") — het
+ * tegenovergestelde gebeurt al vanzelf zodra iemand opnieuw afmeldt (via de afmeldlink of
+ * de opt-in-checkbox bij het afrekenen), dus hier alleen deze ene richting: het bestuur
+ * kan een afmelding ongedaan maken, bv. na telefonisch contact met de koper. Case-
+ * insensitive (mode: "insensitive") i.p.v. een exacte match, om dezelfde reden als de
+ * rood/groen-bolletjes elders in dit bestand/orders/page.tsx: het e-mailadres kan met een
+ * andere hoofdlettering zijn opgeslagen dan op de bestelling zelf staat. deleteMany i.p.v.
+ * delete: verwijdert dan in één keer ook een eventuele dubbele rij met afwijkende
+ * hoofdlettering, en faalt niet als er (door een race condition) toevallig al geen rij
+ * meer bestaat. */
+export async function reactivateEmailSubscription(
+  _prevState: OrderActionState,
+  formData: FormData,
+): Promise<OrderActionState> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { error: "Ontbrekend e-mailadres." };
+
+  await prisma.emailOptOut.deleteMany({ where: { email: { equals: email, mode: "insensitive" } } });
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "email_optout_cleared",
+    entityType: "email_opt_out",
+    entityId: email,
+  });
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/inactief");
+  return { success: true };
+}
+
 export interface BulkActionResult {
   error?: string;
 }

@@ -17,6 +17,7 @@ import {
   setOrderStatus,
   setTicketCheckIn,
   sendOrderEmail,
+  reactivateEmailSubscription,
   type OrderDetail,
   type OrderActionState,
 } from "./actions";
@@ -119,6 +120,10 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
   const [visibilityState, visibilityAction, visibilityPending] = useActionState(setOrderVisible, initialActionState);
   const [statusState, statusAction, statusPending] = useActionState(setOrderStatus, initialActionState);
   const [emailState, emailAction, emailPending] = useActionState(sendOrderEmail, initialActionState);
+  const [optOutState, optOutAction, optOutPending] = useActionState(
+    reactivateEmailSubscription,
+    initialActionState,
+  );
 
   // Na een geslaagde wijziging/verzending de detailweergave verversen zodat de
   // knop/badge meteen klopt — de server actions doen zelf revalidatePath("/orders") al
@@ -132,6 +137,11 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
     if (statusState.success) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusState]);
+
+  useEffect(() => {
+    if (optOutState.success) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optOutState]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -158,13 +168,22 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
             <div>
               <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Koper</h3>
               <p className="text-sm">{detail.buyerName}</p>
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                 <EmailOptOutDot optedOut={detail.emailOptedOut} />
                 {detail.buyerEmail}
                 <span className="text-xs">
                   ({detail.emailOptedOut ? "afgemeld voor mailings" : "ontvangt mailings"})
                 </span>
+                {detail.emailOptedOut && (
+                  <form action={optOutAction}>
+                    <input type="hidden" name="email" value={detail.buyerEmail} />
+                    <Button type="submit" variant="outline" size="xs" disabled={optOutPending}>
+                      {optOutPending ? "Bezig…" : "Weer aanmelden voor mailings"}
+                    </Button>
+                  </form>
+                )}
               </p>
+              {optOutState.error && <p className="text-xs text-destructive">{optOutState.error}</p>}
             </div>
 
             <div>

@@ -47,6 +47,7 @@ export async function deleteTestOrder(orderId: string): Promise<DeleteResult> {
     await tx.checkIn.deleteMany({ where: { ticket: { orderId } } });
     await tx.ticket.deleteMany({ where: { orderId } });
     await tx.orderItem.deleteMany({ where: { orderId } });
+    await tx.songRequest.deleteMany({ where: { orderId } });
     await tx.order.delete({ where: { id: orderId } });
 
     return { ok: true };

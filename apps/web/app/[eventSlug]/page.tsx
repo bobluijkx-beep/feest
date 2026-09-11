@@ -7,6 +7,7 @@ import { getPublicEvent } from "@/lib/get-event";
 import { ContactSuccessDialog } from "./contact-success-dialog";
 import { UnsubscribeSuccessDialog } from "./unsubscribe-success-dialog";
 import { OrderConfirmationDialog } from "./order-confirmation-dialog";
+import { SongRequestSuccessDialog } from "./song-request-success-dialog";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -78,15 +79,16 @@ export default async function EventPage({
         <PageBlocksList blocks={pageBlocks} availableTickets={availableTickets} />
       </div>
 
-      {/* Bevestigingspop-ups na het contactformulier, een afmelding, resp. een bestelling
-          (apps/web/app/(site)/contact, (site)/afmelden, [eventSlug]/bedankt) — de eerste
-          twee sturen altijd door naar HOME_EVENT_SLUG (lib/site-config.ts); een bestelling
-          stuurt door naar de eigen eventpagina van die bestelling (elk event kan hier dus
-          terechtkomen). useSearchParams (in de dialogen) heeft een Suspense-grens nodig,
-          anders faalt het prerenderen van deze pagina. */}
+      {/* Bevestigingspop-ups na het contactformulier, een afmelding, een muziekverzoek, resp.
+          een bestelling (apps/web/app/(site)/contact, (site)/afmelden, (site)/verzoeken,
+          [eventSlug]/bedankt) — de eerste drie sturen altijd door naar HOME_EVENT_SLUG
+          (lib/site-config.ts); een bestelling stuurt door naar de eigen eventpagina van die
+          bestelling (elk event kan hier dus terechtkomen). useSearchParams (in de dialogen)
+          heeft een Suspense-grens nodig, anders faalt het prerenderen van deze pagina. */}
       <Suspense fallback={null}>
         <ContactSuccessDialog />
         <UnsubscribeSuccessDialog />
+        <SongRequestSuccessDialog />
         <OrderConfirmationDialog />
       </Suspense>
     </main>

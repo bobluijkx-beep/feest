@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma, verifySongRequestToken, submitSongRequests } from "@lions/core";
+import { HOME_EVENT_SLUG } from "@/lib/site-config";
 
 interface Row {
   artist: string;
@@ -41,5 +42,8 @@ export async function submitSongRequestForm(formData: FormData): Promise<void> {
   const rows = [row1, row2].filter((r): r is Row => r !== null);
   await submitSongRequests(order.id, order.eventId, order.buyerName, rows);
 
-  redirect(`/verzoeken?token=${token}&opgeslagen=1`);
+  // Zelfde patroon als het contactformulier en afmelden: een geslaagde inzending stuurt
+  // door naar HOME_EVENT_SLUG met een query-vlag, waar de pop-up (song-request-success-
+  // dialog.tsx, [eventSlug]/page.tsx) 'm toont i.p.v. een banner op /verzoeken zelf.
+  redirect(`/${HOME_EVENT_SLUG}?verzoek=1`);
 }

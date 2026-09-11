@@ -5,9 +5,9 @@ import { submitSongRequestForm } from "./actions";
 export default async function SongRequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; opgeslagen?: string; fout?: string }>;
+  searchParams: Promise<{ token?: string; fout?: string }>;
 }) {
-  const { token, opgeslagen, fout } = await searchParams;
+  const { token, fout } = await searchParams;
   const verified = token ? verifySongRequestToken(token) : null;
 
   const order = verified
@@ -43,11 +43,6 @@ export default async function SongRequestsPage({
           Vraag hieronder tot 2 nummers aan die je graag op het feest wilt horen.
         </p>
 
-        {opgeslagen === "1" && (
-          <p className="mt-4 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
-            Bedankt! Je verzoek is opgeslagen.
-          </p>
-        )}
         {fout === "onvolledig" && (
           <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Vul bij een nummer zowel de artiest als de titel in (of laat de hele regel leeg).

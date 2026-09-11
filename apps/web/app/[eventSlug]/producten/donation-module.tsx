@@ -61,7 +61,11 @@ export function DonationModule({
   }
 
   return (
-    <Card>
+    // donation-card-light (globals.css): forceert zwart-op-wit voor dit blok, los van het
+    // (vaak donkere) thema van het event — plus een duidelijke rand + gloed in de
+    // primary-kleur, zodat het blok ertussenuit springt i.p.v. op te gaan in de rest van
+    // de (doorgaans donkere) productenpagina.
+    <Card className="donation-card-light border-2 border-primary shadow-[0_0_32px_-8px_var(--primary)]">
       <CardContent className="flex flex-col gap-4">
         {descriptionHtml && (
           // descriptionHtml komt uit de admin-HtmlEditor (products/create-product-form.tsx,

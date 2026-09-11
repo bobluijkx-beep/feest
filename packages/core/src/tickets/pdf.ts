@@ -3,12 +3,17 @@ import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFFont, type PDFP
 import QRCode from "qrcode";
 
 const PAGE_WIDTH = 420;
-const PAGE_HEIGHT = 640;
+const MIN_PAGE_HEIGHT = 640;
 const DARK_BG = rgb(0.04, 0.04, 0.04);
 const WHITE = rgb(1, 1, 1);
 const MUTED_LIGHT = rgb(0.78, 0.79, 0.82);
 const BODY_TEXT = rgb(0.1, 0.1, 0.1);
 const ACCENT_LINE = rgb(0.78, 0.79, 0.82);
+
+const HEADER_INITIAL_GAP = 40;
+const QR_SIZE = 220;
+const QR_GAP_ABOVE = 20;
+const QR_BOTTOM_MARGIN = 30;
 
 /** Haalt een afbeelding op en bedt 'm in — best-effort: een tijdelijk onbereikbare URL of
  * een onverwacht formaat (pdf-lib kent alleen png/jpg) mag het ticket zelf nooit laten
@@ -28,6 +33,75 @@ async function embedImage(pdf: PDFDocument, url: string | undefined): Promise<PD
   } catch {
     return null;
   }
+}
+
+type ContentOp =
+  | { kind: "line"; text: string; size: number; bold?: boolean }
+  | { kind: "accent" }
+  | { kind: "gap"; amount: number };
+
+/** Bouwt de tekstblok-inhoud tussen kop en QR-code op als een lijst instructies i.p.v.
+ * die meteen te tekenen, zodat exact dezelfde lijst zowel de benodigde hoogte kan meten
+ * (buildContentOps + measureContentHeight, vóór de pagina wordt aangemaakt) als getekend
+ * kan worden (drawContentOps) — anders lopen een losse hoogteberekening en het echte
+ * tekenen op termijn uit elkaar. */
+function buildContentOps(params: {
+  eventName: string;
+  ticketTypeName: string;
+  buyerName: string;
+  startsAt: Date;
+  venue: string | null;
+  merchandiseLines?: string[];
+}): ContentOp[] {
+  const ops: ContentOp[] = [
+    { kind: "line", text: params.eventName, size: 18, bold: true },
+    { kind: "accent" },
+    { kind: "gap", amount: 10 },
+    { kind: "line", text: params.ticketTypeName, size: 14 },
+    { kind: "gap", amount: 4 },
+    { kind: "line", text: `Naam: ${params.buyerName}`, size: 12 },
+    {
+      kind: "line",
+      text: `Datum: ${params.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full", timeZone: "Europe/Amsterdam" })} ${params.startsAt.toLocaleTimeString(
+        "nl-NL",
+        { timeStyle: "short", timeZone: "Europe/Amsterdam" },
+      )}`,
+      size: 12,
+    },
+  ];
+  if (params.venue) ops.push({ kind: "line", text: `Locatie: ${params.venue}`, size: 12 });
+  if (params.merchandiseLines && params.merchandiseLines.length > 0) {
+    ops.push({ kind: "gap", amount: 6 });
+    // "eenmalig" is bewust expliciet: bij meerdere tickets in één bestelling staat deze
+    // sectie alleen op dit (het eerste) ticket, juist om te voorkomen dat de
+    // deurbemanning 'm per ticket nog eens meegeeft.
+    ops.push({ kind: "line", text: "Ook besteld (eenmalig, bij dit ticket):", size: 11, bold: true });
+    for (const line of params.merchandiseLines) ops.push({ kind: "line", text: line, size: 11 });
+  }
+  return ops;
+}
+
+function measureContentHeight(ops: ContentOp[]): number {
+  return ops.reduce((sum, op) => {
+    if (op.kind === "line") return sum + op.size + 10;
+    if (op.kind === "gap") return sum + op.amount;
+    return sum;
+  }, 0);
+}
+
+function drawContentOps(page: PDFPage, ops: ContentOp[], font: PDFFont, boldFont: PDFFont, startY: number): number {
+  let y = startY;
+  for (const op of ops) {
+    if (op.kind === "line") {
+      page.drawText(op.text, { x: 32, y, size: op.size, font: op.bold ? boldFont : font, color: BODY_TEXT });
+      y -= op.size + 10;
+    } else if (op.kind === "accent") {
+      page.drawRectangle({ x: 32, y: y + 6, width: 48, height: 2, color: ACCENT_LINE });
+    } else {
+      y -= op.amount;
+    }
+  }
+  return y;
 }
 
 export async function generateTicketPdf(params: {
@@ -51,53 +125,37 @@ export async function generateTicketPdf(params: {
   const qrPng = await QRCode.toBuffer(params.qrToken, { type: "png", margin: 1, width: 300 });
 
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   const [hero, logo] = await Promise.all([embedImage(pdf, params.heroImageUrl), embedImage(pdf, params.logoUrl)]);
 
-  const headerBottomY = drawHeader(page, boldFont, hero, logo);
-
-  let y = headerBottomY - 40;
-  const drawLine = (text: string, options: { size?: number; bold?: boolean } = {}) => {
-    page.drawText(text, {
-      x: 32,
-      y,
-      size: options.size ?? 12,
-      font: options.bold ? boldFont : font,
-      color: BODY_TEXT,
-    });
-    y -= (options.size ?? 12) + 10;
-  };
-
-  drawLine(params.eventName, { size: 18, bold: true });
-  page.drawRectangle({ x: 32, y: y + 6, width: 48, height: 2, color: ACCENT_LINE });
-  y -= 10;
-  drawLine(params.ticketTypeName, { size: 14 });
-  y -= 4;
-  drawLine(`Naam: ${params.buyerName}`);
-  drawLine(
-    `Datum: ${params.startsAt.toLocaleDateString("nl-NL", { dateStyle: "full", timeZone: "Europe/Amsterdam" })} ${params.startsAt.toLocaleTimeString(
-      "nl-NL",
-      { timeStyle: "short", timeZone: "Europe/Amsterdam" },
-    )}`,
+  const bandHeight = (hero ? 130 : 0) + 90;
+  const contentOps = buildContentOps(params);
+  const contentHeight = measureContentHeight(contentOps);
+  // De paginahoogte was voorheen een vaste 640pt, ongeacht hoeveel tekst (locatie,
+  // meebestelde feestartikelen) erboven kwam — bij genoeg regels (bv. een event met
+  // sfeerfoto + locatie + meerdere meebestelde artikelen) werd de QR-code daardoor met een
+  // negatieve y-positie getekend, dus deels buiten de pagina en dus onscanbaar afgesneden.
+  // De hoogte wordt nu berekend uit de daadwerkelijke inhoud, met 640 als ondergrens zodat
+  // een kort ticket er niet anders uitziet dan voorheen.
+  const pageHeight = Math.max(
+    MIN_PAGE_HEIGHT,
+    bandHeight + HEADER_INITIAL_GAP + contentHeight + QR_GAP_ABOVE + QR_SIZE + QR_BOTTOM_MARGIN,
   );
-  if (params.venue) drawLine(`Locatie: ${params.venue}`);
 
-  if (params.merchandiseLines && params.merchandiseLines.length > 0) {
-    y -= 6;
-    // "eenmalig" is bewust expliciet: bij meerdere tickets in één bestelling staat deze
-    // sectie alleen op dit (het eerste) ticket, juist om te voorkomen dat de
-    // deurbemanning 'm per ticket nog eens meegeeft.
-    drawLine("Ook besteld (eenmalig, bij dit ticket):", { size: 11, bold: true });
-    for (const line of params.merchandiseLines) {
-      drawLine(line, { size: 11 });
-    }
-  }
+  const page = pdf.addPage([PAGE_WIDTH, pageHeight]);
+  const headerBottomY = drawHeader(page, pageHeight, boldFont, hero, logo);
+
+  const y = drawContentOps(page, contentOps, font, boldFont, headerBottomY - HEADER_INITIAL_GAP);
 
   const qrImage = await pdf.embedPng(qrPng);
-  page.drawImage(qrImage, { x: (PAGE_WIDTH - 220) / 2, y: y - 240, width: 220, height: 220 });
+  page.drawImage(qrImage, {
+    x: (PAGE_WIDTH - QR_SIZE) / 2,
+    y: y - QR_GAP_ABOVE - QR_SIZE,
+    width: QR_SIZE,
+    height: QR_SIZE,
+  });
 
   return pdf.save();
 }
@@ -108,12 +166,12 @@ export async function generateTicketPdf(params: {
  * de donkere achtergrond heen niet opvalt), en daaronder het clublogo + de clubnaam.
  * Geeft de y-coördinaat van de onderkant van de kop terug, zodat de rest van het ticket
  * daar meteen op kan aansluiten. */
-function drawHeader(page: PDFPage, boldFont: PDFFont, hero: PDFImage | null, logo: PDFImage | null): number {
+function drawHeader(page: PDFPage, pageHeight: number, boldFont: PDFFont, hero: PDFImage | null, logo: PDFImage | null): number {
   const photoAreaHeight = hero ? 130 : 0;
   const brandStripHeight = 90;
   const bandHeight = photoAreaHeight + brandStripHeight;
-  const bandTop = PAGE_HEIGHT;
-  const bandBottom = PAGE_HEIGHT - bandHeight;
+  const bandTop = pageHeight;
+  const bandBottom = pageHeight - bandHeight;
 
   page.drawRectangle({ x: 0, y: bandBottom, width: PAGE_WIDTH, height: bandHeight, color: DARK_BG });
 

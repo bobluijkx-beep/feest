@@ -4,3 +4,18 @@
 @source "../../../packages/ui/src";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Alle tekst (en, via Tailwinds rem-gebaseerde utilities, ook de meeste spacing) schaalt
+   mee met deze root-font-size — geen losse tekstgroottes per component nodig. Bewust
+   alleen hier (apps/web, de publieke site), niet in het gedeelde packages/ui/theme.css:
+   feest-admin blijft op de standaardgrootte, waar dichte tabellen minder ruimte hebben.
+   Kleine bump op mobiel, grotere op desktop — de klacht was vooral "op desktop te klein". */
+html {
+  font-size: 17px;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 19px;
+  }
+}

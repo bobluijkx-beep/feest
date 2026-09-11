@@ -60,8 +60,10 @@ async function renderOrderEmail(order: OrderWithRelations, type: EmailTemplateTy
   // waarde ze getoond worden blijft hier bepaald — data-afhankelijke logica die niet in de
   // vrije tekst thuishoort.
   const ticketsSection = order.tickets.length > 0 ? systemTemplates.tickets_sectie : "";
+  // Elk artikel op zijn eigen regel (<br> i.p.v. ", "), zelfde opsomming als op het
+  // ticket-PDF (packages/core/src/tickets/pdf.ts) i.p.v. alles achter elkaar op één regel.
   const merchandiseSection =
-    lines.length > 0 ? renderSystemPlaceholder(systemTemplates.merchandise, lines.join(", ")) : "";
+    lines.length > 0 ? renderSystemPlaceholder(systemTemplates.merchandise, lines.join("<br>")) : "";
   const locatie = renderSystemPlaceholder(systemTemplates.locatie, order.event.venue ?? "");
 
   return renderWithLayout({

@@ -37,7 +37,7 @@ export const SYSTEM_PLACEHOLDER_DEFS: SystemPlaceholderDef[] = [
     hasValue: true,
     defaultTemplate: "<p>Ook besteld: {{waarde}}.</p>",
     helpText:
-      "{{waarde}} wordt vervangen door de lijst bestelde feestartikelen (bv. \"2x Muntje, 1x Waaier\"). Wordt alleen getoond als de bestelling ook echt feestartikelen bevat.",
+      "{{waarde}} wordt vervangen door de lijst bestelde feestartikelen, elk op een eigen regel (bv. \"2x Muntje\" en \"1x Waaier\" onder elkaar) — net als op het ticket-PDF. Wordt alleen getoond als de bestelling ook echt feestartikelen bevat.",
   },
 ];
 

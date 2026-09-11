@@ -27,7 +27,11 @@ export function encryptSettingValue(plaintext: string): string {
 
 export function decryptSettingValue(packed: string): string {
   const [ivB64, authTagB64, ciphertextB64] = packed.split(".");
-  if (!ivB64 || !authTagB64 || !ciphertextB64) {
+  // Een lege plaintext (bv. een leeggemaakte ontvangerslijst) versleutelt naar een lege
+  // ciphertext-component — dat is een geldige, niet-lege waarde ("") en mag dus niet als
+  // ontbrekend segment worden afgewezen. Alleen echt ontbrekende segments (undefined) zijn
+  // een format-fout.
+  if (!ivB64 || !authTagB64 || ciphertextB64 === undefined) {
     throw new Error("Ongeldig versleuteld waardeformaat.");
   }
   const decipher = createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivB64, "base64"));

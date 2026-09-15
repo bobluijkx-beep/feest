@@ -42,19 +42,25 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
         </div>
       )}
 
-      {donationProducts.map((product) => (
-        <div key={product.id} className="mt-6">
-          <h2 className="mb-3 font-heading text-base font-medium">{product.name}</h2>
-          <DonationModule
-            productId={product.id}
-            name={product.name}
-            imageUrl={product.imageUrl}
-            descriptionHtml={product.description}
-            presetsCents={product.donationPresetsCents}
-            eventSlug={eventSlug}
-          />
+      {donationProducts.length > 0 && (
+        // Zelfde scroll-mt-aanpak als #feestartikelen hierboven — doel van de nieuwe
+        // "Doe een donatie"-knop op de homepage ([eventSlug]/page.tsx).
+        <div id="donaties" className="mt-6 scroll-mt-40">
+          {donationProducts.map((product) => (
+            <div key={product.id} className="mt-6 first:mt-0">
+              <h2 className="mb-3 font-heading text-base font-medium">{product.name}</h2>
+              <DonationModule
+                productId={product.id}
+                name={product.name}
+                imageUrl={product.imageUrl}
+                descriptionHtml={product.description}
+                presetsCents={product.donationPresetsCents}
+                eventSlug={eventSlug}
+              />
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </main>
   );
 }

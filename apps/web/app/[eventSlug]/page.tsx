@@ -26,12 +26,13 @@ export default async function EventPage({
   const event = await getPublicEvent(eventSlug);
   if (!event) notFound();
 
-  const [pageBlocks, availableTickets] = await Promise.all([
+  const [pageBlocks, availableTickets, donationProduct] = await Promise.all([
     prisma.pageBlock.findMany({
       where: { eventId: event.id, isPublished: true },
       orderBy: { order: "asc" },
     }),
     getAvailableTicketCount(event.id),
+    prisma.product.findFirst({ where: { eventId: event.id, kind: "DONATION", isActive: true }, select: { id: true } }),
   ]);
 
   const dateEyebrow = event.startsAt
@@ -63,6 +64,17 @@ export default async function EventPage({
           Bekijk tickets &amp; producten
         </Link>
       </HeroFrame>
+
+      {/* Los van de hero-CTA hierboven: een aparte, evenveel opvallende knop naar de
+          donatiemodule op /producten (#donaties, zie producten/page.tsx) — alleen als dit
+          event daadwerkelijk een actief donatieproduct heeft. */}
+      {donationProduct && (
+        <div className="mt-6 text-center">
+          <Link href={`/${eventSlug}/producten#donaties`} className={buttonVariants({ size: "lg" })}>
+            Doe een donatie
+          </Link>
+        </div>
+      )}
 
       {error === "stock" && (
         <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">

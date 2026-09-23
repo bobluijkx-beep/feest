@@ -55,6 +55,7 @@ export async function createBulkCampaign(params: {
   eventId: string;
   segment: CampaignSegment;
   recipients: SegmentRecipient[];
+  mailingTemplateId?: string | null;
   subject: string;
   bodyHtml: string;
   layoutId?: string | null;
@@ -68,6 +69,7 @@ export async function createBulkCampaign(params: {
         organizationId: params.actor.organizationId,
         eventId: params.eventId,
         createdByUserId: params.actor.id,
+        mailingTemplateId: params.mailingTemplateId || null,
         subject: params.subject,
         bodyHtml: params.bodyHtml,
         layoutId: params.layoutId || null,

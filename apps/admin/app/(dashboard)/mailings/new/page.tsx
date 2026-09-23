@@ -41,15 +41,16 @@ export default async function NewCampaignPage({
 
   const candidates = eventSelected ? await buildSegmentRecipients(segment) : [];
 
-  const [layouts, customPlaceholders] = await Promise.all([
+  const [layouts, templates] = await Promise.all([
     prisma.emailLayout.findMany({
       where: { organizationId: actor.organizationId },
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, bodyHtml: true, isDefault: true },
     }),
-    prisma.customPlaceholder.findMany({
+    prisma.mailingTemplate.findMany({
       where: { organizationId: actor.organizationId },
-      select: { key: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, subject: true, bodyHtml: true, layoutId: true },
     }),
   ]);
 
@@ -136,8 +137,8 @@ export default async function NewCampaignPage({
               key={JSON.stringify(segment)}
               segment={segment}
               candidates={candidates}
+              templates={templates}
               layouts={layouts}
-              customPlaceholderKeys={customPlaceholders.map((p) => p.key)}
             />
           </CardContent>
         </Card>

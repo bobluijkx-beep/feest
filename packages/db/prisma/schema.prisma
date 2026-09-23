@@ -78,6 +78,7 @@ model Organization {
   auditLogs                  AuditLog[]
   emailCampaigns             EmailCampaign[]
   emailLayouts               EmailLayout[]
+  mailingTemplates           MailingTemplate[]
   customPlaceholders         CustomPlaceholder[]
   systemPlaceholderOverrides SystemPlaceholderOverride[]
   contacts                   Contact[]
@@ -315,29 +316,57 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
+// Herbruikbare, org-brede mailing-inhoud (onderwerp + body + lay-out) los van een
+// specifieke doelgroep/verzending — zie EmailCampaign.mailingTemplateId hieronder. Bewust
+// org-breed i.p.v. event-gebonden: placeholders als {{event_naam}}/{{aantal_tickets}}/
+// {{afmeldlink}} worden pas bij verzenden ingevuld (buildSegmentRecipients), dus dezelfde
+// template werkt voor elk event. Niet te verwarren met EmailTemplate hierboven (dat zijn de
+// automatische transactionele mails per event/type, deze zijn voor handmatige mailings).
+model MailingTemplate {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  name           String
+  subject        String
+  bodyHtml       String
+  layoutId       String?
+  layout         EmailLayout?    @relation(fields: [layoutId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  campaigns      EmailCampaign[]
+
+  @@index([organizationId])
+  @@map("mailing_templates")
+}
+
 // Gepersonaliseerde bulkmail naar een segment deelnemers van een event (los van de
 // transactionele EmailTemplate-mails). Segment/verzendlogica: packages/core/src/email/.
+// subject/bodyHtml/layoutId zijn een snapshot van het gekozen MailingTemplate op het moment
+// van verzenden (niet live gekoppeld) — zo blijft een verzonden mailing historisch correct,
+// ook als de template daarna wordt bewerkt of verwijderd (mailingTemplateId -> SetNull).
 model EmailCampaign {
-  id              String                   @id @default(cuid())
-  organizationId  String
-  organization    Organization             @relation(fields: [organizationId], references: [id])
-  eventId         String
-  event           Event                    @relation(fields: [eventId], references: [id])
-  createdByUserId String?
-  subject         String
-  bodyHtml        String
-  layoutId        String?
-  layout          EmailLayout?             @relation(fields: [layoutId], references: [id])
+  id                String                   @id @default(cuid())
+  organizationId    String
+  organization      Organization             @relation(fields: [organizationId], references: [id])
+  eventId           String
+  event             Event                    @relation(fields: [eventId], references: [id])
+  createdByUserId   String?
+  mailingTemplateId String?
+  mailingTemplate   MailingTemplate?         @relation(fields: [mailingTemplateId], references: [id], onDelete: SetNull)
+  subject           String
+  bodyHtml          String
+  layoutId          String?
+  layout            EmailLayout?             @relation(fields: [layoutId], references: [id])
   // Snapshot van de gekozen filters (event/producttype/check-in) — audit + reproduceerbaarheid.
-  segment         Json
-  status          EmailCampaignStatus      @default(QUEUED)
-  totalRecipients Int                      @default(0)
-  sentCount       Int                      @default(0)
-  failedCount     Int                      @default(0)
-  skippedCount    Int                      @default(0)
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  recipients      EmailCampaignRecipient[]
+  segment           Json
+  status            EmailCampaignStatus      @default(QUEUED)
+  totalRecipients   Int                      @default(0)
+  sentCount         Int                      @default(0)
+  failedCount       Int                      @default(0)
+  skippedCount      Int                      @default(0)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  recipients        EmailCampaignRecipient[]
 
   @@index([organizationId])
   @@index([eventId])
@@ -361,6 +390,7 @@ model EmailLayout {
   updatedAt      DateTime        @updatedAt
   emailTemplates EmailTemplate[]
   emailCampaigns EmailCampaign[]
+  mailingTemplates MailingTemplate[]
 
   @@index([organizationId])
   @@map("email_layouts")

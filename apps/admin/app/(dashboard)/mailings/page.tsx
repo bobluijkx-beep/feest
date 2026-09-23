@@ -13,6 +13,7 @@ import {
   buttonVariants,
 } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
+import { DeleteCampaignButton } from "./delete-campaign-button";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
   QUEUED: "secondary",
@@ -39,9 +40,14 @@ export default async function MailingsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Gepersonaliseerde bulkmail naar een doelgroep deelnemers.</p>
-        <Link href="/mailings/new" className={buttonVariants({ size: "sm" })}>
-          + Nieuwe mailing
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/mailings/templates" className={buttonVariants({ size: "sm", variant: "outline" })}>
+            Templates beheren
+          </Link>
+          <Link href="/mailings/new" className={buttonVariants({ size: "sm" })}>
+            Doelgroep &amp; versturen
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -54,6 +60,7 @@ export default async function MailingsPage() {
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Verzonden</TableHead>
                 <TableHead>Aangemaakt op</TableHead>
+                {actor.role === "ADMIN" && <TableHead>Acties</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,11 +79,16 @@ export default async function MailingsPage() {
                     {c.sentCount} / {c.totalRecipients}
                   </TableCell>
                   <TableCell>{c.createdAt.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</TableCell>
+                  {actor.role === "ADMIN" && (
+                    <TableCell>
+                      <DeleteCampaignButton id={c.id} subject={c.subject} />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {campaigns.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={actor.role === "ADMIN" ? 6 : 5} className="text-center text-muted-foreground">
                     Nog geen mailings verstuurd.
                   </TableCell>
                 </TableRow>

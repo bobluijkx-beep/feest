@@ -2,9 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { renderWithLayout, DEFAULT_LAYOUT_HTML } from "@lions/core/email/layout";
-import { CAMPAIGN_PLACEHOLDERS } from "@lions/core/email/placeholders";
-import { Button, Input, Label, Select, Textarea, Card, CardContent } from "@lions/ui";
-import { HtmlEditor } from "../content/emails/html-editor";
+import { Button, Label, Select, Textarea, Card, CardContent } from "@lions/ui";
 import { createCampaign, type CreateCampaignState } from "./actions";
 import type { CampaignSegment, SegmentRecipient } from "@lions/core";
 
@@ -28,6 +26,14 @@ interface LayoutOption {
   isDefault: boolean;
 }
 
+interface TemplateOption {
+  id: string;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  layoutId: string | null;
+}
+
 /** Ruwe client-side schatting van het aantal geldige, nog niet al geselecteerde adressen in
  * het vrije testadres-veld — alleen voor de teller/knoptekst. De server (buildAdHocRecipients)
  * is de echte bron van waarheid en filtert ook nog op EmailOptOut. */
@@ -43,18 +49,16 @@ function countExtraEmails(raw: string, exclude: Set<string>): number {
 export function CampaignComposeForm({
   segment,
   candidates,
+  templates,
   layouts,
-  customPlaceholderKeys = [],
 }: {
   segment: CampaignSegment;
   candidates: SegmentRecipient[];
+  templates: TemplateOption[];
   layouts: LayoutOption[];
-  customPlaceholderKeys?: string[];
 }) {
   const [state, formAction, pending] = useActionState(createCampaign, initialState);
-  const [subject, setSubject] = useState("");
-  const [bodyHtml, setBodyHtml] = useState("");
-  const [layoutId, setLayoutId] = useState("");
+  const [templateId, setTemplateId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   // Standaard iedereen aangevinkt (normale verzending); handmatig uitzetten voor een
   // kleinere/test-doelgroep. Dit component wordt door de pagina ge-remount (key={...}) zodra
@@ -76,13 +80,16 @@ export function CampaignComposeForm({
   const extraCount = useMemo(() => countExtraEmails(extraEmails, selected), [extraEmails, selected]);
   const totalCount = selected.size + extraCount;
 
-  const selectedLayout = layouts.find((l) => l.id === layoutId);
+  const selectedTemplate = templates.find((t) => t.id === templateId);
+  const selectedLayout = layouts.find((l) => l.id === selectedTemplate?.layoutId);
   const layoutHtml = selectedLayout?.bodyHtml ?? layouts.find((l) => l.isDefault)?.bodyHtml ?? DEFAULT_LAYOUT_HTML;
-  const preview = renderWithLayout({
-    layoutHtml,
-    content: { subject, bodyHtml: bodyHtml + PREVIEW_UNSUBSCRIBE_FOOTER },
-    vars: SAMPLE_VARS,
-  });
+  const preview = selectedTemplate
+    ? renderWithLayout({
+        layoutHtml,
+        content: { subject: selectedTemplate.subject, bodyHtml: selectedTemplate.bodyHtml + PREVIEW_UNSUBSCRIBE_FOOTER },
+        vars: SAMPLE_VARS,
+      })
+    : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -109,6 +116,29 @@ export function CampaignComposeForm({
             <input type="hidden" name="checkedInFilter" value={segment.checkedInFilter ?? "ANY"} />
           </>
         )}
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="templateId">Mailing-template</Label>
+          <Select
+            id="templateId"
+            name="templateId"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+            className="max-w-sm"
+          >
+            <option value="">Kies een template…</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </Select>
+          {templates.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Nog geen templates. Maak er eerst een aan onder &quot;Templates beheren&quot;.
+            </p>
+          )}
+        </div>
 
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -169,55 +199,18 @@ export function CampaignComposeForm({
           </p>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="subject">Onderwerp</Label>
-          <Input id="subject" type="text" name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="layoutId">Lay-out</Label>
-          <Select
-            id="layoutId"
-            name="layoutId"
-            value={layoutId}
-            onChange={(e) => setLayoutId(e.target.value)}
-            className="max-w-xs"
-          >
-            <option value="">
-              {layouts.find((l) => l.isDefault) ? `Standaard (${layouts.find((l) => l.isDefault)?.name})` : "Standaard"}
-            </option>
-            {layouts.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="bodyHtml">Inhoud (HTML)</Label>
-          <HtmlEditor
-            value={bodyHtml}
-            onChange={setBodyHtml}
-            placeholders={[...CAMPAIGN_PLACEHOLDERS, ...customPlaceholderKeys]}
-            rows={10}
-          />
-          <input type="hidden" name="bodyHtml" value={bodyHtml} />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Onder elke mail wordt automatisch een afmeldlink toegevoegd, dus dat hoef je hier niet zelf te doen. Wil je
-          de link liever ergens anders in de tekst, gebruik dan zelf de {"{{afmeldlink}}"}-placeholder.
-        </p>
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={pending || totalCount === 0}>
+          <Button type="submit" disabled={pending || totalCount === 0 || !templateId}>
             {pending ? "Bezig…" : `Versturen naar ${totalCount} ontvanger${totalCount === 1 ? "" : "s"}`}
           </Button>
-          <Button type="button" variant="outline" onClick={() => setShowPreview((v) => !v)}>
+          <Button type="button" variant="outline" disabled={!selectedTemplate} onClick={() => setShowPreview((v) => !v)}>
             {showPreview ? "Voorbeeld verbergen" : "Voorbeeld tonen"}
           </Button>
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
         </div>
       </form>
 
-      {showPreview && (
+      {showPreview && preview && (
         <Card>
           <CardContent className="flex flex-col gap-2 p-0">
             <p className="px-4 pt-4 text-sm">

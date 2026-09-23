@@ -22,14 +22,26 @@ function requireEnv(name: string): string {
 }
 
 /** Zelfde QStash-client-patroon als scheduleOrderExpiry
- * (packages/core/src/checkout/qstash.ts). */
+ * (packages/core/src/checkout/qstash.ts). feest-admin heeft — anders dan feest-website —
+ * geen eigen domein, dus Vercel's SSO-deploymentbeveiliging ("alles behalve custom
+ * domains") staat ook op de productie-URL aan en blokkeert deze callback anders met een
+ * onzichtbare 401: QStash krijgt de Vercel-inlogpagina terug i.p.v. onze route, de batch
+ * wordt nooit verwerkt en de campagne blijft voor altijd op QUEUED staan. De header hieronder
+ * is Vercel's eigen "Protection Bypass for Automation" — leeg/ontbrekend op een project
+ * zónder die bescherming (bv. feest-website) heeft geen effect. */
 export async function scheduleBulkCampaignBatch(
   campaignId: string,
   callbackUrl: string,
   delay?: `${bigint}s`,
 ): Promise<void> {
   const client = new Client({ token: requireEnv("QSTASH_TOKEN"), baseUrl: process.env.QSTASH_URL });
-  await client.publishJSON({ url: callbackUrl, body: { campaignId }, delay });
+  const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  await client.publishJSON({
+    url: callbackUrl,
+    body: { campaignId },
+    delay,
+    headers: bypassSecret ? { "x-vercel-protection-bypass": bypassSecret } : undefined,
+  });
 }
 
 /** Legt de campagne + de meegegeven recipients (status PENDING) vast in één transactie, en

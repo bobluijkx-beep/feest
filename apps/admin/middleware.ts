@@ -26,12 +26,17 @@ export async function middleware(request: NextRequest) {
 
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
   // Wachtwoord-vergeten-flow moet ook zonder (of met een net-uitgewisselde recovery-)
-  // sessie bereikbaar zijn — dit zijn de enige andere publieke pagina's.
+  // sessie bereikbaar zijn — dit zijn de enige andere publieke pagina's. /api-routes
+  // authenticeren zichzelf (bv. QStash's signature-verificatie in
+  // /api/qstash/send-bulk-batch) — die krijgen nooit een browsersessie mee, dus zonder
+  // deze uitzondering stuurde deze middleware QStash's eigen server-naar-server-aanroep
+  // stilletjes door naar /login (een 307) i.p.v. 'm te laten verwerken.
   const isPublicPage =
     isLoginPage ||
     request.nextUrl.pathname.startsWith("/wachtwoord-vergeten") ||
     request.nextUrl.pathname.startsWith("/wachtwoord-resetten") ||
-    request.nextUrl.pathname.startsWith("/auth/reset-callback");
+    request.nextUrl.pathname.startsWith("/auth/reset-callback") ||
+    request.nextUrl.pathname.startsWith("/api/");
 
   if (!user && !isPublicPage) {
     const url = request.nextUrl.clone();

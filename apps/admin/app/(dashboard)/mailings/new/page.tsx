@@ -8,7 +8,12 @@ import { CampaignComposeForm } from "../campaign-compose-form";
 export default async function NewCampaignPage({
   searchParams,
 }: {
-  searchParams: Promise<{ eventId?: string; productKinds?: string | string[]; checkedInFilter?: string }>;
+  searchParams: Promise<{
+    eventId?: string;
+    segmentType?: string;
+    productKinds?: string | string[];
+    checkedInFilter?: string;
+  }>;
 }) {
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
   const params = await searchParams;
@@ -22,6 +27,7 @@ export default async function NewCampaignPage({
 
   const formData = new FormData();
   if (params.eventId) formData.set("eventId", params.eventId);
+  if (params.segmentType) formData.set("segmentType", params.segmentType);
   const productKindsParam = params.productKinds
     ? Array.isArray(params.productKinds)
       ? params.productKinds
@@ -68,33 +74,51 @@ export default async function NewCampaignPage({
                 ))}
               </Select>
             </div>
-            <fieldset className="flex flex-col gap-1">
-              <legend className="text-sm font-medium">Producttype</legend>
-              <div className="flex gap-3">
-                {(["TICKET", "MERCHANDISE"] as ProductKind[]).map((kind) => (
-                  <label key={kind} className="flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      name="productKinds"
-                      value={kind}
-                      defaultChecked={(segment.productKinds ?? []).includes(kind)}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    {kind === "TICKET" ? "Ticket" : "Product"}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
             <div className="flex flex-col gap-1">
-              <label htmlFor="checkedInFilter" className="text-sm font-medium">
-                Check-in-status
+              <label htmlFor="segmentType" className="text-sm font-medium">
+                Doelgroep
               </label>
-              <Select id="checkedInFilter" name="checkedInFilter" defaultValue={segment.checkedInFilter} className="w-48">
-                <option value="ANY">Iedereen</option>
-                <option value="NOT_CHECKED_IN">Nog niet ingecheckt</option>
-                <option value="CHECKED_IN">Al ingecheckt</option>
+              <Select id="segmentType" name="segmentType" defaultValue={segment.type} className="w-72">
+                <option value="EVENT">Kopers van dit event</option>
+                <option value="ADDRESS_BOOK">Adresboek (excl. kopers van dit event)</option>
               </Select>
             </div>
+            {segment.type === "EVENT" && (
+              <>
+                <fieldset className="flex flex-col gap-1">
+                  <legend className="text-sm font-medium">Producttype</legend>
+                  <div className="flex gap-3">
+                    {(["TICKET", "MERCHANDISE"] as ProductKind[]).map((kind) => (
+                      <label key={kind} className="flex items-center gap-1.5 text-sm">
+                        <input
+                          type="checkbox"
+                          name="productKinds"
+                          value={kind}
+                          defaultChecked={(segment.productKinds ?? []).includes(kind)}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                        {kind === "TICKET" ? "Ticket" : "Product"}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="checkedInFilter" className="text-sm font-medium">
+                    Check-in-status
+                  </label>
+                  <Select
+                    id="checkedInFilter"
+                    name="checkedInFilter"
+                    defaultValue={segment.checkedInFilter}
+                    className="w-48"
+                  >
+                    <option value="ANY">Iedereen</option>
+                    <option value="NOT_CHECKED_IN">Nog niet ingecheckt</option>
+                    <option value="CHECKED_IN">Al ingecheckt</option>
+                  </Select>
+                </div>
+              </>
+            )}
             <Button type="submit" variant="outline">
               Doelgroep tonen
             </Button>

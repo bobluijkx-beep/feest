@@ -80,9 +80,36 @@ model Organization {
   emailLayouts               EmailLayout[]
   customPlaceholders         CustomPlaceholder[]
   systemPlaceholderOverrides SystemPlaceholderOverride[]
+  contacts                   Contact[]
   createdAt                  DateTime                    @default(now())
 
   @@map("organizations")
+}
+
+enum ContactSource {
+  ORDER
+  IMPORT
+}
+
+// Org-breed, niet event-gebonden adresboek: de opt-in doelgroep voor mailings los van één
+// specifiek event (zie CampaignSegment "ADDRESS_BOOK", packages/core/src/email/segment.ts).
+// Gevuld vanuit twee bronnen — bestaande, opt-in kopers (syncOrderContactsIntoAddressBook)
+// en handmatige CSV-import van contacten van buiten deze app (importContacts) — uniek op
+// e-mailadres per organisatie, dus een contact dat via beide wegen binnenkomt telt maar
+// één keer mee.
+model Contact {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  name           String
+  email          String
+  source         ContactSource
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("contacts")
 }
 
 model Event {

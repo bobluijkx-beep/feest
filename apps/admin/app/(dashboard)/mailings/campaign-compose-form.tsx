@@ -67,10 +67,15 @@ export function CampaignComposeForm({
         }}
       >
         <input type="hidden" name="eventId" value={segment.eventId} />
-        {(segment.productKinds ?? []).map((kind) => (
-          <input key={kind} type="hidden" name="productKinds" value={kind} />
-        ))}
-        <input type="hidden" name="checkedInFilter" value={segment.checkedInFilter ?? "ANY"} />
+        <input type="hidden" name="segmentType" value={segment.type} />
+        {segment.type === "EVENT" && (
+          <>
+            {(segment.productKinds ?? []).map((kind) => (
+              <input key={kind} type="hidden" name="productKinds" value={kind} />
+            ))}
+            <input type="hidden" name="checkedInFilter" value={segment.checkedInFilter ?? "ANY"} />
+          </>
+        )}
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="subject">Onderwerp</Label>

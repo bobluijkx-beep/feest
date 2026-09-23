@@ -6,6 +6,11 @@ const VALID_CHECKED_IN_FILTERS = ["ANY", "NOT_CHECKED_IN", "CHECKED_IN"] as cons
 
 export function parseSegmentFromFormData(formData: FormData): CampaignSegment {
   const eventId = String(formData.get("eventId") ?? "");
+
+  if (String(formData.get("segmentType") ?? "EVENT") === "ADDRESS_BOOK") {
+    return { type: "ADDRESS_BOOK", eventId };
+  }
+
   const productKinds = formData
     .getAll("productKinds")
     .map(String)
@@ -17,5 +22,10 @@ export function parseSegmentFromFormData(formData: FormData): CampaignSegment {
     ? (checkedInFilterRaw as (typeof VALID_CHECKED_IN_FILTERS)[number])
     : "ANY";
 
-  return { eventId, productKinds: productKinds.length > 0 ? productKinds : undefined, checkedInFilter };
+  return {
+    type: "EVENT",
+    eventId,
+    productKinds: productKinds.length > 0 ? productKinds : undefined,
+    checkedInFilter,
+  };
 }

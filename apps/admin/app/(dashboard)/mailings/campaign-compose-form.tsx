@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { renderWithLayout, DEFAULT_LAYOUT_HTML } from "@lions/core/email/layout";
 import { CAMPAIGN_PLACEHOLDERS } from "@lions/core/email/placeholders";
-import { Button, Input, Label, Select, Card, CardContent } from "@lions/ui";
+import { Button, Input, Label, Select, Textarea, Card, CardContent } from "@lions/ui";
 import { HtmlEditor } from "../content/emails/html-editor";
 import { createCampaign, type CreateCampaignState } from "./actions";
-import type { CampaignSegment } from "@lions/core";
+import type { CampaignSegment, SegmentRecipient } from "@lions/core";
 
 const SAMPLE_VARS = {
   voornaam: "Jan",
@@ -17,6 +17,8 @@ const SAMPLE_VARS = {
 const PREVIEW_UNSUBSCRIBE_FOOTER =
   '<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? <a href="#">Afmelden</a>.</p>';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const initialState: CreateCampaignState = {};
 
 interface LayoutOption {
@@ -26,14 +28,26 @@ interface LayoutOption {
   isDefault: boolean;
 }
 
+/** Ruwe client-side schatting van het aantal geldige, nog niet al geselecteerde adressen in
+ * het vrije testadres-veld — alleen voor de teller/knoptekst. De server (buildAdHocRecipients)
+ * is de echte bron van waarheid en filtert ook nog op EmailOptOut. */
+function countExtraEmails(raw: string, exclude: Set<string>): number {
+  const emails = new Set<string>();
+  for (const part of raw.split(/[\n,]/)) {
+    const email = part.trim().toLowerCase();
+    if (email && EMAIL_RE.test(email) && !exclude.has(email)) emails.add(email);
+  }
+  return emails.size;
+}
+
 export function CampaignComposeForm({
   segment,
-  recipientCount,
+  candidates,
   layouts,
   customPlaceholderKeys = [],
 }: {
   segment: CampaignSegment;
-  recipientCount: number;
+  candidates: SegmentRecipient[];
   layouts: LayoutOption[];
   customPlaceholderKeys?: string[];
 }) {
@@ -42,6 +56,25 @@ export function CampaignComposeForm({
   const [bodyHtml, setBodyHtml] = useState("");
   const [layoutId, setLayoutId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  // Standaard iedereen aangevinkt (normale verzending); handmatig uitzetten voor een
+  // kleinere/test-doelgroep. Dit component wordt door de pagina ge-remount (key={...}) zodra
+  // de doelgroep-filters wijzigen, dus deze state hoeft zichzelf niet te synchroniseren met
+  // een wijzigende `candidates`-prop.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(candidates.map((c) => c.email.toLowerCase())));
+  const [extraEmails, setExtraEmails] = useState("");
+
+  function toggle(email: string) {
+    const key = email.toLowerCase();
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const extraCount = useMemo(() => countExtraEmails(extraEmails, selected), [extraEmails, selected]);
+  const totalCount = selected.size + extraCount;
 
   const selectedLayout = layouts.find((l) => l.id === layoutId);
   const layoutHtml = selectedLayout?.bodyHtml ?? layouts.find((l) => l.isDefault)?.bodyHtml ?? DEFAULT_LAYOUT_HTML;
@@ -59,7 +92,7 @@ export function CampaignComposeForm({
         onSubmit={(e) => {
           if (
             !window.confirm(
-              `Deze mailing versturen naar ${recipientCount} deelnemer${recipientCount === 1 ? "" : "s"}? Dit kan niet ongedaan worden gemaakt.`,
+              `Deze mailing versturen naar ${totalCount} ontvanger${totalCount === 1 ? "" : "s"}? Dit kan niet ongedaan worden gemaakt.`,
             )
           ) {
             e.preventDefault();
@@ -76,6 +109,65 @@ export function CampaignComposeForm({
             <input type="hidden" name="checkedInFilter" value={segment.checkedInFilter ?? "ANY"} />
           </>
         )}
+
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>
+              Ontvangers ({selected.size} van {candidates.length} geselecteerd)
+            </Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelected(new Set(candidates.map((c) => c.email.toLowerCase())))}
+              >
+                Alles selecteren
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setSelected(new Set())}>
+                Alles deselecteren
+              </Button>
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto rounded-md border border-input p-2">
+            {candidates.map((c) => (
+              <label key={c.email} className="flex items-center gap-2 py-1 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selected.has(c.email.toLowerCase())}
+                  onChange={() => toggle(c.email)}
+                  className="h-4 w-4 shrink-0 rounded border-input"
+                />
+                <span className="font-medium">{c.name}</span>
+                <span className="text-muted-foreground">{c.email}</span>
+              </label>
+            ))}
+            {candidates.length === 0 && (
+              <p className="text-sm text-muted-foreground">Geen kandidaten voor deze doelgroep.</p>
+            )}
+          </div>
+          {candidates
+            .filter((c) => selected.has(c.email.toLowerCase()))
+            .map((c) => (
+              <input key={c.email} type="hidden" name="selectedEmails" value={c.email} />
+            ))}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="extraEmails">Extra testadressen (los van de doelgroep hierboven)</Label>
+          <Textarea
+            id="extraEmails"
+            name="extraEmails"
+            rows={2}
+            placeholder={"jouw-adres@voorbeeld.nl\npartner@voorbeeld.nl"}
+            value={extraEmails}
+            onChange={(e) => setExtraEmails(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Eén e-mailadres per regel of met komma&apos;s gescheiden. Handig om bv. alleen naar jezelf te testen —
+            zet dan hierboven &quot;Alles deselecteren&quot; en vul hier je eigen adres in.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="subject">Onderwerp</Label>
@@ -115,8 +207,8 @@ export function CampaignComposeForm({
           de link liever ergens anders in de tekst, gebruik dan zelf de {"{{afmeldlink}}"}-placeholder.
         </p>
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={pending || recipientCount === 0}>
-            {pending ? "Bezig…" : `Versturen naar ${recipientCount} deelnemer${recipientCount === 1 ? "" : "s"}`}
+          <Button type="submit" disabled={pending || totalCount === 0}>
+            {pending ? "Bezig…" : `Versturen naar ${totalCount} ontvanger${totalCount === 1 ? "" : "s"}`}
           </Button>
           <Button type="button" variant="outline" onClick={() => setShowPreview((v) => !v)}>
             {showPreview ? "Voorbeeld verbergen" : "Voorbeeld tonen"}

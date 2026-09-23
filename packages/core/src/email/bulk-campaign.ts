@@ -8,7 +8,7 @@ import { sendEmail } from "./resend";
 import { renderWithLayout } from "./layout";
 import { getEmailLayoutHtml } from "./get-layout";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
-import { buildSegmentRecipients, type CampaignSegment } from "./segment";
+import type { CampaignSegment, SegmentRecipient } from "./segment";
 
 const BATCH_SIZE = 20;
 /** Kleine buffer tussen vervolgbatches, als marge voor Resend's ratelimit. De eerste
@@ -32,19 +32,23 @@ export async function scheduleBulkCampaignBatch(
   await client.publishJSON({ url: callbackUrl, body: { campaignId }, delay });
 }
 
-/** Bouwt de doelgroep, legt de campagne + alle recipients (status PENDING) vast in één
- * transactie, en plant — pas ná het committen, om een race met een te-vroege
- * QStash-callback te voorkomen — de eerste verzendbatch. */
+/** Legt de campagne + de meegegeven recipients (status PENDING) vast in één transactie, en
+ * plant — pas ná het committen, om een race met een te-vroege QStash-callback te voorkomen
+ * — de eerste verzendbatch. De aanroeper bepaalt de uiteindelijke ontvangerslijst (bv.
+ * `buildSegmentRecipients(segment)`, eventueel door de admin handmatig versmald tot een
+ * selectie + ad-hoc testadressen, zie apps/admin/(dashboard)/mailings/actions.ts) — `segment`
+ * zelf wordt hier alleen nog als audit-snapshot van de gekozen filters opgeslagen. */
 export async function createBulkCampaign(params: {
   actor: AppUser;
   eventId: string;
   segment: CampaignSegment;
+  recipients: SegmentRecipient[];
   subject: string;
   bodyHtml: string;
   layoutId?: string | null;
   callbackUrl: string;
 }): Promise<{ id: string; totalRecipients: number }> {
-  const recipients = await buildSegmentRecipients(params.segment);
+  const recipients = params.recipients;
 
   const campaign = await prisma.$transaction(async (tx) => {
     const created = await tx.emailCampaign.create({

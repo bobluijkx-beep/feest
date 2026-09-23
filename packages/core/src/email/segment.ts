@@ -27,6 +27,10 @@ export type CampaignSegment = EventSegment | AddressBookSegment;
 
 export interface SegmentRecipient {
   email: string;
+  /** Volledige naam, puur voor weergave in de admin (het selecteren van individuele
+   * ontvangers, zie CampaignComposeForm) — voor de e-mail zelf wordt {{voornaam}} uit
+   * personalization gebruikt. */
+  name: string;
   personalization: Record<string, string>;
 }
 
@@ -65,6 +69,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
       if (excluded.has(key)) continue;
       byEmail.set(key, {
         email: contact.email,
+        name: contact.name,
         personalization: {
           ...customVars,
           ...brandingVars,
@@ -107,6 +112,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
     // Orders zijn oplopend gesorteerd, dus de laatste PAID order per e-mailadres wint.
     byEmail.set(order.buyerEmail.toLowerCase(), {
       email: order.buyerEmail,
+      name: order.buyerName,
       personalization: {
         ...customVars,
         ...brandingVars,
@@ -119,4 +125,47 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
   }
 
   return Array.from(byEmail.values());
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Ad-hoc extra ontvangers los van de doelgroep-filters — voor bv. een testverzending naar
+ * het eigen adres dat (nog) geen bestelling of adresboek-contact heeft. Nog steeds getoetst
+ * aan EmailOptOut: ook een handmatig ingevuld testadres dat zich ooit heeft afgemeld, krijgt
+ * geen mail. voornaam wordt afgeleid uit het deel vóór de @ — een redelijke gok zonder een
+ * echte naam om op terug te vallen. */
+export async function buildAdHocRecipients(eventId: string, rawEmails: string): Promise<SegmentRecipient[]> {
+  const event = await prisma.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { name: true, theme: true, organizationId: true },
+  });
+  const [brandingVars, customVars, optOuts] = await Promise.all([
+    eventBrandingVars(event.theme),
+    getCustomPlaceholderVars(event.organizationId),
+    prisma.emailOptOut.findMany({ select: { email: true } }),
+  ]);
+  const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
+
+  const emails = new Set<string>();
+  for (const raw of rawEmails.split(/[\n,]/)) {
+    const email = raw.trim().toLowerCase();
+    if (!email || !EMAIL_RE.test(email) || optedOut.has(email)) continue;
+    emails.add(email);
+  }
+
+  return Array.from(emails).map((email) => {
+    const localPart = email.split("@")[0] ?? email;
+    const voornaam = localPart.charAt(0).toUpperCase() + localPart.slice(1);
+    return {
+      email,
+      name: voornaam,
+      personalization: {
+        ...customVars,
+        ...brandingVars,
+        voornaam,
+        event_naam: event.name,
+        afmeldlink: buildUnsubscribeLinkHtml(email),
+      },
+    };
+  });
 }

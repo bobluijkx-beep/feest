@@ -39,7 +39,7 @@ export default async function NewCampaignPage({
   const segment = parseSegmentFromFormData(formData);
   const eventSelected = events.some((e) => e.id === segment.eventId);
 
-  const recipientCount = eventSelected ? (await buildSegmentRecipients(segment)).length : 0;
+  const candidates = eventSelected ? await buildSegmentRecipients(segment) : [];
 
   const [layouts, customPlaceholders] = await Promise.all([
     prisma.emailLayout.findMany({
@@ -129,12 +129,13 @@ export default async function NewCampaignPage({
       {eventSelected ? (
         <Card>
           <CardHeader>
-            <CardTitle>Mailing opstellen ({recipientCount} ontvangers)</CardTitle>
+            <CardTitle>Mailing opstellen ({candidates.length} kandidaten)</CardTitle>
           </CardHeader>
           <CardContent>
             <CampaignComposeForm
+              key={JSON.stringify(segment)}
               segment={segment}
-              recipientCount={recipientCount}
+              candidates={candidates}
               layouts={layouts}
               customPlaceholderKeys={customPlaceholders.map((p) => p.key)}
             />

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getContactStats, listContacts } from "@lions/core";
 import {
   Card,
@@ -13,7 +14,9 @@ import {
   Badge,
 } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
+import { EmailOptOutDot } from "@/lib/email-optout-dot";
 import { SyncOrderContactsForm, ImportContactsForm } from "./contact-forms";
+import { ReactivateContactButton } from "./reactivate-contact-button";
 
 const SOURCE_LABEL: Record<string, string> = { ORDER: "Bestelling", IMPORT: "Import" };
 
@@ -78,21 +81,35 @@ export default async function ContactsPage() {
                 <TableHead>Naam</TableHead>
                 <TableHead>E-mailadres</TableHead>
                 <TableHead>Bron</TableHead>
+                <TableHead>Acties</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {contacts.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>{c.name}</TableCell>
-                  <TableCell>{c.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <EmailOptOutDot optedOut={c.optedOut} />
+                      {c.email}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{SOURCE_LABEL[c.source] ?? c.source}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {c.optedOut && <ReactivateContactButton email={c.email} />}
+                      <Link href={`/contacts/${c.id}`} className="text-primary hover:underline">
+                        Bewerken
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {contacts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
                     Nog geen contacten.
                   </TableCell>
                 </TableRow>

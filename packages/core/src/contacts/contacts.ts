@@ -111,14 +111,29 @@ export async function getContactStats(
 
 const CONTACT_LIST_LIMIT = 500;
 
+export interface ContactListItem {
+  id: string;
+  name: string;
+  email: string;
+  source: "ORDER" | "IMPORT";
+  optedOut: boolean;
+}
+
 export async function listContacts(
   organizationId: string,
-): Promise<{ contacts: { id: string; name: string; email: string; source: "ORDER" | "IMPORT" }[]; truncated: boolean }> {
-  const contacts = await prisma.contact.findMany({
-    where: { organizationId },
-    orderBy: { name: "asc" },
-    take: CONTACT_LIST_LIMIT + 1,
-    select: { id: true, name: true, email: true, source: true },
-  });
-  return { contacts: contacts.slice(0, CONTACT_LIST_LIMIT), truncated: contacts.length > CONTACT_LIST_LIMIT };
+): Promise<{ contacts: ContactListItem[]; truncated: boolean }> {
+  const [rows, optedOut] = await Promise.all([
+    prisma.contact.findMany({
+      where: { organizationId },
+      orderBy: { name: "asc" },
+      take: CONTACT_LIST_LIMIT + 1,
+      select: { id: true, name: true, email: true, source: true },
+    }),
+    getOptedOutEmails(),
+  ]);
+
+  const contacts = rows
+    .slice(0, CONTACT_LIST_LIMIT)
+    .map((c) => ({ ...c, optedOut: optedOut.has(c.email.toLowerCase()) }));
+  return { contacts, truncated: rows.length > CONTACT_LIST_LIMIT };
 }

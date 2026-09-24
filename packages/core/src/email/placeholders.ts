@@ -17,7 +17,7 @@ export const ORDER_TEMPLATE_PLACEHOLDERS = [
 ] as const;
 
 /** Beschikbaar in een bulkmailing (segment.ts bepaalt de personalisatie per ontvanger). */
-export const CAMPAIGN_PLACEHOLDERS = ["voornaam", "event_naam", "aantal_tickets", "afmeldlink"] as const;
+export const CAMPAIGN_PLACEHOLDERS = ["voornaam", "event_naam", "aantal_tickets", "ticketlink", "afmeldlink"] as const;
 
 /** Beschikbaar in een EmailLayout — de unie van bovenstaande, plus de verplichte
  * `content`-placeholder waar de eigenlijke e-mailinhoud wordt ingevoegd, en de twee

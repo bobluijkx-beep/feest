@@ -190,6 +190,12 @@ model Order {
   molliePaymentId    String?     @unique
   stockHoldExpiresAt DateTime?
   isVisible          Boolean     @default(true)
+  // Welke mailing (indien van toepassing) tot deze bestelling heeft geleid — zie
+  // {{ticketlink}} in packages/core/src/email/bulk-campaign.ts en het feest_ref-cookie
+  // in apps/web/middleware.ts. SetNull i.p.v. blokkeren: een verwijderde mailing mag een
+  // oude bestelling niet onverwijderbaar maken.
+  mailingCampaignId  String?
+  mailingCampaign    EmailCampaign? @relation(fields: [mailingCampaignId], references: [id], onDelete: SetNull)
   items              OrderItem[]
   tickets            Ticket[]
   songRequests       SongRequest[]
@@ -199,6 +205,7 @@ model Order {
   @@index([eventId])
   @@index([status, stockHoldExpiresAt])
   @@index([isVisible])
+  @@index([mailingCampaignId])
   @@map("orders")
 }
 
@@ -367,6 +374,7 @@ model EmailCampaign {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
   recipients        EmailCampaignRecipient[]
+  attributedOrders  Order[]
 
   @@index([organizationId])
   @@index([eventId])

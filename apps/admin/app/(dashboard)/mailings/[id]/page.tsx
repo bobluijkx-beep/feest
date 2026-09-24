@@ -31,6 +31,16 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     select: { email: true, error: true },
   });
 
+  // Attributie: bestellingen waarvan de bezoeker via déze mailing's ticketlink is
+  // binnengekomen (feest_ref-cookie, zie apps/web/middleware.ts) én daadwerkelijk heeft
+  // afgerekend — alleen PAID telt mee, een PENDING/FAILED-poging is geen verkoop.
+  const attributedOrders = await prisma.order.findMany({
+    where: { mailingCampaignId: campaign.id, status: "PAID" },
+    include: { tickets: true },
+  });
+  const attributedRevenueCents = attributedOrders.reduce((sum, o) => sum + o.totalCents, 0);
+  const attributedTicketCount = attributedOrders.reduce((sum, o) => sum + o.tickets.length, 0);
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -64,6 +74,33 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               Deze mailing wordt nog verstuurd — ververs de pagina voor de laatste stand.
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Attributie</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            Betaalde bestellingen van bezoekers die via de ticketlink uit déze mailing zijn binnengekomen.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-2xl bg-primary px-4 py-3.5 text-primary-foreground">
+              <p className="text-xs text-primary-foreground/80">Bestellingen</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{attributedOrders.length}</p>
+            </div>
+            <div className="rounded-2xl bg-primary px-4 py-3.5 text-primary-foreground">
+              <p className="text-xs text-primary-foreground/80">Tickets</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{attributedTicketCount}</p>
+            </div>
+            <div className="rounded-2xl bg-primary px-4 py-3.5 text-primary-foreground">
+              <p className="text-xs text-primary-foreground/80">Omzet</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">
+                €{(attributedRevenueCents / 100).toFixed(2)}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

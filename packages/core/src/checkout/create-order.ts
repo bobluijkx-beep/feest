@@ -24,12 +24,20 @@ export async function createOrder(params: {
   items: CreateOrderItem[];
   redirectBaseUrl: string;
   webhookBaseUrl: string;
+  // Afkomstig uit het feest_ref-cookie (zie apps/web/middleware.ts), dus onbetrouwbare
+  // publieke input — hieronder tegen een echte EmailCampaign-rij gevalideerd vóór gebruik,
+  // in plaats van blind te vertrouwen dat het een bestaande campagne is.
+  mailingCampaignId?: string;
 }): Promise<{ orderId: string; checkoutUrl: string }> {
   if (params.items.length === 0 || params.items.some((item) => item.quantity <= 0)) {
     throw new Error("Ongeldige bestelling: geen artikelen geselecteerd.");
   }
 
   const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId } });
+
+  const mailingCampaignId = params.mailingCampaignId
+    ? (await prisma.emailCampaign.findUnique({ where: { id: params.mailingCampaignId }, select: { id: true } }))?.id
+    : undefined;
 
   const { orderId, totalCents, currency } = await prisma.$transaction(async (tx) => {
     const productIds = [...new Set(params.items.map((item) => item.productId))].sort();
@@ -97,6 +105,7 @@ export async function createOrder(params: {
         buyerEmail: params.buyerEmail,
         totalCents,
         currency,
+        mailingCampaignId,
         stockHoldExpiresAt: new Date(Date.now() + STOCK_HOLD_MINUTES * 60 * 1000),
         items: {
           create: resolvedItems.map((item) => ({

@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { Client } from "@upstash/qstash";
 import { Prisma } from "@lions/db";
 import { prisma } from "../db";
@@ -8,6 +9,7 @@ import { sendEmail } from "./resend";
 import { renderWithLayout } from "./layout";
 import { getEmailLayoutHtml } from "./get-layout";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
+import { getWebBaseUrl } from "../utils/base-url";
 import type { CampaignSegment, SegmentRecipient } from "./segment";
 
 const BATCH_SIZE = 20;
@@ -63,9 +65,17 @@ export async function createBulkCampaign(params: {
 }): Promise<{ id: string; totalRecipients: number }> {
   const recipients = params.recipients;
 
+  // Id vooraf gegenereerd (i.p.v. @default(cuid()) te laten genereren) zodat de
+  // {{ticketlink}}-personalisatie hieronder al naar de uiteindelijke campagne kan
+  // verwijzen — nodig vóórdat de EmailCampaign-rij zelf bestaat.
+  const id = randomUUID();
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId }, select: { slug: true } });
+  const ticketlink = `${getWebBaseUrl()}/${event.slug}/producten?ref=${id}`;
+
   const campaign = await prisma.$transaction(async (tx) => {
     const created = await tx.emailCampaign.create({
       data: {
+        id,
         organizationId: params.actor.organizationId,
         eventId: params.eventId,
         createdByUserId: params.actor.id,
@@ -83,7 +93,7 @@ export async function createBulkCampaign(params: {
         data: recipients.map((r) => ({
           campaignId: created.id,
           email: r.email,
-          personalization: r.personalization as Prisma.InputJsonValue,
+          personalization: { ...r.personalization, ticketlink } as Prisma.InputJsonValue,
         })),
       });
     }

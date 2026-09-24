@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createOrder, InsufficientStockError, prisma, getWebBaseUrl } from "@lions/core";
 
@@ -39,6 +40,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
   }
 
   const baseUrl = getWebBaseUrl();
+  const mailingCampaignId = (await cookies()).get("feest_ref")?.value;
   let checkoutUrl: string | null = null;
 
   try {
@@ -49,6 +51,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
       items,
       redirectBaseUrl: baseUrl,
       webhookBaseUrl: baseUrl,
+      mailingCampaignId,
     });
     checkoutUrl = result.checkoutUrl;
   } catch (err) {

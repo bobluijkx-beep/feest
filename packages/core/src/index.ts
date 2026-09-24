@@ -31,6 +31,7 @@ export * from "./email/bulk-campaign";
 export * from "./contacts/contacts";
 export * from "./song-requests/token";
 export * from "./song-requests/song-requests";
+export * from "./products/bundles";
 export * from "./checkout/errors";
 export * from "./checkout/donation";
 export * from "./checkout/create-order";

@@ -133,6 +133,7 @@ model Event {
   // zelf en de bestellingen-filter tonen altijd alles, ook onzichtbare events.
   isVisible      Boolean         @default(true)
   products       Product[]
+  bundles        ProductBundle[]
   orders         Order[]
   emailTemplates EmailTemplate[]
   emailCampaigns EmailCampaign[]
@@ -171,11 +172,54 @@ model Product {
   donationPresetsCents Int[]       @default([])
   orderItems           OrderItem[]
   tickets              Ticket[]
+  bundleItems          ProductBundleItem[]
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
   @@index([eventId])
   @@map("products")
+}
+
+// Eén koopbaar "combi"-artikel (bv. Ticket + Glowstick) tegen één gezamenlijke prijs. Heeft
+// bewust GEEN eigen voorraadtellers: bij aankoop valt een combi (create-order.ts) uiteen in
+// losse OrderItems tegen de échte onderliggende Producten, zodat voorraad, ticketuitgifte en
+// dashboardcijfers automatisch via de bestaande per-Product-logica blijven lopen i.p.v. een
+// tweede, los bij te houden voorraadpotje. Beschikbaarheid wordt daarom altijd live afgeleid
+// van de onderliggende producten (zie packages/core/src/products/bundles.ts).
+model ProductBundle {
+  id          String              @id @default(cuid())
+  eventId     String
+  event       Event               @relation(fields: [eventId], references: [id])
+  name        String
+  description String?
+  imageUrl    String?
+  priceCents  Int
+  currency    String              @default("EUR")
+  isActive    Boolean             @default(true)
+  items       ProductBundleItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([eventId])
+  @@map("product_bundles")
+}
+
+// Hoeveel stuks van welk Product in één eenheid van de combi zitten (bv. 1x Ticket + 1x
+// Glowstick). `quantity` is bewust bijna altijd 1 — bij een hogere waarde wordt de
+// prijsverdeling per stuk (create-order.ts) op de cent afgerond, verwaarloosbaar voor de
+// bedoelde combi's.
+model ProductBundleItem {
+  id        String        @id @default(cuid())
+  bundleId  String
+  bundle    ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  quantity  Int
+
+  @@unique([bundleId, productId])
+  @@index([productId])
+  @@map("product_bundle_items")
 }
 
 model Order {
@@ -236,16 +280,24 @@ model SongRequest {
 }
 
 model OrderItem {
-  id             String  @id @default(cuid())
+  id             String         @id @default(cuid())
   orderId        String
-  order          Order   @relation(fields: [orderId], references: [id])
+  order          Order          @relation(fields: [orderId], references: [id])
   productId      String
-  product        Product @relation(fields: [productId], references: [id])
+  product        Product        @relation(fields: [productId], references: [id])
   quantity       Int
   unitPriceCents Int
+  // Gezet wanneer deze regel het resultaat is van het "uit elkaar vallen" van een
+  // ProductBundle-aankoop (create-order.ts) — puur informatief voor weergave (bv. admin/
+  // orderdetail), telt niet mee in voorraad-/ticketlogica (die loopt via `product` hierboven).
+  // SetNull i.p.v. blokkeren: een later verwijderde combi mag een oude bestelling niet
+  // onverwijderbaar maken.
+  bundleId       String?
+  bundle         ProductBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([productId])
+  @@index([bundleId])
   @@map("order_items")
 }
 

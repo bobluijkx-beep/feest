@@ -13,20 +13,31 @@ export async function startCheckout(formData: FormData): Promise<void> {
   // "on" mee, een uitgevinkte helemaal niets.
   const marketingOptIn = formData.get("marketingOptIn") === "on";
 
-  const items = [...formData.entries()]
+  // Een combi-regel in de winkelwagen heeft als productId de synthetische sleutel
+  // `bundle-<id>` (cart-context.tsx/producten/combi/[bundleId]/page.tsx) — hier weer
+  // uitgesplitst naar het aparte bundleItems-argument van createOrder(), dat de combi
+  // zelf (nogmaals, server-side) valideert en in losse productregels "uitpakt".
+  const allQtyEntries = [...formData.entries()]
     .filter(([key]) => key.startsWith("qty_"))
-    .map(([key, value]) => {
-      const productId = key.slice("qty_".length);
+    .map(([key, value]) => ({ id: key.slice("qty_".length), quantity: Number(value) }))
+    .filter((entry) => entry.quantity > 0);
+
+  const items = allQtyEntries
+    .filter((entry) => !entry.id.startsWith("bundle-"))
+    .map((entry) => {
       // amount_<id>: alleen aanwezig voor een donatieregel (checkout-form.tsx) — het door
       // de bezoeker gekozen bedrag. createOrder() valideert dit hoe dan ook opnieuw tegen
       // de minimumgrens voordat het ooit als prijs gebruikt wordt.
-      const amountRaw = formData.get(`amount_${productId}`);
+      const amountRaw = formData.get(`amount_${entry.id}`);
       const customAmountCents = amountRaw !== null ? Number(amountRaw) : undefined;
-      return { productId, quantity: Number(value), customAmountCents };
-    })
-    .filter((item) => item.quantity > 0);
+      return { productId: entry.id, quantity: entry.quantity, customAmountCents };
+    });
 
-  if (!eventId || !buyerName || !buyerEmail || items.length === 0) {
+  const bundleItems = allQtyEntries
+    .filter((entry) => entry.id.startsWith("bundle-"))
+    .map((entry) => ({ bundleId: entry.id.slice("bundle-".length), quantity: entry.quantity }));
+
+  if (!eventId || !buyerName || !buyerEmail || (items.length === 0 && bundleItems.length === 0)) {
     redirect(`/${eventSlug}/afrekenen?error=stock`);
   }
 
@@ -49,6 +60,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
       buyerName,
       buyerEmail,
       items,
+      bundleItems,
       redirectBaseUrl: baseUrl,
       webhookBaseUrl: baseUrl,
       mailingCampaignId,

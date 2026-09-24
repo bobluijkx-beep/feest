@@ -3,7 +3,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export interface CartItem {
+  // Voor een combi (ProductBundle) is dit een synthetische, unieke sleutel (`bundle-<id>`,
+  // zie producten/combi/[bundleId]/page.tsx) i.p.v. een echt Product.id — de winkelwagen zelf
+  // hoeft het verschil niet te kennen, alleen `bundleId` hieronder markeert het als combi voor
+  // de kassa (afrekenen/checkout-form.tsx, actions.ts's startCheckout).
   productId: string;
+  bundleId?: string;
   name: string;
   priceCents: number;
   imageUrl: string | null;

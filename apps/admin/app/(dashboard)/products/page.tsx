@@ -30,7 +30,10 @@ export default async function ProductsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-4">
+        <Link href="/products/bundles" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
+          Combi&apos;s beheren
+        </Link>
         <Link
           href="/products/inactief"
           className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"

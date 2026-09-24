@@ -327,7 +327,16 @@ export interface OrderDetail {
   createdAt: string;
   updatedAt: string;
   event: { id: string; name: string; venue: string | null; startsAt: string };
-  items: { id: string; productName: string; kind: string; quantity: number; unitPriceCents: number }[];
+  items: {
+    id: string;
+    productName: string;
+    kind: string;
+    quantity: number;
+    unitPriceCents: number;
+    // Gezet als deze regel uit een combi-aankoop is geëxplodeerd (create-order.ts) — puur
+    // voor weergave ("1x Glowstick (uit combi: Ticket + Glowstick)").
+    bundleName: string | null;
+  }[];
   tickets: { id: string; qrToken: string; status: string; checkedInAt: string | null }[];
   otherOrders: {
     id: string;
@@ -349,7 +358,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     where: { id: orderId },
     include: {
       event: true,
-      items: { include: { product: true } },
+      items: { include: { product: true, bundle: true } },
       tickets: { include: { checkIns: true } },
     },
   });
@@ -392,6 +401,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       kind: item.product.kind,
       quantity: item.quantity,
       unitPriceCents: item.unitPriceCents,
+      bundleName: item.bundle?.name ?? null,
     })),
     tickets: order.tickets.map((ticket) => ({
       id: ticket.id,

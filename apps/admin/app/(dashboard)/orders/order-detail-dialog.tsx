@@ -216,6 +216,9 @@ export function OrderDetailDialog({ orderId }: { orderId: string }) {
                   <li key={item.id} className="flex items-center justify-between">
                     <span>
                       {item.quantity}x {item.productName}
+                      {item.bundleName && (
+                        <span className="text-muted-foreground"> (uit combi: {item.bundleName})</span>
+                      )}
                     </span>
                     <span className="text-muted-foreground">{fmtEuro(item.unitPriceCents * item.quantity)}</span>
                   </li>

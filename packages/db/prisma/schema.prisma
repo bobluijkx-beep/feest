@@ -353,6 +353,13 @@ model MailingTemplate {
 // ook als de template daarna wordt bewerkt of verwijderd (mailingTemplateId -> SetNull).
 model EmailCampaign {
   id                String                   @id @default(cuid())
+  // Korte, url-vriendelijke code voor de {{ticketlink}} (/tickets/<shortCode>, zie
+  // apps/web/app/tickets/[code]/route.ts) — een leesbare/deelbare link i.p.v. de volledige
+  // (lelijke) id in de URL. Losstaand van `id` zodat interne relaties (Order.mailingCampaignId)
+  // altijd via de stabiele id blijven lopen, ook als de link-vorm ooit verandert. Altijd expliciet
+  // meegegeven bij het aanmaken (zie createBulkCampaign) — geen @default, want we willen een
+  // kort (8-teken) willekeurig token i.p.v. Prisma's langere cuid()-formaat.
+  shortCode         String                   @unique
   organizationId    String
   organization      Organization             @relation(fields: [organizationId], references: [id])
   eventId           String

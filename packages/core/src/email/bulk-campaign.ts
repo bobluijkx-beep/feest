@@ -1,5 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { Client } from "@upstash/qstash";
 import { Prisma } from "@lions/db";
 import { prisma } from "../db";
@@ -65,17 +65,19 @@ export async function createBulkCampaign(params: {
 }): Promise<{ id: string; totalRecipients: number }> {
   const recipients = params.recipients;
 
-  // Id vooraf gegenereerd (i.p.v. @default(cuid()) te laten genereren) zodat de
-  // {{ticketlink}}-personalisatie hieronder al naar de uiteindelijke campagne kan
-  // verwijzen — nodig vóórdat de EmailCampaign-rij zelf bestaat.
+  // Id + shortCode vooraf gegenereerd zodat de {{ticketlink}}-personalisatie hieronder al
+  // naar de uiteindelijke campagne kan verwijzen — nodig vóórdat de EmailCampaign-rij zelf
+  // bestaat. shortCode is bewust kort (8 tekens, base64url van 6 random bytes) voor een
+  // leesbare link (/tickets/<code>); de lange, interne `id` blijft uit de URL.
   const id = randomUUID();
-  const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId }, select: { slug: true } });
-  const ticketlink = `${getWebBaseUrl()}/${event.slug}/producten?ref=${id}`;
+  const shortCode = randomBytes(6).toString("base64url");
+  const ticketlink = `${getWebBaseUrl()}/tickets/${shortCode}`;
 
   const campaign = await prisma.$transaction(async (tx) => {
     const created = await tx.emailCampaign.create({
       data: {
         id,
+        shortCode,
         organizationId: params.actor.organizationId,
         eventId: params.eventId,
         createdByUserId: params.actor.id,

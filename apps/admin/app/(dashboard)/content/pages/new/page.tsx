@@ -14,6 +14,7 @@ const BLOCK_TYPES = [
   { type: "faq_item", label: "FAQ-item" },
   { type: "cta", label: "Call-to-action" },
   { type: "availability", label: "Beschikbare tickets" },
+  { type: "badge", label: "Opvallende badge" },
 ];
 
 export default async function NewPageBlockPage({

@@ -152,6 +152,29 @@ export function PageBlockView({
       return <p className="text-center text-sm font-semibold sm:text-base" dangerouslySetInnerHTML={{ __html: template }} />;
     }
 
+    case "badge": {
+      // Bewust een vast destructive-rood i.p.v. --primary/--accent: die twee zijn per event
+      // te overschrijven (event-theme-style.ts), dus zouden deze badge in het ergste geval
+      // dezelfde kleur als de rest van de pagina kunnen geven — precies het "opvallen" tegen
+      // wat teniet doen. --destructive staat altijd vast, ongeacht event-huisstijl.
+      const label = str(c.label);
+      if (!label) return null;
+      const href = str(c.href);
+      const badgeClassName =
+        "inline-block -rotate-3 rounded-md bg-destructive px-5 py-2.5 text-sm font-bold tracking-wide text-white uppercase shadow-lg transition-transform";
+      return (
+        <section className="py-4 text-center">
+          {href ? (
+            <a href={href} className={`${badgeClassName} hover:-rotate-1 hover:scale-105`}>
+              {label}
+            </a>
+          ) : (
+            <span className={badgeClassName}>{label}</span>
+          )}
+        </section>
+      );
+    }
+
     case "cta": {
       const label = str(c.label);
       const href = str(c.href);

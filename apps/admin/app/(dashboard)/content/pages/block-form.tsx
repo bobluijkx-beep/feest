@@ -39,6 +39,10 @@ const FIELD_DEFS: Record<string, FieldDef[]> = {
     { name: "label", label: "Knoptekst" },
     { name: "href", label: "Link" },
   ],
+  badge: [
+    { name: "label", label: "Tekst op de badge (bv. 'Kaarten uitsluitend online te koop', {{aantal}} werkt ook hier)" },
+    { name: "href", label: "Link (optioneel)" },
+  ],
   availability: [
     {
       name: "template",

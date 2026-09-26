@@ -88,6 +88,7 @@ export function TemplateForm({
             onChange={setBodyHtml}
             placeholders={[...CAMPAIGN_PLACEHOLDERS, ...customPlaceholderKeys]}
             rows={10}
+            showSocialIcons
           />
           <input type="hidden" name="bodyHtml" value={bodyHtml} />
         </div>

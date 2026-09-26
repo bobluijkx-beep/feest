@@ -19,11 +19,18 @@ export function HtmlEditor({
   onChange,
   placeholders = [],
   rows = 12,
+  showSocialIcons = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholders?: string[];
   rows?: number;
+  /** Toont de "WhatsApp-knop"/"Facebook-knop" werkbalkknoppen — alleen zinvol in de
+   * mailing-template-editor (template-form.tsx): de placeholders die ze invoegen
+   * ({{whatsapp_share_link}} e.d.) worden alleen bij een bulkmailing ingevuld
+   * (bulk-campaign.ts), en zouden in elke andere HtmlEditor-context (productomschrijving,
+   * pagina-blok, e-maillay-out) als kale, nooit-vervangen tekst blijven staan. */
+  showSocialIcons?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploading, startUpload] = useTransition();
@@ -84,6 +91,17 @@ export function HtmlEditor({
     insertAtCursor(`<a href="${url}"${attrs}>%s</a>`, true);
   }
 
+  /** Voegt een klikbaar deel-icoon in (i.p.v. kale linktekst) — de href/afbeelding komen uit
+   * placeholders die alleen in een bulkmailing iets invullen (bulk-campaign.ts), dus dit knopje
+   * heeft alleen zin in een mailing-template, niet in transactionele e-mails/lay-outs. */
+  function handleSocialIcon(kind: "whatsapp" | "facebook") {
+    const label = kind === "whatsapp" ? "Deel via WhatsApp" : "Deel via Facebook";
+    insertAtCursor(
+      `<a href="{{${kind}_share_link}}"><img src="{{${kind}_icon_url}}" alt="${label}" width="44" height="44" style="display:inline-block;border:0;vertical-align:middle;margin-right:8px;" /></a>`,
+      false,
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-1 rounded-t-lg border border-b-0 border-input bg-muted/40 p-1.5">
@@ -114,6 +132,16 @@ export function HtmlEditor({
         <Button type="button" variant="outline" size="sm" onClick={handleLink}>
           Link
         </Button>
+        {showSocialIcons && (
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={() => handleSocialIcon("whatsapp")}>
+              WhatsApp-knop
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => handleSocialIcon("facebook")}>
+              Facebook-knop
+            </Button>
+          </>
+        )}
         <label>
           <span
             className={

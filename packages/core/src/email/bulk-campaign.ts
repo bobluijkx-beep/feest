@@ -81,6 +81,14 @@ export async function createBulkCampaign(params: {
   const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId }, select: { name: true } });
   const shareLinks = buildShareLinks({ eventName: event.name, url: ticketlink });
 
+  // {{whatsapp_icon_url}}/{{facebook_icon_url}}: vaste, niet-campagnespecifieke afbeeldings-
+  // URL's voor de "WhatsApp-knop"/"Facebook-knop" in de HTML-editor (html-editor.tsx) — samen
+  // met de share-link hierboven vormen ze een echt klikbaar icoon i.p.v. kale linktekst. Uit
+  // apps/web/public/icons/ (statisch, geen Storage-upload nodig) — een e-mail heeft altijd een
+  // absolute URL nodig, vandaar via getWebBaseUrl() i.p.v. een relatief pad.
+  const whatsappIconUrl = `${getWebBaseUrl()}/icons/whatsapp.png`;
+  const facebookIconUrl = `${getWebBaseUrl()}/icons/facebook.png`;
+
   const campaign = await prisma.$transaction(async (tx) => {
     const created = await tx.emailCampaign.create({
       data: {
@@ -108,6 +116,8 @@ export async function createBulkCampaign(params: {
             ticketlink,
             whatsapp_share_link: shareLinks.whatsapp,
             facebook_share_link: shareLinks.facebook,
+            whatsapp_icon_url: whatsappIconUrl,
+            facebook_icon_url: facebookIconUrl,
           } as Prisma.InputJsonValue,
         })),
       });

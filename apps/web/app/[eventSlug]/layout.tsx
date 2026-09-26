@@ -1,9 +1,44 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { cn, Starfield } from "@lions/ui";
+import { readEventThemeAssets } from "@lions/core";
 import { getPublicEvent } from "@/lib/get-event";
 import { getEventThemeStyle } from "@/lib/event-theme-style";
 import { CartProvider } from "./cart-context";
 import { StorefrontHeader } from "./storefront-header";
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Open Graph-tags voor deze event-tak — zonder deze had elke gedeelde link (WhatsApp/
+ * Facebook-deellinks, share-links.ts) een lege/generieke voorbeeldkaart in plaats van de
+ * eventnaam + sfeerfoto, wat een "deel dit met vrienden"-link in een mailing nogal
+ * onaantrekkelijk zou maken. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ eventSlug: string }>;
+}): Promise<Metadata> {
+  const { eventSlug } = await params;
+  const event = await getPublicEvent(eventSlug);
+  if (!event) return {};
+
+  const { heroImageUrl } = readEventThemeAssets(event.theme);
+  const description = event.description
+    ? stripHtml(event.description).slice(0, 160)
+    : `Doe mee met ${event.name}!`;
+
+  return {
+    title: event.name,
+    description,
+    openGraph: {
+      title: event.name,
+      description,
+      images: heroImageUrl ? [heroImageUrl] : undefined,
+    },
+  };
+}
 
 export default async function EventLayout({
   children,

@@ -9,6 +9,7 @@ import { sendEmail } from "./resend";
 import { renderWithLayout } from "./layout";
 import { getEmailLayoutHtml } from "./get-layout";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
+import { buildShareLinks } from "./share-links";
 import { getWebBaseUrl } from "../utils/base-url";
 import type { CampaignSegment, SegmentRecipient } from "./segment";
 
@@ -73,6 +74,13 @@ export async function createBulkCampaign(params: {
   const shortCode = randomBytes(6).toString("base64url");
   const ticketlink = `${getWebBaseUrl()}/tickets/${shortCode}`;
 
+  // {{whatsapp_share_link}}/{{facebook_share_link}}: kant-en-klare "deel dit met vrienden"-
+  // links die de ontvanger's eigen WhatsApp/Facebook openen met dezelfde ticketlink erin —
+  // een aankoop die daaruit volgt telt dus mee als resultaat van déze mailing, net als een
+  // rechtstreekse klik. Geen Instagram-tegenhanger, zie share-links.ts.
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId }, select: { name: true } });
+  const shareLinks = buildShareLinks({ eventName: event.name, url: ticketlink });
+
   const campaign = await prisma.$transaction(async (tx) => {
     const created = await tx.emailCampaign.create({
       data: {
@@ -95,7 +103,12 @@ export async function createBulkCampaign(params: {
         data: recipients.map((r) => ({
           campaignId: created.id,
           email: r.email,
-          personalization: { ...r.personalization, ticketlink } as Prisma.InputJsonValue,
+          personalization: {
+            ...r.personalization,
+            ticketlink,
+            whatsapp_share_link: shareLinks.whatsapp,
+            facebook_share_link: shareLinks.facebook,
+          } as Prisma.InputJsonValue,
         })),
       });
     }

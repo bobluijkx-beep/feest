@@ -27,6 +27,7 @@ export * from "./email/custom-placeholders";
 export * from "./email/system-placeholder-overrides";
 export * from "./email/segment";
 export * from "./email/unsubscribe";
+export * from "./email/share-links";
 export * from "./email/bulk-campaign";
 export * from "./contacts/contacts";
 export * from "./song-requests/token";

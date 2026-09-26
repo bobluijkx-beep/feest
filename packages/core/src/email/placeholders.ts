@@ -16,8 +16,20 @@ export const ORDER_TEMPLATE_PLACEHOLDERS = [
   "afmeldlink",
 ] as const;
 
-/** Beschikbaar in een bulkmailing (segment.ts bepaalt de personalisatie per ontvanger). */
-export const CAMPAIGN_PLACEHOLDERS = ["voornaam", "event_naam", "aantal_tickets", "ticketlink", "afmeldlink"] as const;
+/** Beschikbaar in een bulkmailing (segment.ts bepaalt de personalisatie per ontvanger).
+ * whatsapp_share_link/facebook_share_link zijn kant-en-klare "deel dit met vrienden"-links
+ * (share-links.ts) — net als ticketlink alleen zinvol binnen een <a href="...">, zie de
+ * "Link"-knop in de HTML-editor. Geen instagram_share_link: Instagram heeft geen officiële
+ * web-link die een post/story met vooraf ingevulde tekst opent. */
+export const CAMPAIGN_PLACEHOLDERS = [
+  "voornaam",
+  "event_naam",
+  "aantal_tickets",
+  "ticketlink",
+  "whatsapp_share_link",
+  "facebook_share_link",
+  "afmeldlink",
+] as const;
 
 /** Beschikbaar in een EmailLayout — de unie van bovenstaande, plus de verplichte
  * `content`-placeholder waar de eigenlijke e-mailinhoud wordt ingevoegd, en de twee

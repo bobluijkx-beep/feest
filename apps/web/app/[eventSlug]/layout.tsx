@@ -4,12 +4,9 @@ import { cn, Starfield } from "@lions/ui";
 import { readEventThemeAssets } from "@lions/core";
 import { getPublicEvent } from "@/lib/get-event";
 import { getEventThemeStyle } from "@/lib/event-theme-style";
+import { stripHtml } from "@/lib/strip-html";
 import { CartProvider } from "./cart-context";
 import { StorefrontHeader } from "./storefront-header";
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
 
 /** Open Graph-tags voor deze event-tak — zonder deze had elke gedeelde link (WhatsApp/
  * Facebook-deellinks, share-links.ts) een lege/generieke voorbeeldkaart in plaats van de

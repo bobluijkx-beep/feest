@@ -19,6 +19,21 @@ const BATCH_SIZE = 20;
  * batch wordt zonder delay gepland — de campagne + recipients staan dan al in de DB. */
 const BATCH_DELAY = "3s";
 
+const SHORT_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+/** Puur alfanumeriek (geen base64url-tekens als "-"/"_") — een "_" in de link brak WhatsApp's
+ * eigen opmaakherkenning (die _tekst_ als cursief interpreteert): kwam die tweemaal in de code
+ * voor (bv. "AB1K__D6"), dan sloeg WhatsApp's voorvertoning-ophaler daarover struikelen en bleef
+ * de link zelf wel klikbaar maar zonder plaatje/omschrijving. Lichte modulo-bias bij het
+ * verdelen van bytes over 62 tekens is hier verwaarloosbaar — dit is een leesbare linkcode,
+ * geen cryptografische sleutel. */
+function randomAlphanumeric(length: number): string {
+  const bytes = randomBytes(length);
+  let result = "";
+  for (let i = 0; i < length; i++) result += SHORT_CODE_ALPHABET[bytes[i] % SHORT_CODE_ALPHABET.length];
+  return result;
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Ontbrekende environment variable: ${name}`);
@@ -69,10 +84,10 @@ export async function createBulkCampaign(params: {
 
   // Id + shortCode vooraf gegenereerd zodat de {{ticketlink}}-personalisatie hieronder al
   // naar de uiteindelijke campagne kan verwijzen — nodig vóórdat de EmailCampaign-rij zelf
-  // bestaat. shortCode is bewust kort (8 tekens, base64url van 6 random bytes) voor een
-  // leesbare link (/tickets/<code>); de lange, interne `id` blijft uit de URL.
+  // bestaat. shortCode is bewust kort (8 alfanumerieke tekens) voor een leesbare link
+  // (/tickets/<code>); de lange, interne `id` blijft uit de URL.
   const id = randomUUID();
-  const shortCode = randomBytes(6).toString("base64url");
+  const shortCode = randomAlphanumeric(8);
   const ticketlink = `${getWebBaseUrl()}/tickets/${shortCode}`;
 
   // {{whatsapp_share_link}}/{{facebook_share_link}}: kant-en-klare "deel dit met vrienden"-

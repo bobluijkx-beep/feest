@@ -22,7 +22,12 @@ const CRAWLER_UA_PATTERN =
  * voorvertoning gecachet, blijft WhatsApp dat een tijd tonen). Voor herkende crawlers wordt
  * daarom, zonder redirect, direct een minimale HTML-pagina mét de Open Graph-tags
  * teruggegeven; een echte bezoeker (elke andere User-Agent) krijgt gewoon de bestaande
- * cookie+redirect. */
+ * cookie+redirect. Bewust GEEN <meta http-equiv="refresh"> op die crawler-pagina: Meta's
+ * scraper-infrastructuur (die ook WhatsApp's voorvertoning voedt) wantrouwt Open Graph-tags op
+ * een pagina die zichzelf ook meteen doorstuurt en valt dan terug op een kale weergave (precies
+ * het "geen plaatje, alleen de domeinnaam"-resultaat dat hiermee getest werd) — een
+ * script-redirect wordt door een niet-JS-uitvoerende crawler genegeerd maar vangt de zeldzame
+ * echte bezoeker op die toch tegen deze useragent-regex aanloopt. */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ code: string }> }): Promise<NextResponse> {
   const { code } = await params;
 
@@ -49,14 +54,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   <head>
     <meta charset="utf-8" />
     <title>${escape(campaign.event.name)}</title>
+    <meta property="og:type" content="website" />
     <meta property="og:title" content="${escape(campaign.event.name)}" />
     <meta property="og:description" content="${escape(description)}" />
     ${heroImageUrl ? `<meta property="og:image" content="${escape(heroImageUrl)}" />` : ""}
     <meta property="og:url" content="${destination.toString()}" />
-    <meta http-equiv="refresh" content="0; url=${destination.toString()}" />
   </head>
   <body>
     <a href="${destination.toString()}">${escape(campaign.event.name)}</a>
+    <script>location.replace(${JSON.stringify(destination.toString())});</script>
   </body>
 </html>`;
     return new NextResponse(html, { headers: { "content-type": "text/html; charset=utf-8" } });

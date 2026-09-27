@@ -104,3 +104,23 @@ export async function getCartReminderText(organizationId: string): Promise<strin
 export async function setCartReminderText(organizationId: string, text: string): Promise<void> {
   await setSetting(organizationId, CART_REMINDER_SETTING, text);
 }
+
+const WHATSAPP_SHARE_MESSAGE_SETTING = "whatsapp_share_message";
+
+export const DEFAULT_WHATSAPP_SHARE_MESSAGE_TEMPLATE =
+  "Ik ga naar {{event_naam}}! Ga jij ook mee? Koop hier je kaartjes: {{ticketlink}}";
+
+/** Sjabloon voor het bericht dat wa.me vooraf invult zodra iemand de "WhatsApp-knop" in een
+ * mailing aanklikt (share-links.ts/bulk-campaign.ts) — door het bestuur zelf te beheren via
+ * /settings, met {{event_naam}}/{{ticketlink}} als invulbare plekken. Facebook's sharer.php
+ * heeft bewust geen tegenhanger: dat platform laat geen vooraf ingevulde tekst toe en pakt
+ * zijn eigen voorbeeldkaart altijd van de Open Graph-tags van de gedeelde pagina (dus i.p.v.
+ * hiervandaan is dat te sturen via de event-naam/-omschrijving zelf, zie [eventSlug]/layout.tsx). */
+export async function getWhatsappShareMessageTemplate(organizationId: string): Promise<string> {
+  const stored = await getSetting(organizationId, WHATSAPP_SHARE_MESSAGE_SETTING);
+  return stored ?? DEFAULT_WHATSAPP_SHARE_MESSAGE_TEMPLATE;
+}
+
+export async function setWhatsappShareMessageTemplate(organizationId: string, text: string): Promise<void> {
+  await setSetting(organizationId, WHATSAPP_SHARE_MESSAGE_SETTING, text);
+}

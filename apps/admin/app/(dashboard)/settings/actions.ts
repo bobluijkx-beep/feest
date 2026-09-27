@@ -6,6 +6,7 @@ import {
   setMollieApiKey,
   setContactFormRecipients,
   setCartReminderText,
+  setWhatsappShareMessageTemplate,
   logAudit,
   type MollieMode,
 } from "@lions/core";
@@ -74,6 +75,32 @@ export async function updateCartReminderText(
     organizationId: actor.organizationId,
     actorUserId: actor.id,
     action: "cart_reminder_text_updated",
+    entityType: "settings",
+    entityId: actor.organizationId,
+    metadata: {},
+  });
+
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function updateWhatsappShareMessage(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const actor = await requireStaffRole(["ADMIN", "FINANCE"]);
+
+  const text = String(formData.get("text") ?? "").trim();
+  if (!text) {
+    return { error: "Vul een tekst in." };
+  }
+
+  await setWhatsappShareMessageTemplate(actor.organizationId, text);
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorUserId: actor.id,
+    action: "whatsapp_share_message_updated",
     entityType: "settings",
     entityId: actor.organizationId,
     metadata: {},

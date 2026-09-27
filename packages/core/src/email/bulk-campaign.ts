@@ -10,6 +10,7 @@ import { renderWithLayout } from "./layout";
 import { getEmailLayoutHtml } from "./get-layout";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
 import { buildShareLinks } from "./share-links";
+import { getWhatsappShareMessageTemplate } from "../settings/settings";
 import { getWebBaseUrl } from "../utils/base-url";
 import type { CampaignSegment, SegmentRecipient } from "./segment";
 
@@ -77,9 +78,14 @@ export async function createBulkCampaign(params: {
   // {{whatsapp_share_link}}/{{facebook_share_link}}: kant-en-klare "deel dit met vrienden"-
   // links die de ontvanger's eigen WhatsApp/Facebook openen met dezelfde ticketlink erin —
   // een aankoop die daaruit volgt telt dus mee als resultaat van déze mailing, net als een
-  // rechtstreekse klik. Geen Instagram-tegenhanger, zie share-links.ts.
-  const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId }, select: { name: true } });
-  const shareLinks = buildShareLinks({ eventName: event.name, url: ticketlink });
+  // rechtstreekse klik. Geen Instagram-tegenhanger, zie share-links.ts. Het WhatsApp-bericht
+  // zelf is door het bestuur aan te passen via /settings (getWhatsappShareMessageTemplate) —
+  // Facebook's sharer.php staat geen vooraf ingevulde tekst toe, zie share-links.ts.
+  const [event, whatsappMessageTemplate] = await Promise.all([
+    prisma.event.findUniqueOrThrow({ where: { id: params.eventId }, select: { name: true } }),
+    getWhatsappShareMessageTemplate(params.actor.organizationId),
+  ]);
+  const shareLinks = buildShareLinks({ messageTemplate: whatsappMessageTemplate, eventName: event.name, url: ticketlink });
 
   // {{whatsapp_icon_url}}/{{facebook_icon_url}}: vaste, niet-campagnespecifieke afbeeldings-
   // URL's voor de "WhatsApp-knop"/"Facebook-knop" in de HTML-editor (html-editor.tsx) — samen

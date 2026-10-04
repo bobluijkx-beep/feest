@@ -15,7 +15,7 @@ export function CheckoutForm({
   eventSlug: string;
   error?: string;
 }) {
-  const { items, totalCents } = useCart();
+  const { items, totalCents, tierSummaries } = useCart();
 
   if (items.length === 0) {
     return (
@@ -55,6 +55,12 @@ export function CheckoutForm({
                       vaste prijs. */}
                   <span>{item.kind === "DONATION" ? item.name : `${item.quantity}x ${item.name}`}</span>
                   <span>€{((item.priceCents * item.quantity) / 100).toFixed(2)}</span>
+                </div>
+              ))}
+              {tierSummaries.map((summary) => (
+                <div key={summary.name} className="flex items-center justify-between text-sm text-primary">
+                  <span>Staffelkorting {summary.name}</span>
+                  <span>−€{(summary.discountCents / 100).toFixed(2)}</span>
                 </div>
               ))}
               <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm font-medium">

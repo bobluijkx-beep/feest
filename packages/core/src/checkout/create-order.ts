@@ -5,6 +5,7 @@ import { EventCancelledError, InsufficientStockError, InvalidDonationAmountError
 import { isValidDonationAmountCents } from "./donation";
 import { scheduleOrderExpiry } from "./qstash";
 import { splitBundlePriceCents } from "../products/bundles";
+import { priceTierGroup, splitLineCents } from "../pricing/tiers";
 
 const STOCK_HOLD_MINUTES = 15;
 
@@ -137,8 +138,9 @@ export async function createOrder(params: {
         reservedStock: number;
         soldStock: number;
         isActive: boolean;
+        priceTierGroupId: string | null;
       }[]
-    >`SELECT id, kind, "priceCents", currency, "totalStock", "reservedStock", "soldStock", "isActive"
+    >`SELECT id, kind, "priceCents", currency, "totalStock", "reservedStock", "soldStock", "isActive", "priceTierGroupId"
       FROM "products" WHERE id = ANY(${productIds}) ORDER BY id FOR UPDATE`;
 
     const byId = new Map(lockedProducts.map((product) => [product.id, product]));
@@ -163,11 +165,55 @@ export async function createOrder(params: {
     // daadwerkelijk in rekening gebracht) maar het door de bezoeker gekozen bedrag. Een
     // combi-regel heeft haar unitPriceCents al (de prijsverdeling hierboven) en slaat deze
     // stap dus over.
+    // Staffelprijs: rechtstreeks bestelde (niet-combi, niet-donatie) regels van producten in een
+    // PriceTierGroup van dit event worden per groep samen geprijsd — de stuks van alle producten
+    // in de groep tellen mee (10 met + 10 zonder krenten = prijs van 20). Per regel wordt het
+    // toegewezen totaal zo opgesplitst dat eenheidsprijs × aantal precies klopt.
+    const tierGroupIds = [
+      ...new Set(
+        allRequestedLines
+          .filter((l) => l.unitPriceCents === undefined)
+          .map((l) => byId.get(l.productId))
+          .filter((p) => p && p.kind !== "DONATION" && p.priceTierGroupId)
+          .map((p) => p!.priceTierGroupId as string),
+      ),
+    ];
+    const tierGroups =
+      tierGroupIds.length > 0
+        ? await tx.priceTierGroup.findMany({
+            where: { id: { in: tierGroupIds }, eventId: params.eventId },
+            include: { tiers: true },
+          })
+        : [];
+    const tierPriced = new Map<number, { quantity: number; unitPriceCents: number }[]>();
+    for (const group of tierGroups) {
+      const members = allRequestedLines
+        .map((line, index) => ({ line, index, product: byId.get(line.productId)! }))
+        .filter((m) => m.line.unitPriceCents === undefined && m.product.priceTierGroupId === group.id);
+      const result = priceTierGroup(
+        { id: group.id, name: group.name, mode: group.mode, freeEvery: group.freeEvery, tiers: group.tiers },
+        members.map((m) => ({ key: String(m.index), quantity: m.line.quantity, unitPriceCents: m.product.priceCents })),
+      );
+      for (const m of members) {
+        tierPriced.set(m.index, splitLineCents(m.line.quantity, result.perLineCents.get(String(m.index)) ?? 0));
+      }
+    }
+
     const resolvedLines: ResolvedLine[] = [];
     let totalCents = 0;
     let currency = "EUR";
-    for (const line of allRequestedLines) {
+    for (const [index, line] of allRequestedLines.entries()) {
       const product = byId.get(line.productId)!;
+
+      const tierParts = tierPriced.get(index);
+      if (tierParts) {
+        for (const part of tierParts) {
+          resolvedLines.push({ productId: line.productId, quantity: part.quantity, unitPriceCents: part.unitPriceCents });
+          totalCents += part.quantity * part.unitPriceCents;
+        }
+        currency = product.currency;
+        continue;
+      }
 
       let unitPriceCents: number;
       if (line.unitPriceCents !== undefined) {

@@ -1,4 +1,5 @@
 import { cn, Starfield } from "@lions/ui";
+import { getTierGroupConfigs } from "@lions/core";
 import { getPublicEvent } from "@/lib/get-event";
 import { getEventThemeStyle } from "@/lib/event-theme-style";
 import { HOME_EVENT_SLUG } from "@/lib/site-config";
@@ -30,12 +31,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   }
 
   const { style, isDark, logoUrl } = getEventThemeStyle(homeEvent.theme);
+  const tierGroups = await getTierGroupConfigs(homeEvent.id);
 
   return (
     <div className={cn("min-h-screen bg-background text-foreground", isDark && "dark")} style={style}>
       {isDark && <Starfield />}
       <div className="relative z-0">
-        <CartProvider eventSlug={HOME_EVENT_SLUG}>
+        <CartProvider eventSlug={HOME_EVENT_SLUG} tierGroups={tierGroups}>
           <StorefrontHeader eventSlug={HOME_EVENT_SLUG} eventName={homeEvent.name} logoUrl={logoUrl} />
           {children}
         </CartProvider>

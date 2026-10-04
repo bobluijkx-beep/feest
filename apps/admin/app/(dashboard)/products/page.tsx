@@ -34,6 +34,9 @@ export default async function ProductsPage() {
         <Link href="/products/bundles" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
           Combi&apos;s beheren
         </Link>
+        <Link href="/products/staffels" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
+          Staffelprijzen beheren
+        </Link>
         <Link
           href="/products/inactief"
           className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"

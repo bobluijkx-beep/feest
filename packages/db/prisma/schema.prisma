@@ -60,6 +60,11 @@ enum ProductKind {
   DONATION
 }
 
+enum PriceTierMode {
+  EVERY_NTH_FREE
+  TIER_TABLE
+}
+
 enum CancellationChoice {
   REFUND
   DONATE
@@ -154,6 +159,7 @@ model Event {
   // de terugbetaling van niet-reageerders zelf.
   cancellationDeadline DateTime?
   cancellationNotices CancellationNotice[]
+  priceTierGroups PriceTierGroup[]
   products       Product[]
   bundles        ProductBundle[]
   orders         Order[]
@@ -195,11 +201,46 @@ model Product {
   orderItems           OrderItem[]
   tickets              Ticket[]
   bundleItems          ProductBundleItem[]
+  // Staffelprijs: producten met dezelfde groep tellen voor de staffel samen (bv. oliebollen met
+  // en zonder krenten). Zie PriceTierGroup en packages/core/src/pricing/tiers.ts.
+  priceTierGroupId     String?
+  priceTierGroup       PriceTierGroup? @relation(fields: [priceTierGroupId], references: [id], onDelete: SetNull)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
   @@index([eventId])
+  @@index([priceTierGroupId])
   @@map("products")
+}
+
+// Staffelprijs voor een groep producten van één event: EVERY_NTH_FREE (elke freeEvery-de stuk
+// gratis) of TIER_TABLE (aantal → totaalprijs in PriceTier). De stuks van alle producten in de
+// groep tellen samen — 10 met krenten + 10 zonder krijgt de prijs van 20.
+model PriceTierGroup {
+  id        String        @id @default(cuid())
+  eventId   String
+  event     Event         @relation(fields: [eventId], references: [id])
+  name      String
+  mode      PriceTierMode
+  freeEvery Int?
+  tiers     PriceTier[]
+  products  Product[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([eventId])
+  @@map("price_tier_groups")
+}
+
+model PriceTier {
+  id         String         @id @default(cuid())
+  groupId    String
+  group      PriceTierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  quantity   Int
+  totalCents Int
+
+  @@unique([groupId, quantity])
+  @@map("price_tiers")
 }
 
 // Eén koopbaar "combi"-artikel (bv. Ticket + Glowstick) tegen één gezamenlijke prijs. Heeft

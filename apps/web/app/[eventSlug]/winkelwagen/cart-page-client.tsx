@@ -14,7 +14,7 @@ export function CartPageClient({
   hasMerchandise: boolean;
   reminderText: string;
 }) {
-  const { items, updateQuantity, removeItem, totalCents } = useCart();
+  const { items, updateQuantity, removeItem, totalCents, tierSummaries } = useCart();
 
   if (items.length === 0) {
     return (
@@ -81,6 +81,13 @@ export function CartPageClient({
             </Card>
           ))}
         </div>
+
+        {tierSummaries.map((summary) => (
+          <div key={summary.name} className="mt-4 flex items-center justify-between text-sm text-primary">
+            <span>Staffelkorting {summary.name}</span>
+            <span>−€{(summary.discountCents / 100).toFixed(2)}</span>
+          </div>
+        ))}
 
         <div className="mt-4 flex items-center justify-between text-sm font-medium">
           <span>Subtotaal</span>

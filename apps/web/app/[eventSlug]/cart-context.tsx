@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { priceTierGroup, type TierGroupConfig } from "@lions/core/pricing/tiers";
 
 export interface CartItem {
   // Voor een combi (ProductBundle) is dit een synthetische, unieke sleutel (`bundle-<id>`,
@@ -9,6 +10,9 @@ export interface CartItem {
   // de kassa (afrekenen/checkout-form.tsx, actions.ts's startCheckout).
   productId: string;
   bundleId?: string;
+  /** Staffelgroep van het product (PriceTierGroup) — stuks van producten met dezelfde groep
+   * tellen voor de staffelprijs samen. */
+  tierGroupId?: string;
   name: string;
   priceCents: number;
   imageUrl: string | null;
@@ -29,6 +33,9 @@ interface CartContextValue {
   clear: () => void;
   totalCount: number;
   totalCents: number;
+  /** Staffelkorting in centen (al verwerkt in totalCents) en per groep een uitleg voor de weergave. */
+  discountCents: number;
+  tierSummaries: { name: string; discountCents: number }[];
   /** Of de localStorage-cart al is ingelezen. Nodig voor bv. ClearCartOnMount
    * (bedankt/clear-cart.tsx): op een echte pagina-herlaad (Mollie's redirect terug naar
    * de site) mount deze provider tegelijk met de pagina die meteen wil legen — zonder
@@ -44,7 +51,15 @@ const CartContext = createContext<CartContextValue | null>(null);
  * tegen de actuele database-waarden op het moment van bestellen, dus een verouderde
  * weergave hier heeft geen prijs-/voorraadrisico, alleen een cosmetisch risico dat we
  * accepteren voor deze schaal. */
-export function CartProvider({ eventSlug, children }: { eventSlug: string; children: ReactNode }) {
+export function CartProvider({
+  eventSlug,
+  tierGroups = [],
+  children,
+}: {
+  eventSlug: string;
+  tierGroups?: TierGroupConfig[];
+  children: ReactNode;
+}) {
   const storageKey = `cart:${eventSlug}`;
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -98,11 +113,40 @@ export function CartProvider({ eventSlug, children }: { eventSlug: string; child
   }
 
   const totalCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalCents = items.reduce((sum, i) => sum + i.quantity * i.priceCents, 0);
+
+  // Zelfde staffelberekening als createOrder() (packages/core/src/pricing/tiers.ts); alleen voor
+  // weergave — de server rekent bij het bestellen altijd zelf opnieuw met de echte prijzen.
+  const { discountCents, tierSummaries } = useMemo(() => {
+    const summaries: { name: string; discountCents: number }[] = [];
+    for (const group of tierGroups) {
+      const lines = items
+        .filter((i) => i.tierGroupId === group.id && !i.bundleId)
+        .map((i) => ({ key: i.productId, quantity: i.quantity, unitPriceCents: i.priceCents }));
+      if (lines.length === 0) continue;
+      const result = priceTierGroup(group, lines);
+      const discount = result.undiscountedCents - result.totalCents;
+      if (discount > 0) summaries.push({ name: group.name, discountCents: discount });
+    }
+    return { discountCents: summaries.reduce((sum, s) => sum + s.discountCents, 0), tierSummaries: summaries };
+  }, [items, tierGroups]);
+
+  const totalCents = items.reduce((sum, i) => sum + i.quantity * i.priceCents, 0) - discountCents;
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, setItem, updateQuantity, removeItem, clear, totalCount, totalCents, hydrated }}
+      value={{
+        items,
+        addItem,
+        setItem,
+        updateQuantity,
+        removeItem,
+        clear,
+        totalCount,
+        totalCents,
+        discountCents,
+        tierSummaries,
+        hydrated,
+      }}
     >
       {children}
     </CartContext.Provider>

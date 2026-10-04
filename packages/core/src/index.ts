@@ -33,6 +33,8 @@ export * from "./contacts/contacts";
 export * from "./song-requests/token";
 export * from "./song-requests/song-requests";
 export * from "./products/bundles";
+export * from "./pricing/tiers";
+export * from "./pricing/tier-groups";
 export * from "./cancellation/cancellation";
 export * from "./cancellation/test-buyers";
 export * from "./checkout/errors";

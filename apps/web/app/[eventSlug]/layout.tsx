@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { cn, Starfield } from "@lions/ui";
-import { readEventThemeAssets } from "@lions/core";
+import { getTierGroupConfigs, readEventThemeAssets } from "@lions/core";
 import { getPublicEvent } from "@/lib/get-event";
 import { getEventThemeStyle } from "@/lib/event-theme-style";
 import { stripHtml } from "@/lib/strip-html";
@@ -52,6 +52,7 @@ export default async function EventLayout({
   // (zelfde variabelen als packages/ui/src/theme.css) — geldt nu op alle pagina's van het
   // event (producten/winkelwagen/afrekenen/bedankt), niet meer alleen de landingspagina.
   const { style, isDark, logoUrl } = getEventThemeStyle(event.theme);
+  const tierGroups = await getTierGroupConfigs(event.id);
 
   // Bij "donker thema" hergebruiken we bewust de bestaande .dark-klasse uit
   // packages/ui/src/theme.css i.p.v. losse tokens te overschrijven — die klasse geeft al
@@ -72,7 +73,7 @@ export default async function EventLayout({
           op hetzelfde stackniveau zetten lost het op (DOM-volgorde bepaalt dan, en dit
           staat na de sterrenhemel). */}
       <div className="relative z-0">
-        <CartProvider eventSlug={eventSlug}>
+        <CartProvider eventSlug={eventSlug} tierGroups={tierGroups}>
           <StorefrontHeader eventSlug={eventSlug} eventName={event.name} logoUrl={logoUrl} />
           {/* Vaste destructive-rood (net als de badge-blok, page-block-view.tsx) i.p.v. de
               per event overschrijfbare primary/accent: moet op elk thema opvallen. */}

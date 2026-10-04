@@ -26,13 +26,22 @@ type OrderWithRelations = {
 };
 
 function merchandiseLines(order: OrderWithRelations): string[] {
-  return order.items
-    .filter((item) => item.product.kind === "MERCHANDISE" || item.product.kind === "DONATION")
-    .map((item) =>
-      item.product.kind === "DONATION"
-        ? `${item.product.name} — €${((item.unitPriceCents * item.quantity) / 100).toFixed(2)}`
-        : `${item.quantity}x ${item.product.name}`,
-    );
+  const lines: string[] = [];
+  // Een staffelprijs (pricing/tiers.ts) kan één product over twee OrderItem-regels splitsen (een
+  // paar stuks één cent duurder, zodat het totaal exact klopt) — voor de klant tellen we die
+  // weer samen tot één regel per product.
+  const merchQuantityByProduct = new Map<string, { name: string; quantity: number }>();
+  for (const item of order.items) {
+    if (item.product.kind === "DONATION") {
+      lines.push(`${item.product.name} — €${((item.unitPriceCents * item.quantity) / 100).toFixed(2)}`);
+    } else if (item.product.kind === "MERCHANDISE") {
+      const entry = merchQuantityByProduct.get(item.productId) ?? { name: item.product.name, quantity: 0 };
+      entry.quantity += item.quantity;
+      merchQuantityByProduct.set(item.productId, entry);
+    }
+  }
+  const merch = [...merchQuantityByProduct.values()].map((e) => `${e.quantity}x ${e.name}`);
+  return [...merch, ...lines];
 }
 
 /** Rendert een order-mail vólledig verzendklaar: de per-type inhoud (DB-rij of

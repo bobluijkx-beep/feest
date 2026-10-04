@@ -24,7 +24,9 @@ export function parseSegmentFromFormData(formData: FormData): CampaignSegment {
 
   const cancellationFilterRaw = String(formData.get("cancellationFilter") ?? "ANY");
   const cancellationFilter =
-    cancellationFilterRaw === "NO_CHOICE_YET" || cancellationFilterRaw === "HAS_NOTICE" ? cancellationFilterRaw : "ANY";
+    cancellationFilterRaw === "NO_CHOICE_YET" || cancellationFilterRaw === "HAS_NOTICE" || cancellationFilterRaw === "TEST_ONLY"
+      ? cancellationFilterRaw
+      : "ANY";
 
   return {
     type: "EVENT",

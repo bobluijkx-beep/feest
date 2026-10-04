@@ -67,6 +67,22 @@ export default async function CancellationPage({ searchParams }: { searchParams:
           daarna met de knop hieronder.
         </p>
         <TestBuyerForm eventId={event.id} products={testProducts} />
+        {event.isCancelled && testOrderCount > 0 && (
+          <div className="flex flex-col gap-1">
+            <div>
+              <Link
+                href={`/mailings/new?eventId=${event.id}&segmentType=EVENT&cancellationFilter=TEST_ONLY`}
+                className={buttonVariants({ size: "sm" })}
+              >
+                Keuzemail alleen naar testkopers sturen
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Opent het opstelscherm met uitsluitend de testkopers als ontvangers. Er wordt pas verstuurd na de
+              bevestigingsvraag.
+            </p>
+          </div>
+        )}
         {testOrderCount > 0 && (
           <ConfirmActionForm
             action={removeTestBuyersAction}

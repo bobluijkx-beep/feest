@@ -133,6 +133,7 @@ export default async function NewCampaignPage({
                     <option value="ANY">Iedereen</option>
                     <option value="HAS_NOTICE">Kopers met een keuzelink (keuzemail)</option>
                     <option value="NO_CHOICE_YET">Nog niet gekozen (herinnering)</option>
+                    <option value="TEST_ONLY">Alleen testkopers (testen)</option>
                   </Select>
                 </div>
               </>

@@ -4,6 +4,7 @@ import { prisma } from "../db";
 import { eventBrandingVars } from "./event-branding";
 import { getCustomPlaceholderVars } from "./custom-placeholders";
 import { buildUnsubscribeLinkHtml } from "./unsubscribe";
+import { SIMULATED_PAYMENT_PREFIX } from "../checkout/refund-order";
 
 export interface EventSegment {
   type: "EVENT";
@@ -15,8 +16,10 @@ export interface EventSegment {
   /** Alleen zinvol bij een geannuleerd event (zie cancellation.ts): NO_CHOICE_YET = alleen
    * kopers die nog niet via hun keuzelink hebben gekozen — voor de herinneringsmailing;
    * HAS_NOTICE = alleen kopers met een keuzelink (dus niet wie uitsluitend heeft gedoneerd en
-   * dus niets te kiezen heeft) — voor de eerste keuzemail. */
-  cancellationFilter?: "ANY" | "NO_CHOICE_YET" | "HAS_NOTICE";
+   * dus niets te kiezen heeft) — voor de eerste keuzemail; TEST_ONLY = alleen de testkopers van
+   * het annuleringsscherm (test-buyers.ts) — om de workflow te proberen zonder dat echte kopers
+   * in de ontvangerslijst staan. */
+  cancellationFilter?: "ANY" | "NO_CHOICE_YET" | "HAS_NOTICE" | "TEST_ONLY";
 }
 
 /** Het org-brede adresboek (packages/core/src/contacts/contacts.ts), minus iedereen die al
@@ -99,6 +102,18 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
   const byEmail = new Map<string, SegmentRecipient>();
 
+  const testEmails =
+    segment.cancellationFilter === "TEST_ONLY"
+      ? new Set(
+          (
+            await prisma.order.findMany({
+              where: { eventId: segment.eventId, molliePaymentId: { startsWith: SIMULATED_PAYMENT_PREFIX } },
+              select: { buyerEmail: true },
+            })
+          ).map((o) => o.buyerEmail.toLowerCase()),
+        )
+      : null;
+
   const noticeEmails =
     segment.cancellationFilter === "NO_CHOICE_YET" || segment.cancellationFilter === "HAS_NOTICE"
       ? new Set(
@@ -117,6 +132,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
   for (const order of orders) {
     if (optedOut.has(order.buyerEmail.toLowerCase())) continue;
     if (noticeEmails && !noticeEmails.has(order.buyerEmail.toLowerCase())) continue;
+    if (testEmails && !testEmails.has(order.buyerEmail.toLowerCase())) continue;
 
     if (segment.productKinds && segment.productKinds.length > 0) {
       const kinds = segment.productKinds;

@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import type { CancellationChoice } from "@lions/db";
 import { prisma } from "../db";
-import { refundOrder } from "../checkout/refund-order";
+import { refundOrderKeepingDonations } from "../checkout/refund-order";
 import { sendEmail } from "../email/resend";
 import { renderWithLayout } from "../email/layout";
 import { getEmailLayoutHtml } from "../email/get-layout";
@@ -22,34 +22,63 @@ function generateToken(): string {
   return token;
 }
 
-function paidOrdersWhere(eventId: string, email: string) {
-  return { eventId, isVisible: true, status: "PAID" as const, buyerEmail: { equals: email, mode: "insensitive" as const } };
+type OrderWithItems = {
+  buyerEmail: string;
+  items: { quantity: number; unitPriceCents: number; product: { kind: string } }[];
+};
+
+/** Splitst wat een koper betaalde in het deel voor tickets/producten (terug te betalen of te
+ * doneren, de keuze van de annulering) en reeds gedane donaties (kind=DONATION) — die blijven
+ * los van de keuze altijd bij het goede doel. */
+function splitAmounts(orders: OrderWithItems[]): { refundableCents: number; donatedCents: number } {
+  let refundableCents = 0;
+  let donatedCents = 0;
+  for (const order of orders) {
+    for (const item of order.items) {
+      const line = item.quantity * item.unitPriceCents;
+      if (item.product.kind === "DONATION") donatedCents += line;
+      else refundableCents += line;
+    }
+  }
+  return { refundableCents, donatedCents };
 }
 
-/** Zet het event op geannuleerd en maakt per koper met een betaalde, zichtbare bestelling een
- * CancellationNotice (met persoonlijke token) aan. Idempotent: een tweede aanroep voegt alleen
+const ORDER_ITEMS_FOR_AMOUNTS = { items: { select: { quantity: true, unitPriceCents: true, product: { select: { kind: true } } } } };
+
+/** Zet het event op geannuleerd en maakt per koper met iets terug te betalen (tickets/producten)
+ * een CancellationNotice (met persoonlijke token) aan. Kopers die uitsluitend hebben gedoneerd
+ * krijgen geen notice: er valt niets te kiezen. Idempotent: een tweede aanroep voegt alleen
  * nieuwe kopers toe en laat bestaande notices (en hun keuze) ongemoeid. */
 export async function cancelEvent(eventId: string): Promise<{ notices: number }> {
   const orders = await prisma.order.findMany({
     where: { eventId, isVisible: true, status: "PAID" },
     orderBy: { createdAt: "asc" },
-    select: { buyerEmail: true, buyerName: true },
+    select: { buyerEmail: true, buyerName: true, ...ORDER_ITEMS_FOR_AMOUNTS },
   });
 
-  const byEmail = new Map<string, string>();
-  for (const order of orders) byEmail.set(order.buyerEmail.toLowerCase(), order.buyerName);
+  const byEmail = new Map<string, { buyerName: string; orders: OrderWithItems[] }>();
+  for (const order of orders) {
+    const key = order.buyerEmail.toLowerCase();
+    const entry = byEmail.get(key) ?? { buyerName: order.buyerName, orders: [] };
+    entry.buyerName = order.buyerName;
+    entry.orders.push(order);
+    byEmail.set(key, entry);
+  }
 
   await prisma.event.update({ where: { id: eventId }, data: { isCancelled: true } });
 
-  for (const [email, buyerName] of byEmail) {
+  let notices = 0;
+  for (const [email, entry] of byEmail) {
+    if (splitAmounts(entry.orders).refundableCents <= 0) continue;
     await prisma.cancellationNotice.upsert({
       where: { eventId_email: { eventId, email } },
-      create: { eventId, email, buyerName, token: generateToken() },
+      create: { eventId, email, buyerName: entry.buyerName, token: generateToken() },
       update: {},
     });
+    notices++;
   }
 
-  return { notices: byEmail.size };
+  return { notices };
 }
 
 export interface CancellationNoticeView {
@@ -62,22 +91,23 @@ export interface CancellationNoticeView {
   processedAt: Date | null;
   lastError: string | null;
   event: { id: string; slug: string; name: string };
-  /** Som van alle PAID/REFUNDED, zichtbare bestellingen van deze koper voor het event — ook
-   * ná een geslaagde terugbetaling (status REFUNDED) nog het oorspronkelijke bedrag. */
+  /** Tickets + producten (PAID of al REFUNDED): het bedrag waar de keuze over gaat. */
   amountCents: number;
+  /** Reeds gedane donaties van deze koper — los van de keuze, blijven altijd staan. */
+  donatedCents: number;
 }
 
-async function amountFor(eventId: string, email: string): Promise<number> {
-  const agg = await prisma.order.aggregate({
+async function amountsFor(eventId: string, email: string) {
+  const orders = await prisma.order.findMany({
     where: {
       eventId,
       isVisible: true,
       status: { in: ["PAID", "REFUNDED"] },
       buyerEmail: { equals: email, mode: "insensitive" },
     },
-    _sum: { totalCents: true },
+    select: { buyerEmail: true, ...ORDER_ITEMS_FOR_AMOUNTS },
   });
-  return agg._sum.totalCents ?? 0;
+  return splitAmounts(orders);
 }
 
 export async function getNoticeByToken(token: string): Promise<CancellationNoticeView | null> {
@@ -86,6 +116,7 @@ export async function getNoticeByToken(token: string): Promise<CancellationNotic
     include: { event: { select: { id: true, slug: true, name: true } } },
   });
   if (!notice) return null;
+  const { refundableCents, donatedCents } = await amountsFor(notice.eventId, notice.email);
   return {
     id: notice.id,
     token: notice.token,
@@ -96,11 +127,12 @@ export async function getNoticeByToken(token: string): Promise<CancellationNotic
     processedAt: notice.processedAt,
     lastError: notice.lastError,
     event: notice.event,
-    amountCents: await amountFor(notice.eventId, notice.email),
+    amountCents: refundableCents,
+    donatedCents,
   };
 }
 
-/** Bedragen in één query ophalen en in JS per e-mailadres optellen i.p.v. één aggregate per
+/** Bedragen in één query ophalen en in JS per e-mailadres optellen i.p.v. één query per
  * koper: de gedeelde prisma-client heeft maar één connectie in de pool, dus N parallelle
  * queries wachten op elkaar en liepen bij veel kopers tegen de pool-time-out van 10 seconden
  * aan (de annuleringspagina gaf daardoor een server-side exception). */
@@ -109,27 +141,31 @@ export async function listNotices(eventId: string): Promise<CancellationNoticeVi
   const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { id: true, slug: true, name: true } });
   const orders = await prisma.order.findMany({
     where: { eventId, isVisible: true, status: { in: ["PAID", "REFUNDED"] } },
-    select: { buyerEmail: true, totalCents: true },
+    select: { buyerEmail: true, ...ORDER_ITEMS_FOR_AMOUNTS },
   });
 
-  const amountByEmail = new Map<string, number>();
+  const ordersByEmail = new Map<string, OrderWithItems[]>();
   for (const order of orders) {
     const key = order.buyerEmail.toLowerCase();
-    amountByEmail.set(key, (amountByEmail.get(key) ?? 0) + order.totalCents);
+    ordersByEmail.set(key, [...(ordersByEmail.get(key) ?? []), order]);
   }
 
-  return notices.map((n) => ({
-    id: n.id,
-    token: n.token,
-    email: n.email,
-    buyerName: n.buyerName,
-    choice: n.choice,
-    isDefault: n.isDefault,
-    processedAt: n.processedAt,
-    lastError: n.lastError,
-    event,
-    amountCents: amountByEmail.get(n.email.toLowerCase()) ?? 0,
-  }));
+  return notices.map((n) => {
+    const { refundableCents, donatedCents } = splitAmounts(ordersByEmail.get(n.email.toLowerCase()) ?? []);
+    return {
+      id: n.id,
+      token: n.token,
+      email: n.email,
+      buyerName: n.buyerName,
+      choice: n.choice,
+      isDefault: n.isDefault,
+      processedAt: n.processedAt,
+      lastError: n.lastError,
+      event,
+      amountCents: refundableCents,
+      donatedCents,
+    };
+  });
 }
 
 /** Legt de keuze van een koper vast en voert 'm uit. De keuze wordt eerst atomair "geclaimd"
@@ -152,26 +188,24 @@ export async function submitCancellationChoice(
 }
 
 /** Voert de gekozen actie uit voor alle betaalde bestellingen van de koper: REFUND = Mollie-
- * terugbetaling per bestelling (refundOrder annuleert ook de tickets), DONATE = alleen de
- * tickets annuleren — het geld staat al bij ons en gaat niet heen en weer. Een mislukte
- * terugbetaling laat processedAt leeg en zet lastError, zodat de admin 'm kan herhalen. */
+ * terugbetaling van het ticket-/productdeel per bestelling (reeds gedane donaties blijven
+ * staan, zie refundOrderKeepingDonations), DONATE = alleen de tickets annuleren — het geld
+ * staat al bij ons en gaat niet heen en weer. Een mislukte terugbetaling laat processedAt leeg
+ * en zet lastError, zodat de admin 'm kan herhalen. */
 export async function processNotice(noticeId: string): Promise<void> {
-  const notice = await prisma.cancellationNotice.findUniqueOrThrow({
-    where: { id: noticeId },
-    include: { event: { select: { id: true, organizationId: true } } },
-  });
+  const notice = await prisma.cancellationNotice.findUniqueOrThrow({ where: { id: noticeId } });
   if (!notice.choice) return;
 
   const orders = await prisma.order.findMany({
-    where: paidOrdersWhere(notice.eventId, notice.email),
+    where: { eventId: notice.eventId, isVisible: true, status: "PAID", buyerEmail: { equals: notice.email, mode: "insensitive" } },
     select: { id: true },
   });
-  const amountCents = await amountFor(notice.eventId, notice.email);
+  const before = await amountsFor(notice.eventId, notice.email);
 
   const errors: string[] = [];
   if (notice.choice === "REFUND") {
     for (const order of orders) {
-      const result = await refundOrder(order.id);
+      const result = await refundOrderKeepingDonations(order.id);
       if (!result.ok) errors.push(`${order.id}: ${result.error}`);
     }
   } else {
@@ -190,7 +224,10 @@ export async function processNotice(noticeId: string): Promise<void> {
     where: { id: noticeId },
     data: { processedAt: new Date(), lastError: null },
   });
-  await sendChoiceConfirmationEmail(notice.id, notice.choice, amountCents);
+  // Niets te kiezen/terug te betalen (bv. alleen donaties) = geen bevestigingsmail.
+  if (before.refundableCents > 0) {
+    await sendChoiceConfirmationEmail(notice.id, notice.choice, before.refundableCents, before.donatedCents);
+  }
 }
 
 /** Alle gemaakte keuzes waarvan de actie nog niet is afgerond (mislukte Mollie-refund) opnieuw
@@ -245,13 +282,22 @@ function formatEuro(cents: number): string {
   return `€${(cents / 100).toFixed(2).replace(".", ",")}`;
 }
 
-async function sendChoiceConfirmationEmail(noticeId: string, choice: CancellationChoice, amountCents: number) {
+async function sendChoiceConfirmationEmail(
+  noticeId: string,
+  choice: CancellationChoice,
+  amountCents: number,
+  donatedCents: number,
+) {
   const notice = await prisma.cancellationNotice.findUniqueOrThrow({
     where: { id: noticeId },
     include: { event: { select: { name: true, theme: true, organizationId: true } } },
   });
   const voornaam = notice.buyerName.split(" ")[0] ?? notice.buyerName;
   const amount = formatEuro(amountCents);
+  const donationNote =
+    donatedCents > 0
+      ? `<p>Je eerder gedane donatie van <strong>${formatEuro(donatedCents)}</strong> blijft staan bij het goede doel — daar zijn we je dankbaar voor.</p>`
+      : "";
 
   const subject =
     choice === "REFUND"
@@ -259,8 +305,8 @@ async function sendChoiceConfirmationEmail(noticeId: string, choice: Cancellatio
       : `Bedankt voor je donatie aan het goede doel`;
   const bodyHtml =
     choice === "REFUND"
-      ? `<p>Beste ${voornaam},</p><p>We hebben je terugbetaling van <strong>${amount}</strong> voor <strong>${notice.event.name}</strong> in gang gezet. Het bedrag wordt teruggestort op de rekening waarmee je hebt betaald; dat kan enkele werkdagen duren.</p><p>Onze excuses dat het feest niet doorgaat.</p>`
-      : `<p>Beste ${voornaam},</p><p>Hartelijk dank! Je hebt gekozen om <strong>${amount}</strong> van je bestelling voor <strong>${notice.event.name}</strong> te doneren aan ons goede doel. Je tickets zijn komen te vervallen en er wordt niets teruggestort.</p><p>Onze excuses dat het feest niet doorgaat — en bedankt voor je steun.</p>`;
+      ? `<p>Beste ${voornaam},</p><p>We hebben je terugbetaling van <strong>${amount}</strong> voor <strong>${notice.event.name}</strong> in gang gezet. Het bedrag wordt teruggestort op de rekening waarmee je hebt betaald; dat kan enkele werkdagen duren.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat.</p>`
+      : `<p>Beste ${voornaam},</p><p>Hartelijk dank! Je hebt gekozen om <strong>${amount}</strong> van je bestelling voor <strong>${notice.event.name}</strong> te doneren aan ons goede doel. Je tickets zijn komen te vervallen en er wordt niets teruggestort.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat — en bedankt voor je steun.</p>`;
 
   const [layoutHtml, brandingVars] = await Promise.all([
     getEmailLayoutHtml({ organizationId: notice.event.organizationId, layoutId: null }),

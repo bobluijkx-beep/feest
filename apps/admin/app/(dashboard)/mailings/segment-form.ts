@@ -22,7 +22,9 @@ export function parseSegmentFromFormData(formData: FormData): CampaignSegment {
     ? (checkedInFilterRaw as (typeof VALID_CHECKED_IN_FILTERS)[number])
     : "ANY";
 
-  const cancellationFilter = String(formData.get("cancellationFilter") ?? "ANY") === "NO_CHOICE_YET" ? "NO_CHOICE_YET" : "ANY";
+  const cancellationFilterRaw = String(formData.get("cancellationFilter") ?? "ANY");
+  const cancellationFilter =
+    cancellationFilterRaw === "NO_CHOICE_YET" || cancellationFilterRaw === "HAS_NOTICE" ? cancellationFilterRaw : "ANY";
 
   return {
     type: "EVENT",

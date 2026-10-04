@@ -82,6 +82,7 @@ export default async function CancellationPage({ searchParams }: { searchParams:
   const pendingOptedOut = pending.filter((n) => optedOut.has(n.email.toLowerCase()));
 
   const mailingBase = `/mailings/new?eventId=${event.id}&segmentType=EVENT`;
+  const totalDonated = notices.reduce((total, n) => total + n.donatedCents, 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -92,6 +93,10 @@ export default async function CancellationPage({ searchParams }: { searchParams:
         <Stat label="Gedoneerd" value={String(donated.length)} sub={formatEuro(sum(donated))} />
         <Stat label="Mislukt" value={String(failed.length)} sub={failed.length ? "opnieuw proberen" : "—"} />
       </div>
+      <p className="text-xs text-muted-foreground">
+        De bedragen hierboven gaan over tickets en producten. Reeds gedane donaties ({formatEuro(totalDonated)} van
+        deze kopers) worden nooit terugbetaald en staan los van de keuze.
+      </p>
 
       <Card>
         <CardHeader>
@@ -99,7 +104,7 @@ export default async function CancellationPage({ searchParams }: { searchParams:
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
           <div className="flex flex-wrap items-center gap-3">
-            <Link href={mailingBase} className={buttonVariants({ size: "sm" })}>
+            <Link href={`${mailingBase}&cancellationFilter=HAS_NOTICE`} className={buttonVariants({ size: "sm" })}>
               Keuzemail versturen
             </Link>
             <Link
@@ -147,7 +152,8 @@ export default async function CancellationPage({ searchParams }: { searchParams:
             <TableHeader>
               <TableRow>
                 <TableHead>Koper</TableHead>
-                <TableHead>Bedrag</TableHead>
+                <TableHead>Tickets/producten</TableHead>
+                <TableHead>Eerder gedoneerd</TableHead>
                 <TableHead>Keuze</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -160,6 +166,7 @@ export default async function CancellationPage({ searchParams }: { searchParams:
                     <div className="text-xs text-muted-foreground">{n.email}</div>
                   </TableCell>
                   <TableCell>{formatEuro(n.amountCents)}</TableCell>
+                  <TableCell>{n.donatedCents > 0 ? formatEuro(n.donatedCents) : "—"}</TableCell>
                   <TableCell>
                     {n.choice === null ? "—" : n.choice === "REFUND" ? "Terugbetalen" : "Doneren"}
                     {n.isDefault && " (automatisch)"}
@@ -179,7 +186,7 @@ export default async function CancellationPage({ searchParams }: { searchParams:
               ))}
               {notices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
                     Geen kopers met een betaalde bestelling.
                   </TableCell>
                 </TableRow>

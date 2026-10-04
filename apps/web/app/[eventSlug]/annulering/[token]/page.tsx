@@ -23,6 +23,10 @@ export default async function CancellationChoicePage({
   if (!event || !notice || notice.event.id !== event.id) notFound();
 
   const amount = formatEuro(notice.amountCents);
+  const donatedNote =
+    notice.donatedCents > 0
+      ? `Daarnaast heb je eerder ${formatEuro(notice.donatedCents)} gedoneerd; dat bedrag blijft bij het goede doel en valt buiten deze keuze. Hartelijk dank daarvoor!`
+      : null;
   const voornaam = notice.buyerName.split(" ")[0] ?? notice.buyerName;
 
   return (
@@ -36,8 +40,9 @@ export default async function CancellationChoicePage({
               <>
                 <p>
                   Beste {voornaam}, helaas zijn er te weinig kaarten verkocht en moeten we het feest annuleren. Je hebt
-                  in totaal <strong>{amount}</strong> betaald.
+                  <strong> {amount}</strong> betaald voor tickets en producten.
                 </p>
+                {donatedNote && <p>{donatedNote}</p>}
                 <p>Wat wil je met dit bedrag doen?</p>
                 <ChoiceForm token={token} amountLabel={amount} />
                 <p className="text-xs text-muted-foreground">
@@ -59,6 +64,7 @@ export default async function CancellationChoicePage({
                   {notice.isDefault && " Omdat je niet hebt gekozen, hebben we het bedrag automatisch teruggestort."}
                   {!notice.processedAt && " Lukt het niet automatisch, dan nemen wij contact met je op."}
                 </p>
+                {donatedNote && <p>{donatedNote}</p>}
               </>
             )}
 
@@ -66,6 +72,7 @@ export default async function CancellationChoicePage({
               <>
                 <p>Hartelijk dank! Je hebt {amount} gedoneerd aan ons goede doel.</p>
                 <p>Je tickets zijn vervallen en er wordt niets teruggestort. Je ontvangt een bevestiging per e-mail.</p>
+                {donatedNote && <p>{donatedNote}</p>}
               </>
             )}
           </CardContent>

@@ -13,8 +13,10 @@ export interface EventSegment {
   /** Alleen zinvol voor events met TICKET-producten. */
   checkedInFilter?: "ANY" | "NOT_CHECKED_IN" | "CHECKED_IN";
   /** Alleen zinvol bij een geannuleerd event (zie cancellation.ts): NO_CHOICE_YET = alleen
-   * kopers die nog niet via hun keuzelink hebben gekozen — voor de herinneringsmailing. */
-  cancellationFilter?: "ANY" | "NO_CHOICE_YET";
+   * kopers die nog niet via hun keuzelink hebben gekozen — voor de herinneringsmailing;
+   * HAS_NOTICE = alleen kopers met een keuzelink (dus niet wie uitsluitend heeft gedoneerd en
+   * dus niets te kiezen heeft) — voor de eerste keuzemail. */
+  cancellationFilter?: "ANY" | "NO_CHOICE_YET" | "HAS_NOTICE";
 }
 
 /** Het org-brede adresboek (packages/core/src/contacts/contacts.ts), minus iedereen die al
@@ -97,12 +99,15 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
   const byEmail = new Map<string, SegmentRecipient>();
 
-  const noChoiceYet =
-    segment.cancellationFilter === "NO_CHOICE_YET"
+  const noticeEmails =
+    segment.cancellationFilter === "NO_CHOICE_YET" || segment.cancellationFilter === "HAS_NOTICE"
       ? new Set(
           (
             await prisma.cancellationNotice.findMany({
-              where: { eventId: segment.eventId, choice: null },
+              where: {
+                eventId: segment.eventId,
+                ...(segment.cancellationFilter === "NO_CHOICE_YET" ? { choice: null } : {}),
+              },
               select: { email: true },
             })
           ).map((n) => n.email.toLowerCase()),
@@ -111,7 +116,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
 
   for (const order of orders) {
     if (optedOut.has(order.buyerEmail.toLowerCase())) continue;
-    if (noChoiceYet && !noChoiceYet.has(order.buyerEmail.toLowerCase())) continue;
+    if (noticeEmails && !noticeEmails.has(order.buyerEmail.toLowerCase())) continue;
 
     if (segment.productKinds && segment.productKinds.length > 0) {
       const kinds = segment.productKinds;

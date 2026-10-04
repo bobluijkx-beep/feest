@@ -11,6 +11,82 @@ type RefundResult = { ok: true } | { ok: false; error: string };
  * zou verhongeren. Na een geslaagde refund wordt de status pas binnen een korte,
  * gelockte transactie omgezet; Mollie's eigen "amountRemaining"-boekhouding voorkomt zelf
  * al dat twee snelle klikken de volledige order-som dubbel terugbetalen. */
+/** Terugbetaling voor een annulering: alleen tickets/producten gaan terug, een reeds gedane
+ * donatie (kind=DONATION-regels) blijft bij het goede doel. Zonder donatieregels is dit gewoon
+ * refundOrder. Met donatieregels: gedeeltelijke Mollie-refund van het niet-donatiebedrag, en de
+ * order wordt daarna gesplitst — de oorspronkelijke order (tickets/producten) krijgt status
+ * REFUNDED en het teruggestorte bedrag als totaal, de donatieregels verhuizen naar een nieuwe
+ * PAID-order. Zo blijven omzet-, producten- en donatiecijfers elk kloppen, i.p.v. dat een
+ * gemengde order als geheel op REFUNDED of PAID blijft staan. Een order met alléén donaties
+ * blijft ongemoeid (niets terug te betalen). */
+export async function refundOrderKeepingDonations(orderId: string): Promise<RefundResult> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { event: true, items: { include: { product: { select: { kind: true } } } } },
+  });
+  if (!order) return { ok: false, error: "Bestelling niet gevonden." };
+  if (order.status !== "PAID") {
+    return { ok: false, error: "Alleen betaalde bestellingen kunnen worden terugbetaald." };
+  }
+
+  const donationItems = order.items.filter((item) => item.product.kind === "DONATION");
+  if (donationItems.length === 0) return refundOrder(orderId);
+
+  const donationCents = donationItems.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+  const refundCents = order.totalCents - donationCents;
+  if (refundCents <= 0) return { ok: true };
+  if (!order.molliePaymentId) {
+    return { ok: false, error: "Geen Mollie-betaling gekoppeld aan deze bestelling." };
+  }
+
+  try {
+    await createMollieRefund({
+      organizationId: order.event.organizationId,
+      molliePaymentId: order.molliePaymentId,
+      amountCents: refundCents,
+      currency: order.currency,
+      description: `Terugbetaling bestelling ${orderId} (excl. donatie)`,
+    });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Onbekende fout bij Mollie-refund." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<{ status: string }[]>`
+      SELECT status FROM "orders" WHERE id = ${orderId} FOR UPDATE`;
+    if (locked[0]?.status !== "PAID") return;
+
+    for (const item of order.items) {
+      if (item.product.kind === "DONATION") continue;
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { soldStock: { decrement: item.quantity } },
+      });
+    }
+
+    const donationOrder = await tx.order.create({
+      data: {
+        eventId: order.eventId,
+        buyerName: order.buyerName,
+        buyerEmail: order.buyerEmail,
+        status: "PAID",
+        totalCents: donationCents,
+        currency: order.currency,
+        isVisible: order.isVisible,
+        mailingCampaignId: order.mailingCampaignId,
+      },
+    });
+    await tx.orderItem.updateMany({
+      where: { id: { in: donationItems.map((item) => item.id) } },
+      data: { orderId: donationOrder.id },
+    });
+    await tx.order.update({ where: { id: orderId }, data: { status: "REFUNDED", totalCents: refundCents } });
+    await tx.ticket.updateMany({ where: { orderId }, data: { status: "CANCELLED" } });
+  });
+
+  return { ok: true };
+}
+
 export async function refundOrder(orderId: string): Promise<RefundResult> {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { event: true, items: true } });
   if (!order) return { ok: false, error: "Bestelling niet gevonden." };

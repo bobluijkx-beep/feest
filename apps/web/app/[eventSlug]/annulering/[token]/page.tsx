@@ -46,7 +46,6 @@ export default async function CancellationChoicePage({
                   <strong> {amount}</strong> betaald voor tickets en producten.
                 </p>
                 {donatedNote && <p>{donatedNote}</p>}
-                <p>Wat wil je met dit bedrag doen?</p>
                 {fout === "bedrag" && (
                   <p className="rounded-lg bg-destructive/10 px-3 py-2 text-destructive">
                     Het ingevulde bedrag klopt niet: kies een bedrag tussen €0,01 en {formatEuro(notice.amountCents - 1)}.

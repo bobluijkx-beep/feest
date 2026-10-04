@@ -15,10 +15,13 @@ function formatEuro(cents: number): string {
 
 export default async function CancellationChoicePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ eventSlug: string; token: string }>;
+  searchParams: Promise<{ fout?: string }>;
 }) {
   const { eventSlug, token } = await params;
+  const { fout } = await searchParams;
   const [event, notice] = await Promise.all([getPublicEvent(eventSlug), getNoticeByToken(token)]);
   if (!event || !notice || notice.event.id !== event.id) notFound();
 
@@ -44,7 +47,12 @@ export default async function CancellationChoicePage({
                 </p>
                 {donatedNote && <p>{donatedNote}</p>}
                 <p>Wat wil je met dit bedrag doen?</p>
-                <ChoiceForm token={token} amountLabel={amount} />
+                {fout === "bedrag" && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-destructive">
+                    Het ingevulde bedrag klopt niet: kies een bedrag tussen €0,01 en {formatEuro(notice.amountCents - 1)}.
+                  </p>
+                )}
+                <ChoiceForm token={token} amountCents={notice.amountCents} />
                 <p className="text-xs text-muted-foreground">
                   Een terugbetaling gaat naar de rekening waarmee je hebt betaald en kan enkele werkdagen duren. Kies je
                   niet, dan storten we het bedrag na de deadline automatisch terug.
@@ -63,6 +71,22 @@ export default async function CancellationChoicePage({
                   Het bedrag wordt teruggestort op de rekening waarmee je hebt betaald; dat kan enkele werkdagen duren.
                   {notice.isDefault && " Omdat je niet hebt gekozen, hebben we het bedrag automatisch teruggestort."}
                   {!notice.processedAt && " Lukt het niet automatisch, dan nemen wij contact met je op."}
+                </p>
+                {donatedNote && <p>{donatedNote}</p>}
+              </>
+            )}
+
+            {notice.choice === "PARTIAL" && (
+              <>
+                <p>
+                  Bedankt voor je keuze! Je doneert {formatEuro(notice.chosenDonationCents ?? 0)} aan ons goede doel en
+                  ontvangt {formatEuro(notice.amountCents - (notice.chosenDonationCents ?? 0))} terug.
+                </p>
+                <p>
+                  {notice.processedAt
+                    ? "De terugbetaling is in gang gezet en wordt op de rekening waarmee je hebt betaald teruggestort; dat kan enkele werkdagen duren."
+                    : "We verwerken je terugbetaling. Lukt het niet automatisch, dan nemen wij contact met je op."}{" "}
+                  Je tickets zijn vervallen.
                 </p>
                 {donatedNote && <p>{donatedNote}</p>}
               </>

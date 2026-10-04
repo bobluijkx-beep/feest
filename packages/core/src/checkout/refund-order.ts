@@ -19,7 +19,10 @@ type RefundResult = { ok: true } | { ok: false; error: string };
  * PAID-order. Zo blijven omzet-, producten- en donatiecijfers elk kloppen, i.p.v. dat een
  * gemengde order als geheel op REFUNDED of PAID blijft staan. Een order met alléén donaties
  * blijft ongemoeid (niets terug te betalen). */
-export async function refundOrderKeepingDonations(orderId: string): Promise<RefundResult> {
+export async function refundOrderKeepingDonations(
+  orderId: string,
+  options: { refundCents?: number } = {},
+): Promise<RefundResult> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { event: true, items: { include: { product: { select: { kind: true } } } } },
@@ -30,10 +33,13 @@ export async function refundOrderKeepingDonations(orderId: string): Promise<Refu
   }
 
   const donationItems = order.items.filter((item) => item.product.kind === "DONATION");
-  if (donationItems.length === 0) return refundOrder(orderId);
-
   const donationCents = donationItems.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
-  const refundCents = order.totalCents - donationCents;
+  const ticketProductCents = order.totalCents - donationCents;
+  // options.refundCents: terug te betalen deel van het ticket-/productbedrag (de keuze "deels
+  // doneren"); de rest (keptCents) wordt dan ook gedoneerd en vastgelegd als donatie.
+  const refundCents = Math.min(options.refundCents ?? ticketProductCents, ticketProductCents);
+  const keptCents = ticketProductCents - refundCents;
+  if (donationItems.length === 0 && keptCents === 0) return refundOrder(orderId);
   if (refundCents <= 0) return { ok: true };
   if (!order.molliePaymentId) {
     return { ok: false, error: "Geen Mollie-betaling gekoppeld aan deze bestelling." };
@@ -70,16 +76,32 @@ export async function refundOrderKeepingDonations(orderId: string): Promise<Refu
         buyerName: order.buyerName,
         buyerEmail: order.buyerEmail,
         status: "PAID",
-        totalCents: donationCents,
+        totalCents: donationCents + keptCents,
         currency: order.currency,
         isVisible: order.isVisible,
         mailingCampaignId: order.mailingCampaignId,
       },
     });
-    await tx.orderItem.updateMany({
-      where: { id: { in: donationItems.map((item) => item.id) } },
-      data: { orderId: donationOrder.id },
-    });
+    if (donationItems.length > 0) {
+      await tx.orderItem.updateMany({
+        where: { id: { in: donationItems.map((item) => item.id) } },
+        data: { orderId: donationOrder.id },
+      });
+    }
+    // Het deel dat de koper bij "deels doneren" laat staan, als regel van het donatieproduct van
+    // het event zodat het in de donatiecijfers meetelt (ontbreekt zo'n product, dan staat het
+    // bedrag alleen in het ordertotaal).
+    if (keptCents > 0) {
+      const donationProduct = await tx.product.findFirst({
+        where: { eventId: order.eventId, kind: "DONATION" },
+        select: { id: true },
+      });
+      if (donationProduct) {
+        await tx.orderItem.create({
+          data: { orderId: donationOrder.id, productId: donationProduct.id, quantity: 1, unitPriceCents: keptCents },
+        });
+      }
+    }
     await tx.order.update({ where: { id: orderId }, data: { status: "REFUNDED", totalCents: refundCents } });
     await tx.ticket.updateMany({ where: { orderId }, data: { status: "CANCELLED" } });
   });

@@ -74,11 +74,19 @@ export default async function CancellationPage({ searchParams }: { searchParams:
   ]);
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
 
-  const refunded = notices.filter((n) => n.choice === "REFUND" && n.processedAt);
-  const donated = notices.filter((n) => n.choice === "DONATE");
+  // Per keuze het teruggestorte en het gedoneerde deel van amountCents: bij "Deels" (PARTIAL)
+  // zit er in één keuze van beide wat in.
+  const donatedPart = (n: (typeof notices)[number]) =>
+    n.choice === "DONATE" ? n.amountCents : n.choice === "PARTIAL" ? (n.chosenDonationCents ?? 0) : 0;
+  const refundedPart = (n: (typeof notices)[number]) => (n.choice === null ? 0 : n.amountCents - donatedPart(n));
+
+  const refunded = notices.filter((n) => n.processedAt && refundedPart(n) > 0);
+  const donated = notices.filter((n) => donatedPart(n) > 0);
   const pending = notices.filter((n) => n.choice === null);
   const failed = notices.filter((n) => n.choice !== null && !n.processedAt);
   const sum = (list: typeof notices) => list.reduce((total, n) => total + n.amountCents, 0);
+  const sumBy = (list: typeof notices, part: (n: (typeof notices)[number]) => number) =>
+    list.reduce((total, n) => total + part(n), 0);
   const pendingOptedOut = pending.filter((n) => optedOut.has(n.email.toLowerCase()));
 
   const mailingBase = `/mailings/new?eventId=${event.id}&segmentType=EVENT`;
@@ -89,8 +97,8 @@ export default async function CancellationPage({ searchParams }: { searchParams:
       {tabs}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Nog niet gekozen" value={String(pending.length)} sub={formatEuro(sum(pending))} />
-        <Stat label="Terugbetaald" value={String(refunded.length)} sub={formatEuro(sum(refunded))} />
-        <Stat label="Gedoneerd" value={String(donated.length)} sub={formatEuro(sum(donated))} />
+        <Stat label="Terugbetaald" value={String(refunded.length)} sub={formatEuro(sumBy(refunded, refundedPart))} />
+        <Stat label="Gedoneerd (keuze)" value={String(donated.length)} sub={formatEuro(sumBy(donated, donatedPart))} />
         <Stat label="Mislukt" value={String(failed.length)} sub={failed.length ? "opnieuw proberen" : "—"} />
       </div>
       <p className="text-xs text-muted-foreground">
@@ -168,7 +176,13 @@ export default async function CancellationPage({ searchParams }: { searchParams:
                   <TableCell>{formatEuro(n.amountCents)}</TableCell>
                   <TableCell>{n.donatedCents > 0 ? formatEuro(n.donatedCents) : "—"}</TableCell>
                   <TableCell>
-                    {n.choice === null ? "—" : n.choice === "REFUND" ? "Terugbetalen" : "Doneren"}
+                    {n.choice === null
+                      ? "—"
+                      : n.choice === "REFUND"
+                        ? "Terugbetalen"
+                        : n.choice === "PARTIAL"
+                          ? `Deels (${formatEuro(n.chosenDonationCents ?? 0)} doneren)`
+                          : "Doneren"}
                     {n.isDefault && " (automatisch)"}
                   </TableCell>
                   <TableCell>

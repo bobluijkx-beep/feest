@@ -58,6 +58,8 @@ enum ProductKind {
 enum CancellationChoice {
   REFUND
   DONATE
+  // Deels doneren, de rest terug: het gedoneerde bedrag staat in CancellationNotice.donationCents.
+  PARTIAL
 }
 
 enum EmailCampaignStatus {
@@ -245,6 +247,8 @@ model CancellationNotice {
   buyerName   String
   token       String              @unique
   choice      CancellationChoice?
+  // Alleen bij choice = PARTIAL: het deel van het ticket-/productbedrag dat de koper doneert.
+  donationCents Int?
   // true als de keuze niet door de koper zelf is gemaakt maar automatisch (terugbetaling)
   // na de deadline voor niet-reageerders.
   isDefault   Boolean             @default(false)

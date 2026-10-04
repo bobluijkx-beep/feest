@@ -23,7 +23,6 @@ function generateToken(): string {
 }
 
 type OrderWithItems = {
-  buyerEmail: string;
   items: { quantity: number; unitPriceCents: number; product: { kind: string } }[];
 };
 
@@ -95,6 +94,8 @@ export interface CancellationNoticeView {
   amountCents: number;
   /** Reeds gedane donaties van deze koper — los van de keuze, blijven altijd staan. */
   donatedCents: number;
+  /** Alleen bij choice = PARTIAL: het deel van amountCents dat de koper doneert. */
+  chosenDonationCents: number | null;
 }
 
 async function amountsFor(eventId: string, email: string) {
@@ -129,6 +130,7 @@ export async function getNoticeByToken(token: string): Promise<CancellationNotic
     event: notice.event,
     amountCents: refundableCents,
     donatedCents,
+    chosenDonationCents: notice.donationCents,
   };
 }
 
@@ -164,6 +166,7 @@ export async function listNotices(eventId: string): Promise<CancellationNoticeVi
       event,
       amountCents: refundableCents,
       donatedCents,
+      chosenDonationCents: n.donationCents,
     };
   });
 }
@@ -174,11 +177,26 @@ export async function listNotices(eventId: string): Promise<CancellationNoticeVi
 export async function submitCancellationChoice(
   token: string,
   choice: CancellationChoice,
-  options: { isDefault?: boolean } = {},
-): Promise<{ ok: boolean }> {
+  options: { isDefault?: boolean; donationCents?: number } = {},
+): Promise<{ ok: boolean; error?: "amount" }> {
+  // PARTIAL: het te doneren bedrag moet echt een deel zijn — meer dan 0 en minder dan het
+  // hele ticket-/productbedrag (alles doneren is gewoon DONATE, niets doneren is REFUND).
+  // Server-side gecontroleerd; het formulier doet dat niet voor ons.
+  let donationCents: number | null = null;
+  if (choice === "PARTIAL") {
+    const existing = await prisma.cancellationNotice.findUnique({ where: { token } });
+    if (!existing) return { ok: false };
+    const { refundableCents } = await amountsFor(existing.eventId, existing.email);
+    const d = options.donationCents;
+    if (d === undefined || !Number.isInteger(d) || d <= 0 || d >= refundableCents) {
+      return { ok: false, error: "amount" };
+    }
+    donationCents = d;
+  }
+
   const claimed = await prisma.cancellationNotice.updateMany({
     where: { token, choice: null },
-    data: { choice, chosenAt: new Date(), isDefault: options.isDefault ?? false },
+    data: { choice, chosenAt: new Date(), isDefault: options.isDefault ?? false, donationCents },
   });
   if (claimed.count === 0) return { ok: false };
 
@@ -208,6 +226,36 @@ export async function processNotice(noticeId: string): Promise<void> {
       const result = await refundOrderKeepingDonations(order.id);
       if (!result.ok) errors.push(`${order.id}: ${result.error}`);
     }
+  } else if (notice.choice === "PARTIAL") {
+    // Het terug te storten bedrag (totaal minus de gekozen donatie) wordt oudste bestelling
+    // eerst over de bestellingen verdeeld; wat een bestelling niet terugkrijgt, wordt daar
+    // gedoneerd. Bij een herhaling worden ook al afgeronde (REFUNDED) bestellingen meegeteld
+    // in de verdeling, zodat die deterministisch dezelfde uitkomst geeft en alleen de nog
+    // openstaande (PAID) bestellingen opnieuw worden uitgevoerd.
+    const allOrders = await prisma.order.findMany({
+      where: {
+        eventId: notice.eventId,
+        isVisible: true,
+        status: { in: ["PAID", "REFUNDED"] },
+        buyerEmail: { equals: notice.email, mode: "insensitive" },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, status: true, ...ORDER_ITEMS_FOR_AMOUNTS },
+    });
+    let remainingRefund = Math.max(before.refundableCents - (notice.donationCents ?? 0), 0);
+    for (const order of allOrders) {
+      const ticketProductCents = splitAmounts([order]).refundableCents;
+      if (ticketProductCents <= 0) continue;
+      const refundCents = Math.min(remainingRefund, ticketProductCents);
+      remainingRefund -= refundCents;
+      if (order.status !== "PAID") continue;
+      if (refundCents === 0) {
+        await prisma.ticket.updateMany({ where: { orderId: order.id }, data: { status: "CANCELLED" } });
+        continue;
+      }
+      const result = await refundOrderKeepingDonations(order.id, { refundCents });
+      if (!result.ok) errors.push(`${order.id}: ${result.error}`);
+    }
   } else {
     await prisma.ticket.updateMany({
       where: { orderId: { in: orders.map((o) => o.id) } },
@@ -226,7 +274,13 @@ export async function processNotice(noticeId: string): Promise<void> {
   });
   // Niets te kiezen/terug te betalen (bv. alleen donaties) = geen bevestigingsmail.
   if (before.refundableCents > 0) {
-    await sendChoiceConfirmationEmail(notice.id, notice.choice, before.refundableCents, before.donatedCents);
+    await sendChoiceConfirmationEmail(
+      notice.id,
+      notice.choice,
+      before.refundableCents,
+      before.donatedCents,
+      notice.donationCents ?? 0,
+    );
   }
 }
 
@@ -287,6 +341,7 @@ async function sendChoiceConfirmationEmail(
   choice: CancellationChoice,
   amountCents: number,
   donatedCents: number,
+  chosenDonationCents: number,
 ) {
   const notice = await prisma.cancellationNotice.findUniqueOrThrow({
     where: { id: noticeId },
@@ -299,12 +354,19 @@ async function sendChoiceConfirmationEmail(
       ? `<p>Je eerder gedane donatie van <strong>${formatEuro(donatedCents)}</strong> blijft staan bij het goede doel — daar zijn we je dankbaar voor.</p>`
       : "";
 
+  const refundPart = formatEuro(amountCents - chosenDonationCents);
+  const donatePart = formatEuro(chosenDonationCents);
+
   const subject =
     choice === "REFUND"
       ? `Je terugbetaling voor ${notice.event.name}`
-      : `Bedankt voor je donatie aan het goede doel`;
+      : choice === "PARTIAL"
+        ? `Je terugbetaling en donatie voor ${notice.event.name}`
+        : `Bedankt voor je donatie aan het goede doel`;
   const bodyHtml =
-    choice === "REFUND"
+    choice === "PARTIAL"
+      ? `<p>Beste ${voornaam},</p><p>Bedankt voor je keuze. Van je bestelling voor <strong>${notice.event.name}</strong> storten we <strong>${refundPart}</strong> terug op de rekening waarmee je hebt betaald (dat kan enkele werkdagen duren) en doneer je <strong>${donatePart}</strong> aan ons goede doel. Je tickets zijn komen te vervallen.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat — en bedankt voor je steun.</p>`
+      : choice === "REFUND"
       ? `<p>Beste ${voornaam},</p><p>We hebben je terugbetaling van <strong>${amount}</strong> voor <strong>${notice.event.name}</strong> in gang gezet. Het bedrag wordt teruggestort op de rekening waarmee je hebt betaald; dat kan enkele werkdagen duren.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat.</p>`
       : `<p>Beste ${voornaam},</p><p>Hartelijk dank! Je hebt gekozen om <strong>${amount}</strong> van je bestelling voor <strong>${notice.event.name}</strong> te doneren aan ons goede doel. Je tickets zijn komen te vervallen en er wordt niets teruggestort.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat — en bedankt voor je steun.</p>`;
 

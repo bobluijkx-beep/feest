@@ -4,6 +4,7 @@ import { getNoticeByToken, formatDeadline } from "@lions/core";
 import { Card, CardContent } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { ChoiceForm } from "./choice-form";
+import { ResultDialog } from "./result-dialog";
 
 // Verborgen pagina: nergens vanaf de site gelinkt en uitgesloten van zoekmachines — alleen
 // bereikbaar via de persoonlijke link in de annuleringsmailing.
@@ -18,10 +19,10 @@ export default async function CancellationChoicePage({
   searchParams,
 }: {
   params: Promise<{ eventSlug: string; token: string }>;
-  searchParams: Promise<{ fout?: string }>;
+  searchParams: Promise<{ fout?: string; gekozen?: string }>;
 }) {
   const { eventSlug, token } = await params;
-  const { fout } = await searchParams;
+  const { fout, gekozen } = await searchParams;
   const [event, notice] = await Promise.all([getPublicEvent(eventSlug), getNoticeByToken(token)]);
   if (!event || !notice || notice.event.id !== event.id) notFound();
 
@@ -32,10 +33,48 @@ export default async function CancellationChoicePage({
       : null;
   const voornaam = notice.buyerName.split(" ")[0] ?? notice.buyerName;
 
+  // Grote pop-up direct na het kiezen (de actie stuurt door met ?gekozen=1); de samenvatting in
+  // de kaart hieronder blijft ook staan voor wie de link later nog eens opent.
+  const chosenDonation = notice.chosenDonationCents ?? 0;
+  const processingNote = notice.processedAt
+    ? null
+    : "We verwerken je terugbetaling nog; lukt het niet automatisch, dan nemen wij contact met je op.";
+  const result =
+    notice.choice === "DONATE"
+      ? {
+          title: "Bedankt voor je donatie!",
+          lines: [
+            `Je hebt ${amount} gedoneerd aan ons goede doel.`,
+            "Je tickets zijn vervallen en er wordt niets teruggestort.",
+            "Je ontvangt een bevestiging per e-mail.",
+          ],
+        }
+      : notice.choice === "PARTIAL"
+        ? {
+            title: "Bedankt voor je keuze!",
+            lines: [
+              `Je doneert ${formatEuro(chosenDonation)} aan ons goede doel.`,
+              `Je ontvangt ${formatEuro(notice.amountCents - chosenDonation)} terug op je rekening; dat kan enkele werkdagen duren.`,
+              "Je tickets zijn vervallen. Je ontvangt een bevestiging per e-mail.",
+              ...(processingNote ? [processingNote] : []),
+            ],
+          }
+        : notice.choice === "REFUND"
+          ? {
+              title: "Je terugbetaling is onderweg",
+              lines: [
+                `We storten ${amount} terug op de rekening waarmee je hebt betaald; dat kan enkele werkdagen duren.`,
+                "Je ontvangt een bevestiging per e-mail.",
+                ...(processingNote ? [processingNote] : []),
+              ],
+            }
+          : null;
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 md:max-w-4xl lg:max-w-6xl">
       <div className="mx-auto max-w-xl">
         <h1 className="font-display text-2xl">{event.name} gaat niet door</h1>
+        {result && gekozen === "1" && <ResultDialog title={result.title} lines={result.lines} />}
 
         <Card className="mt-4">
           <CardContent className="flex flex-col gap-3 text-sm">

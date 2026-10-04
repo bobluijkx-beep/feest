@@ -24,5 +24,5 @@ export async function chooseCancellationOption(formData: FormData): Promise<void
 
   const result = await submitCancellationChoice(token, choice, { donationCents });
   if (result.error === "amount") redirect(`/${notice.event.slug}/annulering/${token}?fout=bedrag`);
-  redirect(`/${notice.event.slug}/annulering/${token}`);
+  redirect(`/${notice.event.slug}/annulering/${token}?gekozen=1`);
 }

@@ -258,6 +258,10 @@ model CancellationNotice {
   choice      CancellationChoice?
   // Alleen bij choice = PARTIAL: het deel van het ticket-/productbedrag dat de koper doneert.
   donationCents Int?
+  // Momentopname, bij het kiezen, van wat de koper vóór deze keuze al had gedoneerd (kind=DONATION-
+  // regels). Nodig omdat een keuze zelf ook donatieregels aanmaakt (refund-order.ts): zonder
+  // deze waarde zou het gekozen bedrag achteraf als "eerdere donatie" meetellen.
+  earlierDonationCents Int?
   // true als de keuze niet door de koper zelf is gemaakt maar automatisch (terugbetaling)
   // na de deadline voor niet-reageerders.
   isDefault   Boolean             @default(false)

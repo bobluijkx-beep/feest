@@ -131,7 +131,9 @@ export async function getNoticeByToken(token: string): Promise<CancellationNotic
     lastError: notice.lastError,
     event: notice.event,
     amountCents: refundableCents,
-    donatedCents,
+    // Na het kiezen de vastgelegde momentopname, niet opnieuw berekend: de keuze zelf maakt
+    // donatieregels aan die anders als "eerdere donatie" zouden meetellen.
+    donatedCents: notice.choice !== null && notice.earlierDonationCents !== null ? notice.earlierDonationCents : donatedCents,
     chosenDonationCents: notice.donationCents,
   };
 }
@@ -170,7 +172,7 @@ export async function listNotices(eventId: string): Promise<CancellationNoticeVi
       lastError: n.lastError,
       event,
       amountCents: refundableCents,
-      donatedCents,
+      donatedCents: n.choice !== null && n.earlierDonationCents !== null ? n.earlierDonationCents : donatedCents,
       chosenDonationCents: n.donationCents,
     };
   });
@@ -187,11 +189,13 @@ export async function submitCancellationChoice(
   // PARTIAL: het te doneren bedrag moet echt een deel zijn — meer dan 0 en minder dan het
   // hele ticket-/productbedrag (alles doneren is gewoon DONATE, niets doneren is REFUND).
   // Server-side gecontroleerd; het formulier doet dat niet voor ons.
+  const existing = await prisma.cancellationNotice.findUnique({ where: { token } });
+  if (!existing) return { ok: false };
+  const amounts = await amountsFor(existing.eventId, existing.email);
+
   let donationCents: number | null = null;
   if (choice === "PARTIAL") {
-    const existing = await prisma.cancellationNotice.findUnique({ where: { token } });
-    if (!existing) return { ok: false };
-    const { refundableCents } = await amountsFor(existing.eventId, existing.email);
+    const refundableCents = amounts.refundableCents;
     const d = options.donationCents;
     if (d === undefined || !Number.isInteger(d) || d <= 0 || d >= refundableCents) {
       return { ok: false, error: "amount" };
@@ -201,7 +205,13 @@ export async function submitCancellationChoice(
 
   const claimed = await prisma.cancellationNotice.updateMany({
     where: { token, choice: null },
-    data: { choice, chosenAt: new Date(), isDefault: options.isDefault ?? false, donationCents },
+    data: {
+      choice,
+      chosenAt: new Date(),
+      isDefault: options.isDefault ?? false,
+      donationCents,
+      earlierDonationCents: amounts.donatedCents,
+    },
   });
   if (claimed.count === 0) return { ok: false };
 
@@ -283,7 +293,7 @@ export async function processNotice(noticeId: string): Promise<void> {
       notice.id,
       notice.choice,
       before.refundableCents,
-      before.donatedCents,
+      notice.earlierDonationCents ?? before.donatedCents,
       notice.donationCents ?? 0,
     );
   }

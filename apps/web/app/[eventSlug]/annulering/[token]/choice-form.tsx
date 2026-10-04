@@ -10,6 +10,13 @@ function formatEuro(cents: number): string {
 
 const optionClassName = "flex flex-col gap-2 rounded-xl border border-border p-4";
 
+// Wit met zwarte letters, ook op het donkere event-thema (de dark:-varianten overschrijven de
+// standaard donkere knop-/invoerstijl uit @lions/ui).
+const whiteButtonClassName =
+  "w-full border-neutral-300 bg-white text-black hover:bg-neutral-100 hover:text-black dark:border-neutral-300 dark:bg-white dark:text-black dark:hover:bg-neutral-100 dark:hover:text-black";
+const whiteInputClassName =
+  "w-48 border-neutral-300 bg-white text-black placeholder:text-neutral-500 dark:bg-white";
+
 /** Drie gelijkwaardige keuzes (1 doneren, 2 deels doneren, 3 terugstorten): bewust dezelfde
  * knopstijl en geen voorselectie, zodat geen enkele keuze visueel boven de andere uitsteekt. Elke
  * keuze is een eigen formulier met een bevestigingsvraag — de keuze staat na het versturen
@@ -41,7 +48,7 @@ export function ChoiceForm({ token, amountCents }: { token: string; amountCents:
         <input type="hidden" name="choice" value="DONATE" />
         <p className="font-medium">1. Doneren</p>
         <p className="text-xs text-muted-foreground">Het hele bedrag ({amountLabel}) gaat naar het goede doel.</p>
-        <Button type="submit" size="lg" variant="outline" className="w-full">
+        <Button type="submit" size="lg" variant="outline" className={whiteButtonClassName}>
           Ik doneer het hele bedrag
         </Button>
       </form>
@@ -83,7 +90,7 @@ export function ChoiceForm({ token, amountCents }: { token: string; amountCents:
               setDonateInput(e.target.value);
               setShowAmountError(false);
             }}
-            className="w-48"
+            className={whiteInputClassName}
           />
         </div>
         {partialValid && (
@@ -96,7 +103,7 @@ export function ChoiceForm({ token, amountCents }: { token: string; amountCents:
             Vul een bedrag in tussen €0,01 en {formatEuro(amountCents - 1)}.
           </p>
         )}
-        <Button type="submit" size="lg" variant="outline" className="w-full">
+        <Button type="submit" size="lg" variant="outline" className={whiteButtonClassName}>
           Ik doneer een deel
         </Button>
       </form>
@@ -114,7 +121,7 @@ export function ChoiceForm({ token, amountCents }: { token: string; amountCents:
         <input type="hidden" name="choice" value="REFUND" />
         <p className="font-medium">3. Het hele bedrag terugstorten</p>
         <p className="text-xs text-muted-foreground">Je ontvangt {amountLabel} terug op je rekening.</p>
-        <Button type="submit" size="lg" variant="outline" className="w-full">
+        <Button type="submit" size="lg" variant="outline" className={whiteButtonClassName}>
           Ik wil het hele bedrag terug
         </Button>
       </form>

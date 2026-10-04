@@ -4,6 +4,15 @@ import { createMollieRefund } from "../mollie/client";
 
 type RefundResult = { ok: true } | { ok: false; error: string };
 
+/** Testorders van het annuleringsscherm (cancellation/test-buyers.ts) krijgen een betaal-id met
+ * dit voorvoegsel i.p.v. een echt Mollie-id ("tr_…"): de workflow (status, tickets, voorraad,
+ * mails) loopt dan volledig door, maar er wordt geen echte Mollie-refund gedaan. */
+export const SIMULATED_PAYMENT_PREFIX = "sim_";
+
+function isSimulatedPayment(molliePaymentId: string): boolean {
+  return molliePaymentId.startsWith(SIMULATED_PAYMENT_PREFIX);
+}
+
 /** Terugbetaling via Mollie voor een betaalde order. Zelfde patroon als
  * processMolliePaymentWebhook (webhook.ts): de externe Mollie-call gebeurt buiten elke
  * transactie — de gedeelde `prisma`-client heeft hier maar één connectie in de pool, dus
@@ -46,7 +55,7 @@ export async function refundOrderKeepingDonations(
   }
 
   try {
-    await createMollieRefund({
+    if (!isSimulatedPayment(order.molliePaymentId)) await createMollieRefund({
       organizationId: order.event.organizationId,
       molliePaymentId: order.molliePaymentId,
       amountCents: refundCents,
@@ -120,7 +129,7 @@ export async function refundOrder(orderId: string): Promise<RefundResult> {
   }
 
   try {
-    await createMollieRefund({
+    if (!isSimulatedPayment(order.molliePaymentId)) await createMollieRefund({
       organizationId: order.event.organizationId,
       molliePaymentId: order.molliePaymentId,
       amountCents: order.totalCents,

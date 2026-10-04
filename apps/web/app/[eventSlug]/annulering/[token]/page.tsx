@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getNoticeByToken } from "@lions/core";
+import { getNoticeByToken, formatDeadline } from "@lions/core";
 import { Card, CardContent } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { ChoiceForm } from "./choice-form";
@@ -54,8 +54,10 @@ export default async function CancellationChoicePage({
                 )}
                 <ChoiceForm token={token} amountCents={notice.amountCents} />
                 <p className="text-xs text-muted-foreground">
-                  Een terugbetaling gaat naar de rekening waarmee je hebt betaald en kan enkele werkdagen duren. Kies je
-                  niet, dan storten we het bedrag na de deadline automatisch terug.
+                  Een terugbetaling gaat naar de rekening waarmee je hebt betaald en kan enkele werkdagen duren.
+                  {notice.event.cancellationDeadline
+                    ? ` Maak je keuze uiterlijk ${formatDeadline(notice.event.cancellationDeadline)}; kies je niet, dan storten we het bedrag daarna terug.`
+                    : " Kies je niet, dan storten we het bedrag na de deadline terug."}
                 </p>
               </>
             )}

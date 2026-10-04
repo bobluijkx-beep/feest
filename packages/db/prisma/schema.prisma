@@ -47,6 +47,11 @@ enum EmailTemplateType {
   PAYMENT_REMINDER
   PAYMENT_FAILED
   CANCELLED
+  // Bevestigingsmails na de keuze bij een geannuleerd event (cancellation.ts), bewerkbaar
+  // onder E-mailtemplates.
+  CANCELLATION_REFUND
+  CANCELLATION_PARTIAL
+  CANCELLATION_DONATE
 }
 
 enum ProductKind {
@@ -144,6 +149,10 @@ model Event {
   // CancellationNotice en packages/core/src/cancellation/cancellation.ts). Los van `status`:
   // het event blijft PUBLISHED zodat de keuzepagina onder /<slug>/annulering bereikbaar blijft.
   isCancelled    Boolean         @default(false)
+  // Uiterste reactiedatum voor kopers van een geannuleerd event: alleen informatief (keuzepagina,
+  // {{deadline}} in de keuzemail) — er wordt niets automatisch op uitgevoerd, de admin start
+  // de terugbetaling van niet-reageerders zelf.
+  cancellationDeadline DateTime?
   cancellationNotices CancellationNotice[]
   products       Product[]
   bundles        ProductBundle[]

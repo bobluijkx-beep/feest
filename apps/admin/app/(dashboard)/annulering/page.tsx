@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { prisma, listNotices } from "@lions/core";
+import { prisma, listNotices, countTestOrders, formatDeadline } from "@lions/core";
 import {
   Badge,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  Button,
+  Input,
+  Label,
   Table,
   TableBody,
   TableCell,
@@ -18,7 +21,14 @@ import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EventTabs } from "@/lib/event-tabs";
 import { ConfirmActionForm } from "./confirm-action-form";
-import { startCancellation, finalizeNonRespondersAction, retryFailedRefundsAction } from "./actions";
+import { TestBuyerForm } from "./test-buyer-form";
+import {
+  startCancellation,
+  finalizeNonRespondersAction,
+  retryFailedRefundsAction,
+  removeTestBuyersAction,
+  setCancellationDeadlineAction,
+} from "./actions";
 
 function formatEuro(cents: number): string {
   return `€${(cents / 100).toFixed(2).replace(".", ",")}`;
@@ -32,6 +42,43 @@ export default async function CancellationPage({ searchParams }: { searchParams:
   if (!event) return <p className="text-sm text-muted-foreground">Nog geen event aangemaakt.</p>;
 
   const tabs = <EventTabs events={events} selectedId={event.id} basePath="/annulering" />;
+
+  const [testProducts, testOrderCount] = await Promise.all([
+    prisma.product.findMany({
+      where: { eventId: event.id, isActive: true, kind: { in: ["TICKET", "MERCHANDISE"] } },
+      orderBy: { priceCents: "asc" },
+      select: { id: true, name: true, priceCents: true },
+    }),
+    countTestOrders(event.id),
+  ]);
+
+  // Testkopers: orders met een gesimuleerd betaal-id — de hele workflow (keuzepagina, mails,
+  // terugbetalen/doneren) loopt door zonder dat Mollie wordt geraakt.
+  const testCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Testkopers (zonder Mollie)</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        <p className="text-muted-foreground">
+          Voeg testkopers toe om de hele workflow te proberen: keuzemail, keuzepagina, terugbetalen, doneren en deels
+          doneren, inclusief de bevestigingsmails (die komen echt aan op het opgegeven adres). Er wordt geen echte
+          terugbetaling bij Mollie gedaan. Testkopers tellen tot het opruimen wél mee in het dashboard — verwijder ze
+          daarna met de knop hieronder.
+        </p>
+        <TestBuyerForm eventId={event.id} products={testProducts} />
+        {testOrderCount > 0 && (
+          <ConfirmActionForm
+            action={removeTestBuyersAction}
+            eventId={event.id}
+            label={`Alle testkopers verwijderen (${testOrderCount} ${testOrderCount === 1 ? "bestelling" : "bestellingen"})`}
+            variant="outline"
+            confirmMessage="Alle testkopers van dit evenement (bestellingen, tickets en keuzes) verwijderen? Echte bestellingen blijven ongemoeid."
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
 
   if (!event.isCancelled) {
     const paidBuyers = await prisma.order.groupBy({
@@ -64,6 +111,7 @@ export default async function CancellationPage({ searchParams }: { searchParams:
             />
           </CardContent>
         </Card>
+        {testCard}
       </div>
     );
   }
@@ -105,6 +153,39 @@ export default async function CancellationPage({ searchParams }: { searchParams:
         De bedragen hierboven gaan over tickets en producten. Reeds gedane donaties ({formatEuro(totalDonated)} van
         deze kopers) worden nooit terugbetaald en staan los van de keuze.
       </p>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Deadline</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 text-sm">
+          <form action={setCancellationDeadlineAction} className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="eventId" value={event.id} />
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="deadline">Uiterlijk reageren op</Label>
+              <Input
+                id="deadline"
+                name="deadline"
+                type="date"
+                defaultValue={event.cancellationDeadline?.toISOString().slice(0, 10) ?? ""}
+                className="w-44"
+              />
+            </div>
+            <Button type="submit" variant="outline">
+              Opslaan
+            </Button>
+          </form>
+          <p className="text-xs text-muted-foreground">
+            {event.cancellationDeadline
+              ? `Ingesteld op ${formatDeadline(event.cancellationDeadline)}${
+                  event.cancellationDeadline.getTime() < Date.now() ? " — verstreken" : ""
+                }. `
+              : "Nog geen deadline ingesteld. "}
+            Wordt getoond op de keuzepagina en is als <code>{"{{deadline}}"}</code> te gebruiken in de keuzemail. Er
+            gebeurt niets automatisch na deze datum: wie niet koos, betaal je zelf terug met de knop bij Acties.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -209,6 +290,8 @@ export default async function CancellationPage({ searchParams }: { searchParams:
           </Table>
         </CardContent>
       </Card>
+
+      {testCard}
     </div>
   );
 }

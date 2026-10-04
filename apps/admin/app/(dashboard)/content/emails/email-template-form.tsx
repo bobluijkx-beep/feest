@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { renderTemplate } from "@lions/core/email/template-engine";
 import { renderWithLayout, DEFAULT_LAYOUT_HTML } from "@lions/core/email/layout";
-import { ORDER_TEMPLATE_PLACEHOLDERS } from "@lions/core/email/placeholders";
+import { ORDER_TEMPLATE_PLACEHOLDERS, CANCELLATION_TEMPLATE_PLACEHOLDERS } from "@lions/core/email/placeholders";
 import { Button, Input, Label, Select, Card, CardContent } from "@lions/ui";
 import { HtmlEditor } from "./html-editor";
 import { saveEmailTemplate, type SaveTemplateState } from "./actions";
@@ -89,7 +89,10 @@ export function EmailTemplateForm({
           <HtmlEditor
             value={bodyHtml}
             onChange={setBodyHtml}
-            placeholders={[...ORDER_TEMPLATE_PLACEHOLDERS, ...customPlaceholderKeys]}
+            placeholders={[
+              ...(type.startsWith("CANCELLATION_") ? CANCELLATION_TEMPLATE_PLACEHOLDERS : ORDER_TEMPLATE_PLACEHOLDERS),
+              ...customPlaceholderKeys,
+            ]}
             rows={10}
           />
           <input type="hidden" name="bodyHtml" value={bodyHtml} />

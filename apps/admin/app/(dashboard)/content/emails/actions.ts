@@ -10,7 +10,15 @@ export interface SaveTemplateState {
   success?: boolean;
 }
 
-const VALID_TYPES: EmailTemplateType[] = ["ORDER_CONFIRMATION", "PAYMENT_FAILED", "PAYMENT_REMINDER", "CANCELLED"];
+const VALID_TYPES: EmailTemplateType[] = [
+  "ORDER_CONFIRMATION",
+  "PAYMENT_FAILED",
+  "PAYMENT_REMINDER",
+  "CANCELLED",
+  "CANCELLATION_REFUND",
+  "CANCELLATION_PARTIAL",
+  "CANCELLATION_DONATE",
+];
 
 export async function saveEmailTemplate(
   _prevState: SaveTemplateState,

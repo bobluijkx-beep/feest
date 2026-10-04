@@ -34,6 +34,7 @@ export * from "./song-requests/token";
 export * from "./song-requests/song-requests";
 export * from "./products/bundles";
 export * from "./cancellation/cancellation";
+export * from "./cancellation/test-buyers";
 export * from "./checkout/errors";
 export * from "./checkout/donation";
 export * from "./checkout/create-order";

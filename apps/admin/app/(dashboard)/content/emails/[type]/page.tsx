@@ -6,7 +6,15 @@ import { requireStaffRole } from "@/lib/require-role";
 import { getSelectedEvent } from "@/lib/selected-event";
 import { EmailTemplateForm } from "../email-template-form";
 
-const VALID_TYPES: EmailTemplateType[] = ["ORDER_CONFIRMATION", "PAYMENT_FAILED", "PAYMENT_REMINDER", "CANCELLED"];
+const VALID_TYPES: EmailTemplateType[] = [
+  "ORDER_CONFIRMATION",
+  "PAYMENT_FAILED",
+  "PAYMENT_REMINDER",
+  "CANCELLED",
+  "CANCELLATION_REFUND",
+  "CANCELLATION_PARTIAL",
+  "CANCELLATION_DONATE",
+];
 
 export default async function EmailTemplateEditPage({
   params,

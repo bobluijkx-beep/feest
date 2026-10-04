@@ -7,6 +7,8 @@ import { sendEmail } from "../email/resend";
 import { renderWithLayout } from "../email/layout";
 import { getEmailLayoutHtml } from "../email/get-layout";
 import { eventBrandingVars } from "../email/event-branding";
+import { getCustomPlaceholderVars } from "../email/custom-placeholders";
+import { defaultEmailTemplates } from "../email/default-templates";
 import { getWebBaseUrl } from "../utils/base-url";
 import type { SegmentRecipient } from "../email/segment";
 
@@ -89,7 +91,7 @@ export interface CancellationNoticeView {
   isDefault: boolean;
   processedAt: Date | null;
   lastError: string | null;
-  event: { id: string; slug: string; name: string };
+  event: { id: string; slug: string; name: string; cancellationDeadline: Date | null };
   /** Tickets + producten (PAID of al REFUNDED): het bedrag waar de keuze over gaat. */
   amountCents: number;
   /** Reeds gedane donaties van deze koper — los van de keuze, blijven altijd staan. */
@@ -114,7 +116,7 @@ async function amountsFor(eventId: string, email: string) {
 export async function getNoticeByToken(token: string): Promise<CancellationNoticeView | null> {
   const notice = await prisma.cancellationNotice.findUnique({
     where: { token },
-    include: { event: { select: { id: true, slug: true, name: true } } },
+    include: { event: { select: { id: true, slug: true, name: true, cancellationDeadline: true } } },
   });
   if (!notice) return null;
   const { refundableCents, donatedCents } = await amountsFor(notice.eventId, notice.email);
@@ -140,7 +142,10 @@ export async function getNoticeByToken(token: string): Promise<CancellationNotic
  * aan (de annuleringspagina gaf daardoor een server-side exception). */
 export async function listNotices(eventId: string): Promise<CancellationNoticeView[]> {
   const notices = await prisma.cancellationNotice.findMany({ where: { eventId }, orderBy: { buyerName: "asc" } });
-  const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { id: true, slug: true, name: true } });
+  const event = await prisma.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { id: true, slug: true, name: true, cancellationDeadline: true },
+  });
   const orders = await prisma.order.findMany({
     where: { eventId, isVisible: true, status: { in: ["PAID", "REFUNDED"] } },
     select: { buyerEmail: true, ...ORDER_ITEMS_FOR_AMOUNTS },
@@ -321,21 +326,42 @@ export async function attachCancellationLinks(
   const notices = await prisma.cancellationNotice.findMany({ where: { eventId }, select: { email: true, token: true } });
   if (notices.length === 0) return recipients;
 
-  const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { slug: true } });
+  const event = await prisma.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { slug: true, cancellationDeadline: true },
+  });
   const base = getWebBaseUrl();
   const tokenByEmail = new Map(notices.map((n) => [n.email.toLowerCase(), n.token]));
+  const deadline = event.cancellationDeadline
+    ? formatDeadline(event.cancellationDeadline)
+    : "zo snel mogelijk";
 
   return recipients.map((r) => {
     const token = tokenByEmail.get(r.email.toLowerCase());
     const keuzelink = token ? `${base}/${event.slug}/annulering/${token}` : `${base}/${event.slug}`;
-    return { ...r, personalization: { ...r.personalization, keuzelink } };
+    return { ...r, personalization: { ...r.personalization, keuzelink, deadline } };
   });
+}
+
+/** "12 oktober 2026" — Europe/Amsterdam, want de deadline wordt als kalenderdatum opgeslagen
+ * (middag UTC), zodat de dag in Nederland altijd dezelfde is. */
+export function formatDeadline(date: Date): string {
+  return date.toLocaleDateString("nl-NL", { dateStyle: "long", timeZone: "Europe/Amsterdam" });
 }
 
 function formatEuro(cents: number): string {
   return `€${(cents / 100).toFixed(2).replace(".", ",")}`;
 }
 
+const TEMPLATE_TYPE_BY_CHOICE = {
+  REFUND: "CANCELLATION_REFUND",
+  PARTIAL: "CANCELLATION_PARTIAL",
+  DONATE: "CANCELLATION_DONATE",
+} as const;
+
+/** Bevestigingsmail na de keuze, opgebouwd uit het (door het bestuur bewerkbare) EmailTemplate
+ * van dit event — of de standaardtekst uit default-templates.ts zolang er nog geen eigen
+ * versie is opgeslagen onder E-mailtemplates. */
 async function sendChoiceConfirmationEmail(
   noticeId: string,
   choice: CancellationChoice,
@@ -345,39 +371,38 @@ async function sendChoiceConfirmationEmail(
 ) {
   const notice = await prisma.cancellationNotice.findUniqueOrThrow({
     where: { id: noticeId },
-    include: { event: { select: { name: true, theme: true, organizationId: true } } },
+    include: { event: { select: { id: true, name: true, theme: true, organizationId: true } } },
   });
+  const type = TEMPLATE_TYPE_BY_CHOICE[choice];
+  const templateRow = await prisma.emailTemplate.findUnique({
+    where: { eventId_type_language: { eventId: notice.event.id, type, language: "nl" } },
+  });
+  const template = templateRow ?? defaultEmailTemplates[type];
+
   const voornaam = notice.buyerName.split(" ")[0] ?? notice.buyerName;
-  const amount = formatEuro(amountCents);
-  const donationNote =
+  const eerdereDonatie =
     donatedCents > 0
       ? `<p>Je eerder gedane donatie van <strong>${formatEuro(donatedCents)}</strong> blijft staan bij het goede doel — daar zijn we je dankbaar voor.</p>`
       : "";
 
-  const refundPart = formatEuro(amountCents - chosenDonationCents);
-  const donatePart = formatEuro(chosenDonationCents);
-
-  const subject =
-    choice === "REFUND"
-      ? `Je terugbetaling voor ${notice.event.name}`
-      : choice === "PARTIAL"
-        ? `Je terugbetaling en donatie voor ${notice.event.name}`
-        : `Bedankt voor je donatie aan het goede doel`;
-  const bodyHtml =
-    choice === "PARTIAL"
-      ? `<p>Beste ${voornaam},</p><p>Bedankt voor je keuze. Van je bestelling voor <strong>${notice.event.name}</strong> storten we <strong>${refundPart}</strong> terug op de rekening waarmee je hebt betaald (dat kan enkele werkdagen duren) en doneer je <strong>${donatePart}</strong> aan ons goede doel. Je tickets zijn komen te vervallen.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat — en bedankt voor je steun.</p>`
-      : choice === "REFUND"
-      ? `<p>Beste ${voornaam},</p><p>We hebben je terugbetaling van <strong>${amount}</strong> voor <strong>${notice.event.name}</strong> in gang gezet. Het bedrag wordt teruggestort op de rekening waarmee je hebt betaald; dat kan enkele werkdagen duren.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat.</p>`
-      : `<p>Beste ${voornaam},</p><p>Hartelijk dank! Je hebt gekozen om <strong>${amount}</strong> van je bestelling voor <strong>${notice.event.name}</strong> te doneren aan ons goede doel. Je tickets zijn komen te vervallen en er wordt niets teruggestort.</p>${donationNote}<p>Onze excuses dat het feest niet doorgaat — en bedankt voor je steun.</p>`;
-
-  const [layoutHtml, brandingVars] = await Promise.all([
-    getEmailLayoutHtml({ organizationId: notice.event.organizationId, layoutId: null }),
+  const [layoutHtml, brandingVars, customVars] = await Promise.all([
+    getEmailLayoutHtml({ organizationId: notice.event.organizationId, layoutId: templateRow?.layoutId }),
     eventBrandingVars(notice.event.theme),
+    getCustomPlaceholderVars(notice.event.organizationId),
   ]);
   const rendered = renderWithLayout({
     layoutHtml,
-    content: { subject, bodyHtml },
-    vars: { ...brandingVars, voornaam, event_naam: notice.event.name },
+    content: template,
+    vars: {
+      ...customVars,
+      ...brandingVars,
+      voornaam,
+      event_naam: notice.event.name,
+      bedrag: formatEuro(amountCents),
+      terugbetaald_bedrag: formatEuro(amountCents - chosenDonationCents),
+      gedoneerd_bedrag: formatEuro(chosenDonationCents),
+      eerdere_donatie: eerdereDonatie,
+    },
   });
   await sendEmail({ to: notice.email, subject: rendered.subject, html: rendered.bodyHtml });
 }

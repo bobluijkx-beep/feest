@@ -11,6 +11,9 @@ const TYPES: { type: EmailTemplateType; label: string }[] = [
   { type: "PAYMENT_FAILED", label: "Betaling mislukt / geannuleerd" },
   { type: "PAYMENT_REMINDER", label: "Betaalherinnering (nog niet actief verstuurd)" },
   { type: "CANCELLED", label: "Bestelling geannuleerd" },
+  { type: "CANCELLATION_REFUND", label: "Evenement geannuleerd: bevestiging terugbetaling" },
+  { type: "CANCELLATION_PARTIAL", label: "Evenement geannuleerd: bevestiging deels doneren" },
+  { type: "CANCELLATION_DONATE", label: "Evenement geannuleerd: bevestiging donatie" },
 ];
 
 export default async function EmailTemplatesPage({

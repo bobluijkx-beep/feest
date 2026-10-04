@@ -16,6 +16,17 @@ export const ORDER_TEMPLATE_PLACEHOLDERS = [
   "afmeldlink",
 ] as const;
 
+/** Beschikbaar in de bevestigingsmails na een annuleringskeuze (cancellation.ts). `eerdere_donatie`
+ * is een kant-en-klare alinea (leeg als de koper niet eerder doneerde). */
+export const CANCELLATION_TEMPLATE_PLACEHOLDERS = [
+  "voornaam",
+  "event_naam",
+  "bedrag",
+  "terugbetaald_bedrag",
+  "gedoneerd_bedrag",
+  "eerdere_donatie",
+] as const;
+
 /** Beschikbaar in een bulkmailing (segment.ts bepaalt de personalisatie per ontvanger).
  * whatsapp_share_link/facebook_share_link zijn kant-en-klare "deel dit met vrienden"-links
  * (share-links.ts) — net als ticketlink alleen zinvol binnen een <a href="...">, zie de
@@ -29,6 +40,7 @@ export const CAMPAIGN_PLACEHOLDERS = [
   "whatsapp_share_link",
   "facebook_share_link",
   "keuzelink",
+  "deadline",
   "afmeldlink",
 ] as const;
 

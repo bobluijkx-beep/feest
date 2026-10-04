@@ -100,25 +100,36 @@ export async function getNoticeByToken(token: string): Promise<CancellationNotic
   };
 }
 
+/** Bedragen in één query ophalen en in JS per e-mailadres optellen i.p.v. één aggregate per
+ * koper: de gedeelde prisma-client heeft maar één connectie in de pool, dus N parallelle
+ * queries wachten op elkaar en liepen bij veel kopers tegen de pool-time-out van 10 seconden
+ * aan (de annuleringspagina gaf daardoor een server-side exception). */
 export async function listNotices(eventId: string): Promise<CancellationNoticeView[]> {
-  const [notices, event] = await Promise.all([
-    prisma.cancellationNotice.findMany({ where: { eventId }, orderBy: { buyerName: "asc" } }),
-    prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { id: true, slug: true, name: true } }),
-  ]);
-  return Promise.all(
-    notices.map(async (n) => ({
-      id: n.id,
-      token: n.token,
-      email: n.email,
-      buyerName: n.buyerName,
-      choice: n.choice,
-      isDefault: n.isDefault,
-      processedAt: n.processedAt,
-      lastError: n.lastError,
-      event,
-      amountCents: await amountFor(eventId, n.email),
-    })),
-  );
+  const notices = await prisma.cancellationNotice.findMany({ where: { eventId }, orderBy: { buyerName: "asc" } });
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { id: true, slug: true, name: true } });
+  const orders = await prisma.order.findMany({
+    where: { eventId, isVisible: true, status: { in: ["PAID", "REFUNDED"] } },
+    select: { buyerEmail: true, totalCents: true },
+  });
+
+  const amountByEmail = new Map<string, number>();
+  for (const order of orders) {
+    const key = order.buyerEmail.toLowerCase();
+    amountByEmail.set(key, (amountByEmail.get(key) ?? 0) + order.totalCents);
+  }
+
+  return notices.map((n) => ({
+    id: n.id,
+    token: n.token,
+    email: n.email,
+    buyerName: n.buyerName,
+    choice: n.choice,
+    isDefault: n.isDefault,
+    processedAt: n.processedAt,
+    lastError: n.lastError,
+    event,
+    amountCents: amountByEmail.get(n.email.toLowerCase()) ?? 0,
+  }));
 }
 
 /** Legt de keuze van een koper vast en voert 'm uit. De keuze wordt eerst atomair "geclaimd"

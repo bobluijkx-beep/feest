@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createOrder, InsufficientStockError, prisma, getWebBaseUrl } from "@lions/core";
+import { createOrder, EventCancelledError, InsufficientStockError, prisma, getWebBaseUrl } from "@lions/core";
 
 export async function startCheckout(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
@@ -68,6 +68,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
     checkoutUrl = result.checkoutUrl;
   } catch (err) {
     if (err instanceof InsufficientStockError) redirect(`/${eventSlug}/afrekenen?error=stock`);
+    if (err instanceof EventCancelledError) redirect(`/${eventSlug}/afrekenen?error=cancelled`);
     console.error("Checkout mislukt", err);
     redirect(`/${eventSlug}/afrekenen?error=unknown`);
   }

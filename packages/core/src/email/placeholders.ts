@@ -28,6 +28,7 @@ export const CAMPAIGN_PLACEHOLDERS = [
   "ticketlink",
   "whatsapp_share_link",
   "facebook_share_link",
+  "keuzelink",
   "afmeldlink",
 ] as const;
 

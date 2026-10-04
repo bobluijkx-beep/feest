@@ -114,6 +114,7 @@ export function CampaignComposeForm({
               <input key={kind} type="hidden" name="productKinds" value={kind} />
             ))}
             <input type="hidden" name="checkedInFilter" value={segment.checkedInFilter ?? "ANY"} />
+            <input type="hidden" name="cancellationFilter" value={segment.cancellationFilter ?? "ANY"} />
           </>
         )}
 

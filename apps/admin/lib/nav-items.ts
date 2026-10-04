@@ -11,6 +11,7 @@ import {
   History,
   Music,
   BookUser,
+  CalendarX,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@lions/db";
@@ -26,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "FINANCE", "EDITOR"] },
   { href: "/orders", label: "Bestellingen", icon: Receipt, roles: ["ADMIN", "FINANCE"] },
   { href: "/events", label: "Evenementen", icon: CalendarDays, roles: ["ADMIN"] },
+  { href: "/annulering", label: "Annulering", icon: CalendarX, roles: ["ADMIN", "FINANCE"] },
   { href: "/products", label: "Producten", icon: Package, roles: ["ADMIN", "FINANCE"] },
   { href: "/song-requests", label: "Muziekverzoeken", icon: Music, roles: ["ADMIN", "EDITOR"] },
   { href: "/settings", label: "Instellingen", icon: Settings, roles: ["ADMIN", "FINANCE"] },

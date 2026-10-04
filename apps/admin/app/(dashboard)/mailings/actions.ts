@@ -7,6 +7,7 @@ import {
   createBulkCampaign,
   buildSegmentRecipients,
   buildAdHocRecipients,
+  attachCancellationLinks,
   hasEventAccess,
   logAudit,
 } from "@lions/core";
@@ -51,7 +52,9 @@ export async function createCampaign(_prevState: CreateCampaignState, formData: 
     (r) => !alreadyIncluded.has(r.email.toLowerCase()),
   );
 
-  const recipients = [...selected, ...extras];
+  // {{keuzelink}}: persoonlijke link naar de annuleringskeuzepagina, alleen aanwezig als dit
+  // event is geannuleerd (cancellation.ts) — anders geeft dit de ontvangers ongewijzigd terug.
+  const recipients = await attachCancellationLinks(segment.eventId, [...selected, ...extras]);
   if (recipients.length === 0) return { error: "Kies minstens één ontvanger." };
 
   const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001";

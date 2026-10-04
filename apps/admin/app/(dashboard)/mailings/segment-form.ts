@@ -22,10 +22,13 @@ export function parseSegmentFromFormData(formData: FormData): CampaignSegment {
     ? (checkedInFilterRaw as (typeof VALID_CHECKED_IN_FILTERS)[number])
     : "ANY";
 
+  const cancellationFilter = String(formData.get("cancellationFilter") ?? "ANY") === "NO_CHOICE_YET" ? "NO_CHOICE_YET" : "ANY";
+
   return {
     type: "EVENT",
     eventId,
     productKinds: productKinds.length > 0 ? productKinds : undefined,
     checkedInFilter,
+    cancellationFilter,
   };
 }

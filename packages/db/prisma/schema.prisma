@@ -55,6 +55,11 @@ enum ProductKind {
   DONATION
 }
 
+enum CancellationChoice {
+  REFUND
+  DONATE
+}
+
 enum EmailCampaignStatus {
   QUEUED
   SENDING
@@ -132,6 +137,12 @@ model Event {
   // paginabeheer) — los van `status`, dat de publieke zichtbaarheid regelt. `/events`
   // zelf en de bestellingen-filter tonen altijd alles, ook onzichtbare events.
   isVisible      Boolean         @default(true)
+  // Geannuleerd evenement: geen nieuwe bestellingen meer (createOrder), banner op de site, en
+  // kopers kiezen via een persoonlijke link tussen terugbetaling of doneren (zie
+  // CancellationNotice en packages/core/src/cancellation/cancellation.ts). Los van `status`:
+  // het event blijft PUBLISHED zodat de keuzepagina onder /<slug>/annulering bereikbaar blijft.
+  isCancelled    Boolean         @default(false)
+  cancellationNotices CancellationNotice[]
   products       Product[]
   bundles        ProductBundle[]
   orders         Order[]
@@ -220,6 +231,33 @@ model ProductBundleItem {
   @@unique([bundleId, productId])
   @@index([productId])
   @@map("product_bundle_items")
+}
+
+// Eén rij per koper (e-mailadres, kleine letters) per geannuleerd event: draagt de persoonlijke,
+// niet te raden `token` voor de verborgen keuzepagina en legt vast of de koper terugbetaling of
+// doneren koos. Per koper i.p.v. per bestelling zodat iemand met meerdere bestellingen één
+// link/keuze krijgt die voor al zijn betaalde bestellingen geldt.
+model CancellationNotice {
+  id          String              @id @default(cuid())
+  eventId     String
+  event       Event               @relation(fields: [eventId], references: [id])
+  email       String
+  buyerName   String
+  token       String              @unique
+  choice      CancellationChoice?
+  // true als de keuze niet door de koper zelf is gemaakt maar automatisch (terugbetaling)
+  // na de deadline voor niet-reageerders.
+  isDefault   Boolean             @default(false)
+  chosenAt    DateTime?
+  // Gezet zodra de bijbehorende actie (alle Mollie-refunds resp. ticket-annulering) is
+  // afgerond; een keuze zonder processedAt is dus nog onderweg of mislukt (lastError).
+  processedAt DateTime?
+  lastError   String?
+  createdAt   DateTime            @default(now())
+
+  @@unique([eventId, email])
+  @@index([eventId])
+  @@map("cancellation_notices")
 }
 
 model Order {

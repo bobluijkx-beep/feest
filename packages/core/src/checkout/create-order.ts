@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "../db";
 import { createMolliePayment } from "../mollie/client";
-import { InsufficientStockError, InvalidDonationAmountError } from "./errors";
+import { EventCancelledError, InsufficientStockError, InvalidDonationAmountError } from "./errors";
 import { isValidDonationAmountCents } from "./donation";
 import { scheduleOrderExpiry } from "./qstash";
 import { splitBundlePriceCents } from "../products/bundles";
@@ -70,6 +70,7 @@ export async function createOrder(params: {
   }
 
   const event = await prisma.event.findUniqueOrThrow({ where: { id: params.eventId } });
+  if (event.isCancelled) throw new EventCancelledError();
 
   const mailingCampaignId = params.mailingCampaignId
     ? (await prisma.emailCampaign.findUnique({ where: { id: params.mailingCampaignId }, select: { id: true } }))?.id

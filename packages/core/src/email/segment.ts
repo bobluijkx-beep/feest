@@ -12,6 +12,9 @@ export interface EventSegment {
   productKinds?: ProductKind[];
   /** Alleen zinvol voor events met TICKET-producten. */
   checkedInFilter?: "ANY" | "NOT_CHECKED_IN" | "CHECKED_IN";
+  /** Alleen zinvol bij een geannuleerd event (zie cancellation.ts): NO_CHOICE_YET = alleen
+   * kopers die nog niet via hun keuzelink hebben gekozen — voor de herinneringsmailing. */
+  cancellationFilter?: "ANY" | "NO_CHOICE_YET";
 }
 
 /** Het org-brede adresboek (packages/core/src/contacts/contacts.ts), minus iedereen die al
@@ -94,8 +97,21 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
   const byEmail = new Map<string, SegmentRecipient>();
 
+  const noChoiceYet =
+    segment.cancellationFilter === "NO_CHOICE_YET"
+      ? new Set(
+          (
+            await prisma.cancellationNotice.findMany({
+              where: { eventId: segment.eventId, choice: null },
+              select: { email: true },
+            })
+          ).map((n) => n.email.toLowerCase()),
+        )
+      : null;
+
   for (const order of orders) {
     if (optedOut.has(order.buyerEmail.toLowerCase())) continue;
+    if (noChoiceYet && !noChoiceYet.has(order.buyerEmail.toLowerCase())) continue;
 
     if (segment.productKinds && segment.productKinds.length > 0) {
       const kinds = segment.productKinds;

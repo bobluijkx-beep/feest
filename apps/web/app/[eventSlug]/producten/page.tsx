@@ -10,6 +10,17 @@ export default async function ProductsPage({ params }: { params: Promise<{ event
   const event = await getPublicEvent(eventSlug);
   if (!event) notFound();
 
+  if (event.isCancelled) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-8 md:max-w-4xl lg:max-w-6xl">
+        <h1 className="font-display text-2xl">Producten</h1>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Dit evenement is geannuleerd; er zijn geen artikelen meer te bestellen.
+        </p>
+      </main>
+    );
+  }
+
   const [products, bundles] = await Promise.all([
     prisma.product.findMany({
       where: { eventId: event.id, isActive: true },

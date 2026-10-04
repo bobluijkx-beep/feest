@@ -5,6 +5,13 @@ export class InsufficientStockError extends Error {
   }
 }
 
+export class EventCancelledError extends Error {
+  constructor() {
+    super("Dit evenement is geannuleerd.");
+    this.name = "EventCancelledError";
+  }
+}
+
 export class InvalidDonationAmountError extends Error {
   constructor(public productId: string) {
     super("Ongeldig donatiebedrag (moet minimaal €2,50 zijn).");

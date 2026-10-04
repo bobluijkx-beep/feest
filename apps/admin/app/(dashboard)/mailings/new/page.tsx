@@ -13,6 +13,7 @@ export default async function NewCampaignPage({
     segmentType?: string;
     productKinds?: string | string[];
     checkedInFilter?: string;
+    cancellationFilter?: string;
   }>;
 }) {
   const actor = await requireStaffRole(["ADMIN", "EDITOR"]);
@@ -35,6 +36,7 @@ export default async function NewCampaignPage({
     : [];
   for (const kind of productKindsParam) formData.append("productKinds", kind);
   if (params.checkedInFilter) formData.set("checkedInFilter", params.checkedInFilter);
+  if (params.cancellationFilter) formData.set("cancellationFilter", params.cancellationFilter);
 
   const segment = parseSegmentFromFormData(formData);
   const eventSelected = events.some((e) => e.id === segment.eventId);
@@ -116,6 +118,20 @@ export default async function NewCampaignPage({
                     <option value="ANY">Iedereen</option>
                     <option value="NOT_CHECKED_IN">Nog niet ingecheckt</option>
                     <option value="CHECKED_IN">Al ingecheckt</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="cancellationFilter" className="text-sm font-medium">
+                    Annulering
+                  </label>
+                  <Select
+                    id="cancellationFilter"
+                    name="cancellationFilter"
+                    defaultValue={segment.cancellationFilter}
+                    className="w-56"
+                  >
+                    <option value="ANY">Iedereen</option>
+                    <option value="NO_CHOICE_YET">Nog niet gekozen (herinnering)</option>
                   </Select>
                 </div>
               </>

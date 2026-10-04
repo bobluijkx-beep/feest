@@ -70,6 +70,11 @@ export function CheckoutForm({
               winkelwagen aan.
             </p>
           )}
+          {error === "cancelled" && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              Dit evenement is helaas geannuleerd; bestellen is niet meer mogelijk.
+            </p>
+          )}
           {error === "unknown" && (
             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
               Er ging iets mis bij het starten van de betaling. Probeer het opnieuw.

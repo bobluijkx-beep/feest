@@ -74,6 +74,13 @@ export default async function EventLayout({
       <div className="relative z-0">
         <CartProvider eventSlug={eventSlug}>
           <StorefrontHeader eventSlug={eventSlug} eventName={event.name} logoUrl={logoUrl} />
+          {/* Vaste destructive-rood (net als de badge-blok, page-block-view.tsx) i.p.v. de
+              per event overschrijfbare primary/accent: moet op elk thema opvallen. */}
+          {event.isCancelled && (
+            <div className="bg-destructive px-4 py-3 text-center text-sm font-semibold text-white">
+              {event.name} gaat helaas niet door. Heb je al een ticket? Kijk in je e-mail voor je mogelijkheden.
+            </div>
+          )}
           {children}
         </CartProvider>
       </div>

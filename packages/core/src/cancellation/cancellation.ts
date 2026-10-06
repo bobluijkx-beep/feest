@@ -225,6 +225,12 @@ export async function submitCancellationChoice(
  * staan, zie refundOrderKeepingDonations), DONATE = alleen de tickets annuleren — het geld
  * staat al bij ons en gaat niet heen en weer. Een mislukte terugbetaling laat processedAt leeg
  * en zet lastError, zodat de admin 'm kan herhalen. */
+/** Staat in CancellationNotice.lastError bij een afgeronde (processedAt gezet) keuze waarvan de
+ * betaling al buiten de site om in Mollie was terugbetaald — het adminscherm herkent dit als
+ * "al terugbetaald" i.p.v. een mislukking. */
+export const ALREADY_REFUNDED_NOTE =
+  "De betaling was al volledig terugbetaald in Mollie (buiten de site om); er is niets (meer) teruggestort en er is geen bevestigingsmail verstuurd.";
+
 export async function processNotice(noticeId: string): Promise<void> {
   const notice = await prisma.cancellationNotice.findUniqueOrThrow({ where: { id: noticeId } });
   if (!notice.choice) return;
@@ -236,10 +242,13 @@ export async function processNotice(noticeId: string): Promise<void> {
   const before = await amountsFor(notice.eventId, notice.email);
 
   const errors: string[] = [];
+  // true zodra een bestelling al (buiten de site om) volledig in Mollie bleek te zijn terugbetaald
+  let alreadyRefunded = false;
   if (notice.choice === "REFUND") {
     for (const order of orders) {
       const result = await refundOrderKeepingDonations(order.id);
       if (!result.ok) errors.push(`${order.id}: ${result.error}`);
+      else if (result.alreadyRefunded) alreadyRefunded = true;
     }
   } else if (notice.choice === "PARTIAL") {
     // Het terug te storten bedrag (totaal minus de gekozen donatie) wordt oudste bestelling
@@ -270,6 +279,7 @@ export async function processNotice(noticeId: string): Promise<void> {
       }
       const result = await refundOrderKeepingDonations(order.id, { refundCents });
       if (!result.ok) errors.push(`${order.id}: ${result.error}`);
+      else if (result.alreadyRefunded) alreadyRefunded = true;
     }
   } else {
     await prisma.ticket.updateMany({
@@ -285,10 +295,11 @@ export async function processNotice(noticeId: string): Promise<void> {
 
   await prisma.cancellationNotice.update({
     where: { id: noticeId },
-    data: { processedAt: new Date(), lastError: null },
+    data: { processedAt: new Date(), lastError: alreadyRefunded ? ALREADY_REFUNDED_NOTE : null },
   });
-  // Niets te kiezen/terug te betalen (bv. alleen donaties) = geen bevestigingsmail.
-  if (before.refundableCents > 0) {
+  // Niets te kiezen/terug te betalen (bv. alleen donaties) of al eerder buiten de site om
+  // terugbetaald = geen bevestigingsmail ("we storten terug" zou dan onwaar zijn).
+  if (before.refundableCents > 0 && !alreadyRefunded) {
     await sendChoiceConfirmationEmail(
       notice.id,
       notice.choice,

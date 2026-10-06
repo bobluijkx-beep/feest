@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getNoticeByToken, formatDeadline } from "@lions/core";
+import { getNoticeByToken, formatDeadline, ALREADY_REFUNDED_NOTE } from "@lions/core";
 import { Card, CardContent } from "@lions/ui";
 import { getPublicEvent } from "@/lib/get-event";
 import { ChoiceForm } from "./choice-form";
@@ -39,8 +39,12 @@ export default async function CancellationChoicePage({
   const processingNote = notice.processedAt
     ? null
     : "We verwerken je terugbetaling nog; lukt het niet automatisch, dan nemen wij contact met je op.";
-  const result =
-    notice.choice === "DONATE"
+  // Betaling bleek al eerder volledig in Mollie terugbetaald (buiten de site om): geen
+  // terugbetaal-/donatieverhaal tonen, er is niets meer te regelen.
+  const alreadyRefunded = notice.choice !== null && notice.processedAt !== null && notice.lastError === ALREADY_REFUNDED_NOTE;
+  const result = alreadyRefunded
+    ? null
+    : notice.choice === "DONATE"
       ? {
           title: "Bedankt voor je donatie!",
           lines: [
@@ -100,7 +104,14 @@ export default async function CancellationChoicePage({
               </>
             )}
 
-            {notice.choice === "REFUND" && (
+            {alreadyRefunded && (
+              <>
+                <p>Je betaling voor {event.name} is al eerder volledig aan je teruggestort.</p>
+                <p>Er hoeft niets meer te gebeuren.</p>
+              </>
+            )}
+
+            {!alreadyRefunded && notice.choice === "REFUND" && (
               <>
                 <p>
                   {notice.processedAt
@@ -116,7 +127,7 @@ export default async function CancellationChoicePage({
               </>
             )}
 
-            {notice.choice === "PARTIAL" && (
+            {!alreadyRefunded && notice.choice === "PARTIAL" && (
               <>
                 <p>
                   Bedankt voor je keuze! Je doneert {formatEuro(notice.chosenDonationCents ?? 0)} aan ons goede doel en
@@ -132,7 +143,7 @@ export default async function CancellationChoicePage({
               </>
             )}
 
-            {notice.choice === "DONATE" && (
+            {!alreadyRefunded && notice.choice === "DONATE" && (
               <>
                 <p>Hartelijk dank! Je hebt {amount} gedoneerd aan ons goede doel.</p>
                 <p>Je tickets zijn vervallen en er wordt niets teruggestort. Je ontvangt een bevestiging per e-mail.</p>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma, listNotices, countTestOrders, formatDeadline } from "@lions/core";
+import { prisma, listNotices, countTestOrders, formatDeadline, ALREADY_REFUNDED_NOTE } from "@lions/core";
 import {
   Badge,
   Card,
@@ -140,9 +140,19 @@ export default async function CancellationPage({ searchParams }: { searchParams:
 
   // Per keuze het teruggestorte en het gedoneerde deel van amountCents: bij "Deels" (PARTIAL)
   // zit er in één keuze van beide wat in.
+  // Een koper wiens betaling al buiten de site om in Mollie was terugbetaald, telt niet mee in de
+  // totalen: er is geen geld meer om terug te storten of te doneren.
+  const wasAlreadyRefunded = (n: (typeof notices)[number]) => n.processedAt !== null && n.lastError === ALREADY_REFUNDED_NOTE;
   const donatedPart = (n: (typeof notices)[number]) =>
-    n.choice === "DONATE" ? n.amountCents : n.choice === "PARTIAL" ? (n.chosenDonationCents ?? 0) : 0;
-  const refundedPart = (n: (typeof notices)[number]) => (n.choice === null ? 0 : n.amountCents - donatedPart(n));
+    wasAlreadyRefunded(n)
+      ? 0
+      : n.choice === "DONATE"
+        ? n.amountCents
+        : n.choice === "PARTIAL"
+          ? (n.chosenDonationCents ?? 0)
+          : 0;
+  const refundedPart = (n: (typeof notices)[number]) =>
+    n.choice === null || wasAlreadyRefunded(n) ? 0 : n.amountCents - donatedPart(n);
 
   const refunded = notices.filter((n) => n.processedAt && refundedPart(n) > 0);
   const donated = notices.filter((n) => donatedPart(n) > 0);
@@ -285,6 +295,10 @@ export default async function CancellationPage({ searchParams }: { searchParams:
                   <TableCell>
                     {n.choice === null ? (
                       <Badge variant="secondary">Wacht op keuze</Badge>
+                    ) : wasAlreadyRefunded(n) ? (
+                      <Badge variant="secondary" title={n.lastError ?? undefined}>
+                        Al terugbetaald in Mollie
+                      </Badge>
                     ) : n.processedAt ? (
                       <Badge>Afgerond</Badge>
                     ) : (

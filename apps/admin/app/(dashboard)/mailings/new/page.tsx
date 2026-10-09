@@ -1,4 +1,4 @@
-import { prisma, scopeEventsForActor, buildSegmentRecipients } from "@lions/core";
+import { prisma, scopeEventsForActor, buildSegmentRecipients, isServiceSegment } from "@lions/core";
 import type { ProductKind } from "@lions/db";
 import { Card, CardHeader, CardTitle, CardContent, Select, Button } from "@lions/ui";
 import { requireStaffRole } from "@/lib/require-role";
@@ -151,6 +151,14 @@ export default async function NewCampaignPage({
             <CardTitle>Mailing opstellen ({candidates.length} kandidaten)</CardTitle>
           </CardHeader>
           <CardContent>
+            {isServiceSegment(segment) && (
+              <p className="mb-4 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground">
+                <strong className="text-foreground">Servicebericht over de annulering.</strong> Ook kopers die zich
+                hebben afgemeld voor wervende mailings ({candidates.filter((c) => c.optedOut).length} in deze lijst,
+                gemarkeerd) krijgen deze mail, omdat het over hun eigen bestelling gaat. Gebruik deze doelgroep dus
+                niet voor wervende tekst (meer kaarten verkopen, volgende evenementen).
+              </p>
+            )}
             <CampaignComposeForm
               key={JSON.stringify(segment)}
               segment={segment}

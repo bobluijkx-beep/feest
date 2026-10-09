@@ -161,7 +161,7 @@ export default async function CancellationPage({ searchParams }: { searchParams:
   const sum = (list: typeof notices) => list.reduce((total, n) => total + n.amountCents, 0);
   const sumBy = (list: typeof notices, part: (n: (typeof notices)[number]) => number) =>
     list.reduce((total, n) => total + part(n), 0);
-  const pendingOptedOut = pending.filter((n) => optedOut.has(n.email.toLowerCase()));
+  const optedOutBuyers = notices.filter((n) => optedOut.has(n.email.toLowerCase())).length;
 
   const mailingBase = `/mailings/new?eventId=${event.id}&segmentType=EVENT`;
   const totalDonated = notices.reduce((total, n) => total + n.donatedCents, 0);
@@ -252,12 +252,11 @@ export default async function CancellationPage({ searchParams }: { searchParams:
             )}
           </div>
 
-          {pendingOptedOut.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {pendingOptedOut.length} van de nog niet gekozen kopers heeft zich afgemeld voor mailings en ontvangt de
-              keuzemail dus niet; zij worden bij &quot;Niet-reageerders terugbetalen&quot; gewoon terugbetaald.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            De keuzemail en de herinnering zijn servicemails over de eigen bestelling en gaan daarom naar{" "}
+            <strong>alle</strong> kopers met een keuzelink, ook wie zich heeft afgemeld voor wervende mailings
+            {optedOutBuyers > 0 ? ` (nu ${optedOutBuyers})` : ""}. Wervende mails blijven die kopers niet krijgen.
+          </p>
         </CardContent>
       </Card>
 

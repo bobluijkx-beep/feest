@@ -33,6 +33,19 @@ export interface AddressBookSegment {
 
 export type CampaignSegment = EventSegment | AddressBookSegment;
 
+const SERVICE_CANCELLATION_FILTERS = ["HAS_NOTICE", "NO_CHOICE_YET", "TEST_ONLY"];
+
+/** Een servicebericht over de annulering van een event (keuzemail, herinnering, testverzending):
+ * gaat alleen naar kopers met een annuleringsnotice en betreft hun eigen bestelling/betaling.
+ * Zulke berichten horen — anders dan wervende mailings — ook afgemelde kopers te bereiken
+ * (EmailOptOut geldt alleen voor wervende mails over dit en toekomstige evenementen). Werkt op
+ * `unknown` zodat het ook op de opgeslagen EmailCampaign.segment (Json) toepasbaar is. */
+export function isServiceSegment(segment: unknown): boolean {
+  if (typeof segment !== "object" || segment === null) return false;
+  const s = segment as { type?: unknown; cancellationFilter?: unknown };
+  return s.type === "EVENT" && typeof s.cancellationFilter === "string" && SERVICE_CANCELLATION_FILTERS.includes(s.cancellationFilter);
+}
+
 export interface SegmentRecipient {
   email: string;
   /** Volledige naam, puur voor weergave in de admin (het selecteren van individuele
@@ -40,6 +53,9 @@ export interface SegmentRecipient {
    * personalization gebruikt. */
   name: string;
   personalization: Record<string, string>;
+  /** Alleen gezet bij een servicebericht-doelgroep: deze koper heeft zich afgemeld voor wervende
+   * mailings maar krijgt dit bericht toch (zie isServiceSegment). */
+  optedOut?: boolean;
 }
 
 /** Bouwt de deelnemerslijst voor een segment. Filtert in JS i.p.v. geneste Prisma-where's
@@ -101,6 +117,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
 
   const optedOut = new Set(optOuts.map((o) => o.email.toLowerCase()));
   const byEmail = new Map<string, SegmentRecipient>();
+  const service = isServiceSegment(segment);
 
   const testEmails =
     segment.cancellationFilter === "TEST_ONLY"
@@ -130,7 +147,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
       : null;
 
   for (const order of orders) {
-    if (optedOut.has(order.buyerEmail.toLowerCase())) continue;
+    if (!service && optedOut.has(order.buyerEmail.toLowerCase())) continue;
     if (noticeEmails && !noticeEmails.has(order.buyerEmail.toLowerCase())) continue;
     if (testEmails && !testEmails.has(order.buyerEmail.toLowerCase())) continue;
 
@@ -158,6 +175,7 @@ export async function buildSegmentRecipients(segment: CampaignSegment): Promise<
         aantal_tickets: String(order.tickets.length),
         afmeldlink: buildUnsubscribeLinkHtml(order.buyerEmail),
       },
+      ...(service && optedOut.has(order.buyerEmail.toLowerCase()) ? { optedOut: true } : {}),
     });
   }
 

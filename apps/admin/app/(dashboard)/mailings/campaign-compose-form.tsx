@@ -171,6 +171,7 @@ export function CampaignComposeForm({
                 />
                 <span className="font-medium">{c.name}</span>
                 <span className="text-muted-foreground">{c.email}</span>
+                {c.optedOut && <span className="text-xs text-muted-foreground">(afgemeld voor wervende mailings)</span>}
               </label>
             ))}
             {candidates.length === 0 && (

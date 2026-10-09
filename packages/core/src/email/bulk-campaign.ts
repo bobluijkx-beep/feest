@@ -12,7 +12,7 @@ import { buildUnsubscribeLinkHtml } from "./unsubscribe";
 import { buildShareLinks } from "./share-links";
 import { getWhatsappShareMessageTemplate } from "../settings/settings";
 import { getWebBaseUrl } from "../utils/base-url";
-import type { CampaignSegment, SegmentRecipient } from "./segment";
+import { isServiceSegment, type CampaignSegment, type SegmentRecipient } from "./segment";
 
 const BATCH_SIZE = 20;
 /** Kleine buffer tussen vervolgbatches, als marge voor Resend's ratelimit. De eerste
@@ -174,6 +174,16 @@ function unsubscribeFooter(email: string): string {
   return `<hr /><p style="font-size:12px;color:#888;">Wil je geen e-mails meer ontvangen? ${buildUnsubscribeLinkHtml(email)}.</p>`;
 }
 
+/** Voettekst van een servicebericht (annulering): geen "afmelden voor deze mail", want die gaat
+ * over de eigen bestelling en wordt altijd verstuurd; wel duidelijk waarom afgemelden hem ook
+ * krijgen. Wie niet is afgemeld krijgt nog wel de gewone afmeldlink voor wervende mailings. */
+function serviceFooter(email: string, optedOut: boolean): string {
+  const note =
+    "Dit is een servicebericht over je bestelling voor een evenement dat niet doorgaat. Je ontvangt het ook als je je hebt afgemeld voor wervende e-mails; die sturen we je niet meer.";
+  const unsubscribe = optedOut ? "" : ` Wil je geen wervende e-mails meer ontvangen? ${buildUnsubscribeLinkHtml(email)}.`;
+  return `<hr /><p style="font-size:12px;color:#888;">${note}${unsubscribe}</p>`;
+}
+
 /** Verwerkt tot BATCH_SIZE PENDING-recipients van een campagne en plant zichzelf opnieuw
  * (via dezelfde callbackUrl) als er daarna nog PENDING-recipients over zijn. Elke
  * recipient wordt direct na de send-poging op SENT/FAILED gezet (niet pas aan het eind
@@ -208,8 +218,12 @@ export async function processCampaignBatch(campaignId: string, callbackUrl: stri
     layoutId: campaign.layoutId,
   });
 
+  // Servicebericht (annulering): ook afgemelde kopers krijgen het — zie isServiceSegment.
+  const isService = isServiceSegment(campaign.segment);
+
   for (const recipient of batch) {
-    if (optedOut.has(recipient.email.toLowerCase())) {
+    const recipientOptedOut = optedOut.has(recipient.email.toLowerCase());
+    if (recipientOptedOut && !isService) {
       await prisma.emailCampaignRecipient.update({ where: { id: recipient.id }, data: { status: "SKIPPED_OPTOUT" } });
       await prisma.emailCampaign.update({ where: { id: campaignId }, data: { skippedCount: { increment: 1 } } });
       continue;
@@ -218,7 +232,12 @@ export async function processCampaignBatch(campaignId: string, callbackUrl: stri
     const personalization = recipient.personalization as Record<string, string>;
     const rendered = renderWithLayout({
       layoutHtml,
-      content: { subject: campaign.subject, bodyHtml: campaign.bodyHtml + unsubscribeFooter(recipient.email) },
+      content: {
+        subject: campaign.subject,
+        bodyHtml:
+          campaign.bodyHtml +
+          (isService ? serviceFooter(recipient.email, recipientOptedOut) : unsubscribeFooter(recipient.email)),
+      },
       vars: personalization,
     });
 
